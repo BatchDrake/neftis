@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<gtodo>
+  <category title="Privado" place="0"/>
+  <category title="Trabajo" place="1"/>
+  <category title="No archivado" place="2"/>
+</gtodo>

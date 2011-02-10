@@ -1,0 +1,187 @@
+/*
+ *    <one line to give the program's name and a brief idea of what it does.>
+ *    Copyright (C) <year>  <name of author>
+ *
+ *    This program is free software: you can redistribute it and/or modify
+ *    it under the terms of the GNU General Public License as published by
+ *    the Free Software Foundation, either version 3 of the License, or
+ *    (at your option) any later version.
+ *
+ *    This program is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
+ *
+ *    You should have received a copy of the GNU General Public License
+ *    along with this program.  If not, see <http://www.gnu.org/licenses/>
+ */
+
+#include <types.h>
+#include <string.h>
+#include <mm/regions.h>
+#include <mm/spalloc.h>
+
+struct spalloc_page *spalloc_first;
+spin_t spalloc_lock;             
+
+INLINE size_t
+spalloc_bytes_to_blocks (size_t bytes)
+{
+  return __UNITS (bytes, SPALLOC_BLOCK_SIZE);
+}
+
+struct spalloc_page *
+spalloc_find_suitable_page (size_t blocks)
+{
+  struct spalloc_page *this;
+
+  this = spalloc_first ();
+
+  while (this)
+  {
+    if (this->sh_biggest >= blocks)
+      return this;
+
+    this = this->sh_next;
+  }
+
+  return NULL;
+}
+
+/*
+      How do we obtain how many blocks inside a page we require in order
+      to handle a given amount X of usable data blocks.
+
+      Let T the total amount required including metadata,
+          K the size of header (in blocks),
+          blocks (bitmap), the size of the bitmap (in blocks) and
+          X the amount of usable blocks we need. So:
+
+      
+      T = K + blocks (bitmap) + X
+
+      Let SBB: SPALLOC_BLOCK_BITS (bits per block)
+ 
+      blocks (bitmap) = (T) diva SBB;
+
+      Or the same thing:
+
+      blocks (bitmap) = (T + SBB - 1) \ SBB; ("\" is really integer div)
+
+      Now we can say two things:
+
+      blocks (bitmap) * SBB >= T  (equals when T is SBB aligned)
+
+      And:
+
+      blocks (bitmap) * SBB < T + SBB (because this means one block more that
+                                       should be included in blocks (bitmap))
+
+      Now we have the boundaries of blocks (bitmap). Let's guess
+      what's the maximum value that blocks (bitmap) could get for
+      a given amount of usable blocks:
+
+      blocks (bitmap) * SBB >= K + blocks (bitmap) + X
+      blocks (bitmap) * SBB <  K + blocks (bitmap) + X + SBB
+
+      By doing some calculus we get this:
+
+      blocks (bitmap) * (SBB - 1) >= K + X
+      blocks (bitmap) * (SBB - 1) <  K + X + SBB
+
+      blocks (bitmap) >= (K + X) / (SBB - 1)
+      blocks (bitmap) <  (K + X + SBB) / (SBB - 1) 
+
+      (Note those divisions are real)
+      
+      If we assume that blocks (bitmap) = (K + X + SBB) \ (SBB - 1), we rapidly
+      realize that this is a good upper bound for the bitmap size.
+
+      So, T is:
+
+      T = K + (K + X + SBB) \ (SBB - 1) + X
+
+      We don't worry about the actual size the bitmap will get, this is a first
+      approximation to calculate the minimum blocks this structure needs. This
+      will be aligned later.
+
+      Example: this implementation covers blocks of 32 bits, this is: 4 bytes.
+      A 4096 bytes page has 1024 blocks, 8 for the header and 32
+      for the bitmap. That reduces the usable page space to 984 blocks. If
+      we demand 984 blocks:
+
+      T = 8 + (8 + 984 + 32) \ 31 + 984
+      T = 8 + (1024) \ 31 + 984 = 1025
+
+      Which is a little more than the 1024 blocks that a regular page holds.
+      This inmediatly will turn into two pages after the alignment. Can
+      we proof that K + (K + X + SBB) \ (SBB - 1) + X - 1 is enough to
+      hold the bitmap?
+
+      Let's see:
+
+      blocks (bitmap) * SBB >= K + (K + X + SBB) \ (SBB - 1) + X - 1
+      blocks (bitmap) * SBB <  K + (K + X + SBB) \ (SBB - 1) + X + SBB - 1
+
+      ((K + X + SBB) \ (SBB - 1)) * SBB >= K + (K + X + SBB) \ (SBB - 1) + X - 1
+      ((K + X + SBB) \ (SBB - 1)) * SBB <
+          K + (K + X + SBB) \ (SBB - 1) + X + SBB - 1
+
+      a) ((K + X + SBB) \ (SBB - 1)) * (SBB - 1) >= K + X - 1 (trivial)
+      b) ((K + X + SBB) \ (SBB - 1)) * (SBB - 1) <  K + X + SBB - 1
+
+      In this last case:
+
+      ((K + X + SBB) \ (SBB - 1)) * (SBB - 1) <= K + X + SBB
+
+      Which contradicts b) */
+      
+struct spalloc_page *
+spalloc_new_page (size_t blocks)
+{
+  size_t meta_data_blocks;
+  size_t total_blocks;
+  size_t pages;
+  int i;
+  
+  struct spalloc_page *result;
+     
+  meta_data_blocks = spalloc_bytes_to_blocks (sizeof (struct spalloc_page)) +
+                     __UNITS (blocks, SPALLOC_BLOCK_BITS);
+  
+  total_blocks     = __ALIGN (meta_data_blocks + blocks, PAGE_SIZE);
+
+  meta_data_blocks = spalloc_bytes_to_blocks (sizeof (struct spalloc_page)) +
+                     __UNITS (blocks, SPALLOC_BLOCK_BITS);
+  
+  pages = total_blocks / PAGE_SIZE;
+
+  if (pages >= (1 << sizeof (WORD)))
+  {
+    /* Bug! Too much. */
+
+    return NULL;
+  }
+
+  if ((result = page_alloc (pages)) == NULL)
+    return NULL;
+
+  
+  result->sh_pages   = (WORD)  pages;
+  result->sh_biggest = (DWORD) (total_blocks - meta_data_blocks);
+  result->sh_bigptr  = (DWORD) (meta_data_blocks);
+
+  for (i = 0; i < meta_data_blocks; i++)
+    SPALLOC_MARK_BLOCK (result, i);
+
+  for (i = meta_data_blocks; i < total_blocks; i++)
+    SPALLOC_UNMARK_BLOCK (result, i);
+
+  return result;
+}
+
+void *
+spalloc (size_t size)
+{
+  
+}

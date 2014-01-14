@@ -40,16 +40,16 @@ int vm_kernel_space_map_image (struct vm_space *);
 int vm_user_space_map_image (struct vm_space *);
 
 # endif /* _MM_VM_H */
-/* Low-level functions to manipulate page tables */
 
+/* Low-level functions to manipulate page tables */
 int   __vm_map_to (void *, busword_t, busword_t, busword_t, BYTE);
 int   __vm_set_flags (void *, busword_t, busword_t, BYTE);
 int   __vm_unset_flags (void *, busword_t, busword_t, BYTE);
 void *__vm_alloc_page_table (void);
 void  __vm_free_page_table (void *);
+int   __vm_flush_pages (busword_t virt, busword_t pages);
 
 /* Task management functions */
-
 # ifdef _TASK_TASK_H
 
 struct task *__alloc_task (void);

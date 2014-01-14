@@ -21,6 +21,7 @@
 
 #include <types.h>
 #include <misc/list.h>
+#include <mm/regions.h>
 
 /* 
  * NEFTIS VIRTUAL MEMORY SUBSYSTEM - An epic and vigorous prose by BatchDrake
@@ -145,5 +146,20 @@ struct vm_space
   void *vs_pagetable;
 };
 
+struct vm_region *vm_region_new (int);
+void vm_region_destroy (struct vm_region *);
+struct vm_space *vm_space_new (void);
+struct vanon_strip *vm_alloc_colored (struct mm_region *, busword_t, int);
+void vm_space_destroy (struct vm_space *);
+void vm_region_invalidate (struct vm_region *);
+struct vm_region *vm_region_shared (busword_t, busword_t, busword_t);
+int vm_space_add_region (struct vm_space *, struct vm_region *);
+int vm_space_overlap_region (struct vm_space *, struct vm_region *);
+int vm_update_region (struct vm_space *, struct vm_region *);
+int vm_update_tables (struct vm_space *);
+struct vm_space *vm_kernel_space (void);
+const char *vm_type_to_string (int);
+void vm_space_debug (struct vm_space *);
+void vm_init (void);
 #endif /* _MM_VM_H */
 

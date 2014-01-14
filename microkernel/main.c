@@ -36,6 +36,41 @@
 
 char bootstack[4 * PAGE_SIZE];
 
+void
+debug_kmap (void)
+{
+  void *page;
+  char *a, *b;
+  struct vm_region *region;
+  
+  printk ("Gonna alloc something...\n");
+
+  if ((page = page_alloc (1)) == NULL)
+    FAIL ("Cannot allocate one page :(\n");
+
+  if ((region = vm_region_shared (0xa0000000, (busword_t) page, 1)) == NULL)
+    FAIL ("Cannot create region\n");
+
+  region->vr_access |= VREGION_ACCESS_READ | VREGION_ACCESS_WRITE;
+  
+  vm_space_add_region (current_kctx->kc_vm_space, region);
+    
+  vm_region_invalidate (region);
+
+  printk ("Done. Pagedir is %p\n", current_kctx->kc_vm_space->vs_pagetable);
+  vm_space_debug (current_kctx->kc_vm_space);
+  
+  a = (char *) 0xa0000000;
+  b = (char *) page;
+
+  strcpy (a, "Hola mundo");
+
+  printk ("En %p: %s\n", a, a);
+  printk ("En %p: %s\n", b, b);
+}
+
+DEBUG_FUNC (debug_kmap);
+
 void 
 main (void)
 {
@@ -60,6 +95,8 @@ main (void)
   hw_early_irq_init ();
   
   init_kernel_threads ();
+
+  debug_kmap ();
   
   scheduler_init ();
   

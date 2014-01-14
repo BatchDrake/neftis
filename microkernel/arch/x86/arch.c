@@ -42,8 +42,8 @@
 #include <kctx.h>
 
 static int  got_interrupts_working = 0;
-extern void kernel_start;
-extern void kernel_end;
+extern int kernel_start;
+extern int kernel_end;
 
 extern struct console *syscon;
 
@@ -268,6 +268,15 @@ __vm_flags_to_x86_flags (BYTE flags)
     x86_flags |= PAGE_FLAG_GLOBAL;
 
   return x86_flags;
+}
+
+int
+__vm_flush_pages (busword_t virt, busword_t pages)
+{
+  int i;
+  
+  for (i = 0; i < pages; ++i)
+    __asm__ __volatile__ ("invlpg (%0)" :: "r" (virt + (i << __PAGE_BITS)));
 }
 
 int

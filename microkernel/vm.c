@@ -255,6 +255,22 @@ vm_test_range (struct vm_space *space, busword_t start, busword_t pages)
   return 1;
 }
 
+void
+vm_region_invalidate (struct vm_region *region)
+{
+  struct vanon_strip *strip;
+  int i;
+  
+  strip = region->vr_strips.anon;
+
+  while (strip != NULL)
+  {
+    __vm_flush_pages (strip->vs_virt_start, strip->vs_pages);
+    
+    strip = LIST_NEXT (strip);
+  }
+}
+
 int
 vm_space_add_region (struct vm_space *space, struct vm_region *region)
 {
@@ -268,6 +284,9 @@ vm_space_add_region (struct vm_space *space, struct vm_region *region)
                       region,
                       region->vr_virt_start);
 
+
+  vm_update_region (space, region);
+  
   return KERNEL_SUCCESS_VALUE;
 }
 
@@ -333,6 +352,33 @@ vm_region_anonmap (busword_t virt, busword_t pages)
 /* TODO: design macros to generalize dynamic allocation */
 struct vm_region *
 vm_region_iomap (busword_t virt, busword_t phys, busword_t pages)
+{
+  struct vm_region *region;
+  struct vanon_strip *strip;
+  
+  PTR_RETURN_ON_PTR_FAILURE (region = vm_region_new (VREGION_TYPE_IOMAP));
+    
+  if (PTR_UNLIKELY_TO_FAIL (strip = vanon_strip_new ()))
+  {
+    spfree (region);
+    return KERNEL_INVALID_POINTER;
+  }
+  
+  strip->vs_ref_cntr     = 1;
+  strip->vs_pages        = pages;
+  strip->vs_virt_start   = virt;
+  strip->vs_phys_start   = phys;
+  strip->vs_region       = region;
+  
+  region->vr_virt_start  = virt;
+  region->vr_virt_end    = virt + (pages << __PAGE_BITS) - 1;
+  region->vr_strips.anon = strip;
+  
+  return region;
+}
+
+struct vm_region *
+vm_region_shared (busword_t virt, busword_t phys, busword_t pages)
 {
   struct vm_region *region;
   struct vanon_strip *strip;
@@ -435,42 +481,50 @@ vm_update_tables_kernel (struct vm_space *space, struct vm_region *region)
   return KERNEL_SUCCESS_VALUE;
 }
 
+int
+vm_update_region (struct vm_space *space, struct vm_region *region)
+{
+  if (space->vs_pagetable == NULL)
+    space->vs_pagetable = __vm_alloc_page_table ();
+
+  switch (region->vr_type)
+  {
+    case VREGION_TYPE_ANON:
+    case VREGION_TYPE_ANON_NOSWAP:
+      RETURN_ON_FAILURE (vm_update_tables_anon (space, region));
+      break;
+        
+    case VREGION_TYPE_KERNEL:
+      RETURN_ON_FAILURE (vm_update_tables_kernel (space, region));
+      break;
+        
+    case VREGION_TYPE_IOMAP:
+      RETURN_ON_FAILURE (vm_update_tables_iomap (space, region));
+      break;
+        
+    default:
+      FAIL ("unknown region type %d", region->vr_type);
+      break;
+  }
+
+  return KERNEL_SUCCESS_VALUE;
+}
+
 /* Transforms segment information into hardware translation data (i.e.
    update page tables, etc) */
 int
 vm_update_tables (struct vm_space *space)
 {
   struct vm_region *this;
-  
-  
-  if (space->vs_pagetable == NULL)
-    space->vs_pagetable = __vm_alloc_page_table ();
-    
+  int ret;
   
   this = space->vs_regions;
   
   while (this)
   {
-    switch (this->vr_type)
-    {
-      case VREGION_TYPE_ANON:
-      case VREGION_TYPE_ANON_NOSWAP:
-        RETURN_ON_FAILURE (vm_update_tables_anon (space, this));
-        break;
-        
-      case VREGION_TYPE_KERNEL:
-        RETURN_ON_FAILURE (vm_update_tables_kernel (space, this));
-        break;
-        
-      case VREGION_TYPE_IOMAP:
-        RETURN_ON_FAILURE (vm_update_tables_iomap (space, this));
-        break;
-        
-      default:
-        FAIL ("unknown region type %d", this->vr_type);
-        break;
-    }
     
+    if ((ret = vm_update_region (space, this)) != KERNEL_SUCCESS_VALUE)
+      return ret;
     
     this = LIST_NEXT (this);
   }

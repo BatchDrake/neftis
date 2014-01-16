@@ -106,6 +106,7 @@
 #define VM_PAGE_DIRTY            32
 #define VM_PAGE_KERNEL           64  /* Keep always in TLB */
 #define VM_PAGE_IOMAP            128 /* Don't cache this */
+
 /* Uses cache-coloring */
 struct vanon_strip
 {

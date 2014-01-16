@@ -34,8 +34,6 @@
 #include <arch.h>
 #include <kctx.h>
 
-char bootstack[4 * PAGE_SIZE];
-
 void
 debug_kmap (void)
 {

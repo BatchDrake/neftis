@@ -18,7 +18,7 @@
 #define ASM     1
 #include "multiboot.h"
 
-        .section .text
+        .section .bootcode
         .extern bootstack, got_multiboot
         .globl  start, _start
 start:
@@ -62,8 +62,8 @@ multiboot_entry:
         call EXT_C(got_multiboot);
         addl $4, %esp
 
-        /* Now enter the C main function... */
-        call    EXT_C(main)
+        /* Now enter the C boot_entry, which will call main */
+        call    EXT_C(boot_entry)
 
         /* Halt.
          pushl   $halt_message

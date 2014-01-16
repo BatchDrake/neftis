@@ -18,7 +18,7 @@
  
 #include <multiboot.h>
 
-static struct multiboot_info *multiboot_info;
+BOOT_SYMBOL (static struct multiboot_info *multiboot_info);
 
 void
 got_multiboot (struct multiboot_info *mbi)

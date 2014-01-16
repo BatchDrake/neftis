@@ -37,6 +37,9 @@
 #define PAGE_BITS               0xfffff000
 #define CONTROL_BITS            (~PAGE_BITS)
 
+#define BOOT_FUNCTION(expr)       expr __attribute__ ((section (".bootcode")))
+#define BOOT_SYMBOL(expr)       expr __attribute__ ((section (".bootdata")))
+
 #define PAGE_TABLE_DFL_FLAGS    \
   (PAGE_FLAG_PRESENT | PAGE_FLAG_WRITABLE)
   

@@ -53,6 +53,9 @@
 
 #ifndef ASM
 
+#include <defines.h>
+#include <types.h>
+#include <asm/upperhalf.h>
 
 /* Do not include here in boot.S. */
 
@@ -133,8 +136,8 @@ typedef struct memory_map
   unsigned long type;
 } memory_map_t;
 
-void got_multiboot (struct multiboot_info *);
-struct multiboot_info *multiboot_location (void);
+BOOT_FUNCTION (void got_multiboot (struct multiboot_info *));
+BOOT_FUNCTION (struct multiboot_info *multiboot_location (void));
 
 #endif /* ! ASM */
 

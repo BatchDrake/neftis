@@ -18,9 +18,9 @@
  
 #include <types.h>
 #include <asm/seg.h>
+#include <asm/upperhalf.h>
 
 struct gdt_entry gdt[GDT_MAX_SEGMENTS];
-
 
 INLINE void
 gdt_entry_setup (struct gdt_entry *dest,
@@ -28,7 +28,7 @@ gdt_entry_setup (struct gdt_entry *dest,
 {
   if (page_limit > 0xfffff)
   {
-    printk ("page_limit beyond 0xfffff? wtf\n");
+    error ("page_limit beyond 0xfffff? wtf\n");
     return;
   }
   
@@ -109,11 +109,16 @@ void
 gdt_init (void)
 {
   struct gdt_ptr ptr, ptr2;
+  BYTE *gdt_bytes;
+  int i;
   
   ptr.limit = sizeof (struct gdt_entry) * GDT_MAX_SEGMENTS - 1;
   ptr.base  = gdt;
+
+  gdt_bytes = gdt;
   
-  memset (gdt, 0, ptr.limit + 1);
+  for (i = 0; i <= ptr.limit; ++i)
+    gdt_bytes[i] = 0;
   
   gdt_entry_setup (GDT_ENTRY (GDT_SEGMENT_KERNEL_CODE), 0, 0xfffff,
     GDT_ACCESS_EXECUTABLE | GDT_ACCESS_SEGMENT | GDT_ACCESS_PRESENT);

@@ -24,7 +24,7 @@
 .globl x86_refresh_segments
 
 #include <asm/seg.h>
-
+        
 x86_get_current_gdt:
     movl 4(%esp), %eax
     sgdt (%eax)

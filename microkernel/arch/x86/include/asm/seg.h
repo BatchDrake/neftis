@@ -21,6 +21,7 @@
 
 #ifndef ASM
 #  include <types.h>
+#  include <asm/upperhalf.h>
 #endif /* !ASM */
 
 #define GDT_SEGMENT_KERNEL_CODE 0x8

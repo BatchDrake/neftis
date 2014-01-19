@@ -5,11 +5,13 @@
 
 #define BOOTTIME_DEFAULT_ATTRIBUTE 0x1f
 
-BOOT_FUNCTION (void btclear (void));
-BOOT_FUNCTION (void btputs (const char *));
-BOOT_FUNCTION (void btputx (DWORD));
-BOOT_FUNCTION (void btputd (DWORD));
-BOOT_FUNCTION (void boot_prepare_paging_early (DWORD *));
+/* Functions in case we need to output something REALLY REALLY early */
+BOOT_FUNCTION (void boot_halt (void));
+BOOT_FUNCTION (void boot_screen_clear (BYTE));
+BOOT_FUNCTION (void boot_puts (const char *));
+BOOT_FUNCTION (void boot_print_hex (DWORD));
+BOOT_FUNCTION (void boot_print_dec (DWORD));
+
 BOOT_FUNCTION (void boot_entry (void));
 
 #endif /* _ARCH_X86_ASM_UPPER_HALF_H */

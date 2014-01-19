@@ -44,6 +44,7 @@
 static int  got_interrupts_working = 0;
 extern int kernel_start;
 extern int kernel_end;
+extern int text_start;
 
 extern struct console *syscon;
 
@@ -91,6 +92,8 @@ disable_interrupts (void)
   __asm__ __volatile__ ("cli");
 }
 
+extern DWORD __free_start;
+
 void
 hw_memory_init (void)
 {
@@ -117,15 +120,15 @@ hw_memory_init (void)
           /* Oops. Let's exclude kernel from allocatable ranges. */
         {
           mmap_info->length_low   -= 
-           (busword_t) &kernel_end - mmap_info->base_addr_low;
+           (busword_t) __free_start - mmap_info->base_addr_low;
             
-          mmap_info->base_addr_low = (busword_t) &kernel_end;
+          mmap_info->base_addr_low = __free_start;
            
         }
          
         if (mmap_info->base_addr_low == 0)
           mmap_info->base_addr_low += 4096; /* This page is not allocatable */
-          
+        
         mm_register_region ((physptr_t)  mmap_info->base_addr_low,
                             (physptr_t) (mmap_info->base_addr_low +
                                          mmap_info->length_low - 1));
@@ -143,24 +146,52 @@ hw_memory_init (void)
   gdt_init ();
 }
 
+extern char bootstack[4 * PAGE_SIZE];
+
 int
 vm_kernel_space_map_image (struct vm_space *space)
 {
   struct vm_region *region;
+  busword_t image_size;
+  busword_t phys_end;
+  busword_t stack_addr;
+  busword_t stack_length;
   
-  /* TODO: protect data */
+  /* Register upper region kernel */
   
   RETURN_ON_PTR_FAILURE (region = vm_region_new (VREGION_TYPE_KERNEL));
     
   region->vr_access = VREGION_ACCESS_READ  |
                       VREGION_ACCESS_WRITE |
                       VREGION_ACCESS_EXEC;
-                      
-  region->vr_virt_start = (busword_t) &kernel_start;
-  region->vr_virt_end   = (busword_t) &kernel_end - 1;
+
+  region->vr_phys_start = (busword_t) &kernel_start;
+  phys_end              = (busword_t) &kernel_end - 1;
+
+  image_size            = phys_end - region->vr_phys_start + 1;
   
+  region->vr_virt_start = (busword_t) &text_start;
+  region->vr_virt_end   = region->vr_virt_start + image_size - 1;
+
   MANDATORY (SUCCESS (vm_space_add_region (space, region)));
+
+  /* Register stack address. THIS MUST DISAPPEAR */
+  RETURN_ON_PTR_FAILURE (region = vm_region_new (VREGION_TYPE_KERNEL));
     
+  region->vr_access = VREGION_ACCESS_READ  |
+                      VREGION_ACCESS_WRITE |
+                      VREGION_ACCESS_EXEC;
+
+  stack_addr   = PAGE_BITS & (DWORD) bootstack;
+  stack_length = 5;
+  
+  region->vr_phys_start = stack_addr;
+  
+  region->vr_virt_start = stack_addr;
+  region->vr_virt_end   = region->vr_virt_start + stack_length * PAGE_SIZE - 1;
+
+  MANDATORY (SUCCESS (vm_space_add_region (space, region)));
+  
   return KERNEL_SUCCESS_VALUE;
 }
 
@@ -175,10 +206,11 @@ vm_user_space_map_image (struct vm_space *space)
     return KERNEL_ERROR_VALUE;
     
   region->vr_access = 0;
-                      
+
+  
   region->vr_virt_start = (busword_t) &kernel_start;
   region->vr_virt_end   = (busword_t) &kernel_end - 1;
-  
+
   MANDATORY (SUCCESS (vm_space_add_region (space, region)));
     
   return KERNEL_SUCCESS_VALUE;

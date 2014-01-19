@@ -18,6 +18,8 @@ SECTIONS{
         *(.bootdata)
     }
 
+    . = ALIGN (0x1000);
+
     kernel_start = .;
 
     .text kernel_base : AT (kernel_start)

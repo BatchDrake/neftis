@@ -381,25 +381,12 @@ struct vm_region *
 vm_region_shared (busword_t virt, busword_t phys, busword_t pages)
 {
   struct vm_region *region;
-  struct vanon_strip *strip;
   
-  PTR_RETURN_ON_PTR_FAILURE (region = vm_region_new (VREGION_TYPE_IOMAP));
-    
-  if (PTR_UNLIKELY_TO_FAIL (strip = vanon_strip_new ()))
-  {
-    spfree (region);
-    return KERNEL_INVALID_POINTER;
-  }
-  
-  strip->vs_ref_cntr     = 1;
-  strip->vs_pages        = pages;
-  strip->vs_virt_start   = virt;
-  strip->vs_phys_start   = phys;
-  strip->vs_region       = region;
+  PTR_RETURN_ON_PTR_FAILURE (region = vm_region_new (VREGION_TYPE_KERNEL));
   
   region->vr_virt_start  = virt;
   region->vr_virt_end    = virt + (pages << __PAGE_BITS) - 1;
-  region->vr_strips.anon = strip;
+  region->vr_phys_start  = phys;
   
   return region;
 }
@@ -422,7 +409,7 @@ vm_update_tables_anon (struct vm_space *space, struct vm_region *region)
     RETURN_ON_FAILURE
     (__vm_map_to (space->vs_pagetable, 
                      strip->vs_virt_start,
-                     strip->vs_phys_start,
+                     strip->vs_virt_start,
                      strip->vs_pages,
                      flags)
     );
@@ -450,7 +437,7 @@ vm_update_tables_iomap (struct vm_space *space, struct vm_region *region)
   RETURN_ON_FAILURE
   (__vm_map_to (space->vs_pagetable, 
                      strip->vs_virt_start,
-                     strip->vs_phys_start,
+                     strip->vs_virt_start, /* There's identity paging when dealing with iomap tables */
                      strip->vs_pages,
                      flags)
   );
@@ -464,15 +451,12 @@ vm_update_tables_kernel (struct vm_space *space, struct vm_region *region)
   BYTE flags;
   
   ASSERT (region->vr_type == VREGION_TYPE_KERNEL);
-  ASSERT (region->vr_strips.anon == NULL);
-  
   flags = (region->vr_access & 0xe) | VM_PAGE_KERNEL;
 
-  
   RETURN_ON_FAILURE
   (__vm_map_to (space->vs_pagetable, 
                      region->vr_virt_start,
-                     region->vr_virt_start,
+                     region->vr_phys_start,
                      (region->vr_virt_end - region->vr_virt_start + 1) >>
                        __PAGE_BITS,
                      flags)
@@ -549,11 +533,14 @@ vm_kernel_space (void)
   {
     if (PTR_UNLIKELY_TO_FAIL (new_region = vm_region_new (VREGION_TYPE_KERNEL)))
     {
+      error ("Failed to register VM kernel space\n");
+      
       vm_space_destroy (new_space);
       return KERNEL_INVALID_POINTER;
     }
 
     new_region->vr_virt_start = (busword_t) this->mr_start;
+    new_region->vr_phys_start = (busword_t) this->mr_start;
     new_region->vr_virt_end   = (busword_t) this->mr_end;
     new_region->vr_access     = VREGION_ACCESS_READ  |
                                 VREGION_ACCESS_WRITE |
@@ -561,6 +548,7 @@ vm_kernel_space (void)
                                 
     if (UNLIKELY_TO_FAIL (vm_space_add_region (new_space, new_region)))
     {
+      error ("Failed to add region to VM kernel space\n");
       vm_region_destroy (new_region);
       vm_space_destroy (new_space);
       
@@ -581,6 +569,8 @@ vm_kernel_space (void)
   
   if (UNLIKELY_TO_FAIL (vm_kernel_space_map_io (new_space)))
   {
+    error ("Cannot map IO!\n");
+
     vm_space_destroy (new_space);
     
     return KERNEL_INVALID_POINTER;

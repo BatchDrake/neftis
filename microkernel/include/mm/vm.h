@@ -131,12 +131,17 @@ struct vm_region
   
   busword_t vr_virt_start;
   busword_t vr_virt_end;
-  
+
   union
   {
-    struct vanon_strip *anon;
-  }
-  vr_strips;
+    struct
+    {
+      struct vanon_strip *anon;
+    }
+    vr_strips;
+
+    busword_t vr_phys_start;
+  };
 };
 
 struct vm_space

@@ -98,6 +98,10 @@ set_current_state (int state)
 
 void switch_to (struct task *task);
 struct task *get_kernel_thread (tid_t);
+struct task *get_userspace_task (tid_t);
+struct task *get_task (tid_t);
+int __register_task_with_tid (struct task *, tid_t);
+tid_t __find_free_tid (void);
 
 void init_kernel_threads (void);
 

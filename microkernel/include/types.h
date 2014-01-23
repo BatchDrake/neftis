@@ -28,9 +28,13 @@ typedef void * physptr_t;
 #  ifdef __LP64__
 typedef uint64_t memsize_t;  /* Data type to measure memory regions */
 typedef uint64_t busword_t;  /* Data type to operate arithmetically with ptrs */
+#define BUSWORD_BITS     64
+#define BUSWORD_SIZE_LOG 3
 #  else
 typedef uint32_t memsize_t;
 typedef uint32_t busword_t;
+#define BUSWORD_BITS     32
+#define BUSWORD_SIZE_LOG 2
 #  endif /* __LP64__ */
 # endif /* ASM */
 

@@ -23,16 +23,110 @@
 #include <arch.h>
 #include <kctx.h>
 
-/* TODO: Improve this as a per-cpu array. */
-static struct task *kernel_threads[MAX_KERNEL_THREADS];
+/* TODO: protect this! */
+static struct task ***task_list_table;
+uint32_t              task_last_tid;
+
+#define TASK_TABLE_INDEX_BITS (__PAGE_BITS - BUSWORD_SIZE_LOG)
+#define TASK_TABLE_MASK ((1 << __PAGE_BITS) - 1)
+#define MAX_TASKS (1 << (TASK_TABLE_INDEX_BITS << 1))
+
+tid_t
+__find_free_tid (void)
+{
+  tid_t i, curr;
+  tid_t table_idx, table_entry;
+  struct task **task_list;
+  
+  for (i = 0; i < MAX_TASKS; ++i)
+  {
+    curr = i + task_last_tid;
+
+    table_idx = (curr >> TASK_TABLE_INDEX_BITS) & TASK_TABLE_MASK;
+    table_entry = curr & TASK_TABLE_MASK;
+
+    /* Alloc a pointer table if it doesn't exist */
+    if (task_list_table[table_idx] == NULL)
+    {
+      if ((task_list_table[table_idx] = page_alloc (1)) == NULL)
+        return KERNEL_ERROR_VALUE;  /* Failed miserably */
+      else
+        memset (task_list_table[table_idx], 0, PAGE_SIZE);
+    }
+    
+    task_list = task_list_table[table_idx];
+
+    if (task_list[table_entry] == NULL)
+      return curr;
+  }
+
+  return KERNEL_ERROR_VALUE;
+}
+
+int
+__register_task_with_tid (struct task *task, tid_t tid)
+{
+  struct task **task_list;
+  tid_t i, table_idx, table_entry;
+  
+  table_idx = (tid >> TASK_TABLE_INDEX_BITS) & TASK_TABLE_MASK;
+  table_entry = tid & TASK_TABLE_MASK;
+
+  /* Alloc a pointer table if it doesn't exist */
+  if (task_list_table[table_idx] == NULL)
+  {
+    if ((task_list_table[table_idx] = page_alloc (1)) == NULL)
+      return KERNEL_ERROR_VALUE; /* Failed miserably */
+    else
+      memset (task_list_table[table_idx], 0, PAGE_SIZE);
+  }
+  
+  task_list = task_list_table[table_idx];
+  
+  if (task_list[table_entry] != NULL)
+    return KERNEL_ERROR_VALUE; /* Already allocated */
+
+  task_list[table_entry] = task;
+
+  return KERNEL_SUCCESS_VALUE;
+}
 
 struct task *
-get_kernel_thread (tid_t task)
+get_task (tid_t tid)
 {
-  if (task >= MAX_KERNEL_THREADS)
+  struct task **task_list;
+  tid_t i, table_idx, table_entry;
+
+  if (tid >= MAX_TASKS)
+    return NULL;
+  
+  table_idx = (tid >> TASK_TABLE_INDEX_BITS) & TASK_TABLE_MASK;
+  table_entry = tid & TASK_TABLE_MASK;
+
+  if (task_list_table[table_idx] == NULL)
+    return NULL;
+
+  task_list = task_list_table[table_idx];
+  
+  return task_list[table_entry];
+}
+
+struct task *
+get_kernel_thread (tid_t tid)
+{
+  if (tid >= MAX_KERNEL_THREADS)
     return NULL;
     
-  return kernel_threads[task];
+  return get_task (tid);
+}
+
+struct task *
+get_userspace_task (tid_t pid)
+{
+  if (pid < MAX_KERNEL_THREADS)
+    return NULL;
+  
+  return get_task (pid - MAX_KERNEL_THREADS);
 }
 
 void
@@ -92,9 +186,22 @@ idle_task (void)
 }
 
 void
+init_task_list_table (void)
+{
+  if ((task_list_table = page_alloc (1)) == NULL)
+    FAIL ("Couldn't allocate task-list table\n");
+
+  memset (task_list_table, 0, PAGE_SIZE);
+
+  debug ("This system allows up to %d tasks\n", MAX_TASKS);
+}
+
+void
 init_kernel_threads (void)
 {
   struct task *new;
+
+  init_task_list_table ();
   
   MANDATORY (new = __alloc_task ());
     
@@ -102,10 +209,15 @@ init_kernel_threads (void)
   new->ts_type  = TASK_TYPE_IDLE;
   
   __task_config_start (new, idle_task);
-  
-  kernel_threads[KERNEL_THREAD_IDLE] = new;
+
+  if (__register_task_with_tid (new, KERNEL_THREAD_IDLE) == KERNEL_ERROR_VALUE)
+    FAIL ("Cannot allocate iddle task!\n");
 }
 
+DEBUG_FUNC (__find_free_tid);
+DEBUG_FUNC (__register_task_with_tid);
+DEBUG_FUNC (get_task);
+DEBUG_FUNC (get_userspace_task);
 DEBUG_FUNC (get_kernel_thread);
 DEBUG_FUNC (switch_to);
 DEBUG_FUNC (idle_task);

@@ -41,7 +41,7 @@ struct sched
   LINKED_LIST;
   
   char *sc_name;
-  
+
   int  (*sc_setprio)   (struct task *, prio_t *);
   int  (*sc_getprio)   (struct task *, prio_t *);
   
@@ -56,7 +56,7 @@ struct sched
   struct task *  
        (*sc_find_task) (struct task *);
        
-  int (*sc_init)       (void);
+  int  (*sc_init)       (void);
   void (*sc_release)   (void);
   
   void *sc_private;

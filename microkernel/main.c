@@ -34,42 +34,89 @@
 #include <arch.h>
 #include <kctx.h>
 
+extern struct console *syscon;
+
 void
-debug_kmap (void)
+kernel_thread_one (void)
 {
-  void *page;
-  char *a, *b;
-  struct vm_region *region;
+  int k = 0;
+  char spinner[] = "-\\|/";
+
+  int line;
+
+  line = syscon->pos_y;
   
-  debug ("Gonna alloc something...\n");
+  for (;;)
+  {
+    if ((k++ % 100) == 0)
+    {
+      //pause (); /* If we don't pause the scheduler, the context switch happens right in the middle of console_gotoxy or printk, making the output messy */
 
-  if ((page = page_alloc (1)) == NULL)
-    FAIL ("Cannot allocate one page :(\n");
+      disable_interrupts ();
+      
+      console_gotoxy (syscon, 0, line);
 
-  debug ("We have page at %p\n", page);
-  
-  if ((region = vm_region_shared (0xa0000000, (busword_t) page, 1)) == NULL)
-    FAIL ("Cannot create region\n");
+      printk ("task1: [%c] %d ", spinner[k / 100 & 3], k / 100);
 
-  region->vr_access |= VREGION_ACCESS_READ | VREGION_ACCESS_WRITE;
-  
-  vm_space_add_region (current_kctx->kc_vm_space, region);
-    
-  vm_region_invalidate (region);
-
-  debug ("Done. Pagedir is %p\n", current_kctx->kc_vm_space->vs_pagetable);
-  /* vm_space_debug (current_kctx->kc_vm_space); */
-  
-  a = (char *) 0xa0000000;
-  b = (char *) page;
-
-  strcpy (a, "Hola mundo");
-
-  debug ("@ %p: \"%s\"\n", a, a);
-  debug ("@ %p: \"%s\"\n", b, b);
+      enable_interrupts ();
+    }
+  }
 }
 
-DEBUG_FUNC (debug_kmap);
+void
+kernel_thread_two (void)
+{
+  int k = 0;
+  char spinner[] = "-\\|/";
+  int line;
+  
+  line = syscon->pos_y;
+
+  for (;;)
+  {
+    if ((k++ % 100) == 0)
+    {
+      disable_interrupts ();
+    
+      console_gotoxy (syscon, 40, line);
+
+      printk ("task2: [%c] %d ", spinner[k / 100 & 3], k / 100);
+
+      enable_interrupts ();
+    }
+  }
+}
+
+void
+test_kthreads (void)
+{
+  struct task *task1, *task2;
+  int i;
+  
+  if ((task1 = kernel_task_new (kernel_thread_one)) == NULL)
+    FAIL ("Cannot allocate task!\n");
+
+  if ((task2 = kernel_task_new (kernel_thread_two)) == NULL)
+    FAIL ("Cannot allocate task!\n");
+
+  printk ("\nReady... ");
+
+  for (i = 0; i < 10000000; ++i)
+    do_nothing ();
+
+  printk ("steady... ");
+  for (i = 0; i < 10000000; ++i)
+    do_nothing ();
+
+  printk ("go!\n\n");
+  
+  wake_up (task1, TASK_STATE_RUNNING, WAKEUP_EXPLICIT);
+  wake_up (task2, TASK_STATE_RUNNING, WAKEUP_EXPLICIT);
+}
+
+DEBUG_FUNC (test_kthreads);
+DEBUG_FUNC (kernel_thread_one);
+DEBUG_FUNC (kernel_thread_two);
 
 void 
 main (void)
@@ -96,11 +143,11 @@ main (void)
   
   init_kernel_threads ();
   
-  debug_kmap ();
-  
   scheduler_init ();
 
   early_timers_init ();
+
+  test_kthreads ();
   
   enable_interrupts ();
   

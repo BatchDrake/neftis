@@ -70,7 +70,8 @@ struct sched_buffer
 struct task
 {
   struct sched_buffer ts_sched_info;
-  
+
+  tid_t               ts_tid;
   int                 ts_state;
   int                 ts_type;
   
@@ -100,10 +101,14 @@ void switch_to (struct task *task);
 struct task *get_kernel_thread (tid_t);
 struct task *get_userspace_task (tid_t);
 struct task *get_task (tid_t);
-int __register_task_with_tid (struct task *, tid_t);
+
+int   __register_task_with_tid (struct task *, tid_t);
 tid_t __find_free_tid (void);
+int   __ensure_tid (tid_t);
 
 void init_kernel_threads (void);
-
+int set_task (tid_t, struct task *);
+struct task *kernel_task_new (void (*) (void));
+void task_destroy (struct task *);
 #endif /* _TASK_TASK_H */
 

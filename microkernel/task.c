@@ -64,7 +64,7 @@ __find_free_tid (void)
 }
 
 int
-__register_task_with_tid (struct task *task, tid_t tid)
+__ensure_tid (tid_t tid)
 {
   struct task **task_list;
   tid_t i, table_idx, table_entry;
@@ -82,11 +82,6 @@ __register_task_with_tid (struct task *task, tid_t tid)
   }
   
   task_list = task_list_table[table_idx];
-  
-  if (task_list[table_entry] != NULL)
-    return KERNEL_ERROR_VALUE; /* Already allocated */
-
-  task_list[table_entry] = task;
 
   return KERNEL_SUCCESS_VALUE;
 }
@@ -109,6 +104,41 @@ get_task (tid_t tid)
   task_list = task_list_table[table_idx];
   
   return task_list[table_entry];
+}
+
+int
+set_task (tid_t tid, struct task *task)
+{
+  struct task **task_list;
+  tid_t i, table_idx, table_entry;
+
+  if (tid >= MAX_TASKS)
+    return KERNEL_ERROR_VALUE;
+  
+  table_idx = (tid >> TASK_TABLE_INDEX_BITS) & TASK_TABLE_MASK;
+  table_entry = tid & TASK_TABLE_MASK;
+
+  if (task_list_table[table_idx] == NULL)
+    return KERNEL_ERROR_VALUE;
+
+  task_list = task_list_table[table_idx];
+  
+  task_list[table_entry] = task;
+
+  return KERNEL_SUCCESS_VALUE;
+}
+
+int
+__register_task_with_tid (struct task *task, tid_t tid)
+{
+  if (__ensure_tid (tid) == KERNEL_ERROR_VALUE)
+    return KERNEL_ERROR_VALUE;
+
+  if (get_task (tid) != NULL)
+    return KERNEL_ERROR_VALUE;
+
+  
+  return KERNEL_SUCCESS_VALUE;
 }
 
 struct task *
@@ -186,6 +216,43 @@ idle_task (void)
 }
 
 void
+task_destroy (struct task *task)
+{
+  debug ("stub!\n");
+}
+
+/* This should lock */
+struct task *
+kernel_task_new (void (*entry) (void))
+{
+  struct task *task;
+  tid_t tid;
+  
+  if ((tid = __find_free_tid ()) == KERNEL_ERROR_VALUE)
+    return NULL;
+
+  if (__ensure_tid (tid) == KERNEL_ERROR_VALUE)
+    return NULL;
+  
+  if ((task = __alloc_task ()) == NULL)
+    return NULL;
+
+  if (set_task (tid, task) == KERNEL_ERROR_VALUE)
+  {
+    task_destroy (task);
+    return NULL;
+  }
+
+  task->ts_tid   = tid;
+  task->ts_state = TASK_STATE_SOFT_WAIT;
+  task->ts_type  = TASK_TYPE_KERNEL_THREAD;
+
+  __task_config_start (task, entry);
+  
+  return task;
+}
+
+void
 init_task_list_table (void)
 {
   if ((task_list_table = page_alloc (1)) == NULL)
@@ -205,7 +272,7 @@ init_kernel_threads (void)
   
   MANDATORY (new = __alloc_task ());
     
-  new->ts_state = TASK_STATE_SOFT_WAIT;
+  new->ts_state = TASK_STATE_NEW;
   new->ts_type  = TASK_TYPE_IDLE;
   
   __task_config_start (new, idle_task);

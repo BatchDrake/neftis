@@ -53,6 +53,8 @@ get_task_ctx_data (struct task *task)
   return (struct task_ctx_data *) task->ts_arch_ctx_data;
 }
 
+/* This function is CRITICAL: without it, we can't
+   build contexts when switching tasks! */
 INLINE void
 x86_init_stack_frame (struct x86_stack_frame *frame)
 {
@@ -64,11 +66,14 @@ x86_init_stack_frame (struct x86_stack_frame *frame)
   frame->segs.gs = GDT_SEGMENT_KERNEL_DATA;
   frame->segs.fs = GDT_SEGMENT_KERNEL_DATA;
   frame->segs.ss = GDT_SEGMENT_KERNEL_DATA;
-  
+
   frame->regs.esp = (DWORD) frame; /* Unnecesary, but cool */
   
   frame->priv.cs = GDT_SEGMENT_KERNEL_CODE;
   frame->priv.eflags = EFLAGS_INTERRUPT;
+
+  GET_REGISTER ("%cr0", frame->cr0); /* You gave me a headache */
+  GET_REGISTER ("%cr3", frame->cr3); /* You too motherfucker */
 }
 
 struct task *

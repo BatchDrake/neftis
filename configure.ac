@@ -6,7 +6,7 @@ AC_INIT(neftis, 0.0.0)
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_HEADER([microkernel/include/config.h])
-
+AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE
 
 cflags_were_set=false
@@ -16,11 +16,17 @@ if test "${CFLAGS+set}" = set; then
   cflags_were_set=:
 fi
 
+ccasflags_were_set=false
+if test "${CCASFLAGS+set}" = set; then
+  AM_CCASFLAGS=$CCASFLAGS
+  CCASFLAGS=
+  ccasflags_were_set=:
+fi
+
 # Checks for programs.
 AC_PROG_CC
 AM_PROG_CC_C_O
 AM_PROG_AS
-AC_PROG_RANLIB
 AC_PROG_LIBTOOL
 
 # the following needs to come after the expansion of AC_PROG_CC
@@ -28,6 +34,13 @@ if $cflags_were_set; then :; else
   AM_CFLAGS=$CFLAGS
   CFLAGS=
 fi
+
+if $ccasflags_were_set; then :; else
+  AM_CCASFLAGS=$CCASFLAGS
+  CCASFLAGS=
+fi
+
+AC_SUBST(AM_CCASFLAGS)
 AC_SUBST(AM_CFLAGS)
 
 # Checks for libraries.

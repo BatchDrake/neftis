@@ -366,9 +366,9 @@ x86_isr_handler (struct x86_stack_frame *frame)
     if (interrupt_is_fatal (frame->int_no))
       kernel_halt ();
   }
-  
-  set_current_context (old_ctx);
+
   set_interrupt_frame (old_frame);
+  set_current_context (old_ctx);
 }
 
 DEBUG_FUNC (x86_enable_interrupts);

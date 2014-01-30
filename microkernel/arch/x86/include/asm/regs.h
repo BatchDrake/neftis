@@ -85,6 +85,10 @@
   
   .macro SAVE_ALL
     pusha
+    movl %cr3, %eax
+    pushl %eax
+    movl %cr0, %eax
+    pushl %eax
     push %ss
     push %fs
     push %gs
@@ -101,7 +105,10 @@
     pop %gs
     pop %fs
     pop %ss
-  
+    popl %eax
+    movl %eax, %cr0
+    popl %eax
+    movl %eax, %cr3
     popa
     
   .endm
@@ -150,6 +157,8 @@ struct x86_int_frame_privchg
 struct x86_stack_frame
 {
   struct x86_segment_regs segs;
+  DWORD                   cr0;
+  DWORD                   cr3;
   struct x86_common_regs  regs;
   DWORD                   int_no;
   union

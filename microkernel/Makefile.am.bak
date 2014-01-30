@@ -1,5 +1,5 @@
 # Makefile para neftis kernel
-
+AUTOMAKE_OPTIONS = subdir-objects
 SUBDIRS=arch/x86
 noinst_PROGRAMS=neftis
 
@@ -14,9 +14,9 @@ neftis_LDFLAGS=-Wl,-Tarch/x86/kernel.lds
 
 neftis_CFLAGS=-fstrength-reduce \
 		-finline-functions -nostdinc -nostdlib -fno-builtin -I. -ggdb \
-    -Iinclude -march=i686 -D__386__ 
+    -Iinclude -march=i686 -D__386__ @AM_CFLAGS@
     
-neftis_CCASFLAGS=-I../include -Iarch/x86/include
+neftis_CCASFLAGS=-I../include -Iarch/x86/include @AM_CFLAGS@
 
 neftis_SOURCES=arch/x86/boot.S \
                console.c       \

@@ -246,8 +246,43 @@ kernel_task_new (void (*entry) (void))
   task->ts_tid   = tid;
   task->ts_state = TASK_STATE_SOFT_WAIT;
   task->ts_type  = TASK_TYPE_KERNEL_THREAD;
-
+  task->ts_vm_space = current_kctx->kc_vm_space;
+  
   __task_config_start (task, entry);
+  
+  return task;
+}
+
+struct task *
+system_process_new (void)
+{
+  struct task *task;
+  struct vm_space *space;
+  tid_t tid;
+
+  PTR_RETURN_ON_PTR_FAILURE (space = vm_bare_process_space ());
+  
+  if ((tid = __find_free_tid ()) == KERNEL_ERROR_VALUE)
+    return NULL;
+
+  if (__ensure_tid (tid) == KERNEL_ERROR_VALUE)
+    return NULL;
+  
+  if ((task = __alloc_task ()) == NULL)
+    return NULL;
+
+  if (set_task (tid, task) == KERNEL_ERROR_VALUE)
+  {
+    task_destroy (task);
+    return NULL;
+  }
+
+  task->ts_tid   = tid;
+  task->ts_state = TASK_STATE_SOFT_WAIT;
+  task->ts_type  = TASK_TYPE_SYS_PROCESS;
+  task->ts_vm_space = space;
+  
+  __task_config_start (task, NULL);
   
   return task;
 }

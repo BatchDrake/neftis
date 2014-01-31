@@ -56,6 +56,7 @@ vm_region_anon_destroy (struct vm_region *region)
   
   ASSERT (region->vr_type == VREGION_TYPE_ANON        ||
           region->vr_type == VREGION_TYPE_ANON_NOSWAP ||
+          region->vr_type == VREGION_TYPE_STACK       ||
           region->vr_type == VREGION_TYPE_IOMAP);
           
   strip = region->vr_strips.anon;
@@ -104,6 +105,7 @@ vm_region_destroy (struct vm_region *region)
       
     case VREGION_TYPE_ANON:
     case VREGION_TYPE_ANON_NOSWAP:
+    case VREGION_TYPE_STACK:
     case VREGION_TYPE_IOMAP:
       vm_region_anon_destroy (region);
       break;
@@ -341,11 +343,37 @@ vm_region_anonmap (busword_t virt, busword_t pages)
   }
   
   vanon_strips_set_owner (strips, new);
-  
+
+  new->vr_access      = VM_PAGE_READABLE;
   new->vr_virt_start  = virt;
   new->vr_virt_end    = virt + (pages << __PAGE_BITS) - 1;
   new->vr_strips.anon = strips;
   
+  return new;
+}
+
+/* User for allocating stack regions. This is basically an anonmap
+   that starts at stack_bottom - (pages << __PAGE_BITS) and ends
+   at stack_bottom - 1. This means that if we want a stack bottom at
+   0xbfffffff (Linux-x86 style), we need to call:
+
+   vm_region_stack (0xc0000000, 16)
+
+   Which, under x86, allocates 64 KiB of stack right below of the
+   kernel space
+  */
+
+struct vm_region *
+vm_region_stack (busword_t stack_bottom, busword_t pages)
+{
+  busword_t top_page = stack_bottom - (pages << __PAGE_BITS);
+  struct vm_region *new;
+
+  PTR_RETURN_ON_PTR_FAILURE (new = vm_region_anonmap (top_page, pages));
+
+  new->vr_type   = VREGION_TYPE_STACK;
+  new->vr_access = VREGION_ACCESS_READ | VREGION_ACCESS_WRITE;
+
   return new;
 }
 
@@ -475,6 +503,7 @@ vm_update_region (struct vm_space *space, struct vm_region *region)
   {
     case VREGION_TYPE_ANON:
     case VREGION_TYPE_ANON_NOSWAP:
+    case VREGION_TYPE_STACK:
       RETURN_ON_FAILURE (vm_update_tables_anon (space, region));
       break;
         
@@ -585,13 +614,68 @@ vm_kernel_space (void)
   return new_space;
 }
 
+struct vm_space *
+vm_bare_process_space (void)
+{
+  extern struct mm_region *mm_regions;
+  busword_t stack_bottom;
+  struct vm_space  *new_space;
+  struct vm_region *stack;
+  
+  PTR_RETURN_ON_PTR_FAILURE (new_space = vm_space_new ());
+
+  /* Map kernel space */
+  
+  if (UNLIKELY_TO_FAIL (vm_kernel_space_map_image (new_space)))
+  {
+    error ("couldn't map kernel image\n");
+    
+    vm_space_destroy (new_space);
+    
+    return KERNEL_INVALID_POINTER;
+  }
+
+  stack_bottom = vm_get_prefered_stack_bottom ();
+
+  if (PTR_UNLIKELY_TO_FAIL (stack = vm_region_stack (stack_bottom, TASK_SYS_STACK_PAGES)))
+  {
+    error ("couldn't allocate stack (bottom = %p)\n", stack_bottom - 1);
+    
+    vm_space_destroy (new_space);
+
+    return KERNEL_INVALID_POINTER;
+  }
+
+  if (UNLIKELY_TO_FAIL (vm_space_add_region (new_space, stack)))
+  {
+    error ("couldn't add stack to new space (bottom = %p)\n", stack_bottom - 1);
+
+    vm_region_destroy (stack);
+    
+    vm_space_destroy (new_space);
+
+    return KERNEL_INVALID_POINTER;
+  }
+  
+  if (UNLIKELY_TO_FAIL (vm_update_tables (new_space)))
+  {
+    error ("failed to update tables");
+
+    vm_space_destroy (new_space);
+    
+    return KERNEL_INVALID_POINTER;
+  }
+  
+  return new_space;
+}
+
 const char *
 vm_type_to_string (int type)
 {
-  char *types[] = {"anon  ", "noswap ", "shared", "cow   ", "iomap ",
+  char *types[] = {"anon  ", "noswap ", "stack ", "shared", "cow   ", "iomap ",
   "zero  ", "kernel", "custom"};
   
-  if (type < 0 || type > 7)
+  if (type < 0 || type > 8)
     return "<unk> ";
   else
     return types[type];

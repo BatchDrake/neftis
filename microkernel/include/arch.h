@@ -38,6 +38,7 @@ void bugcheck (void);
 int vm_kernel_space_map_io (struct vm_space *);
 int vm_kernel_space_map_image (struct vm_space *);
 int vm_user_space_map_image (struct vm_space *);
+busword_t vm_get_prefered_stack_bottom (void);
 
 # endif /* _MM_VM_H */
 

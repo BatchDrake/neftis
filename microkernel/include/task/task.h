@@ -25,6 +25,9 @@
 #include <arch.h>
 #include <kctx.h>
 
+#define TASK_SYS_STACK_PAGES    16
+#define TASK_USR_STACK_PAGES    16
+
 #define TASK_STATE_NEW          0
 #define TASK_STATE_READY        1
 #define TASK_STATE_RUNNING      2
@@ -37,7 +40,8 @@
 
 #define TASK_TYPE_IDLE          0
 #define TASK_TYPE_KERNEL_THREAD 1
-#define TASK_TYPE_USERLAND      2
+#define TASK_TYPE_SYS_PROCESS   2
+#define TASK_TYPE_USR_PROCESS   3
 
 #define MAX_KERNEL_THREADS      16
 
@@ -70,7 +74,7 @@ struct sched_buffer
 struct task
 {
   struct sched_buffer ts_sched_info;
-
+  struct vm_space    *ts_vm_space;
   tid_t               ts_tid;
   int                 ts_state;
   int                 ts_type;
@@ -79,7 +83,6 @@ struct task
 };
 
 # ifdef KERNEL_CONTEXT_TASK
-
 INLINE int
 get_current_state (void)
 {
@@ -94,6 +97,12 @@ set_current_state (int state)
   ASSERT (get_current_context () == KERNEL_CONTEXT_TASK);
   
   current_kctx->kc_current->ts_state = state;
+}
+
+INLINE struct vm_space *
+task_get_vm_space (struct task *task)
+{
+  return task->ts_vm_space;
 }
 # endif /* KERNEL_CONTEXT_TASK */
 

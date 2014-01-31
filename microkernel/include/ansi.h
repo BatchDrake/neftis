@@ -34,6 +34,10 @@ typedef unsigned char           BYTE;
 typedef unsigned short          WORD;
 typedef unsigned int            DWORD;
 typedef uint64_t                QWORD;
+typedef char                    BOOL;
+
+#define FALSE                   0
+#define TRUE                    1
 
 typedef unsigned int            size_t;
 # define NULL ((void *) 0)

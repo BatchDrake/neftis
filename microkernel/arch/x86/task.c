@@ -123,7 +123,7 @@ __task_config_start (struct task *task, void (*start) ())
 void
 __task_perform_switch (struct task *task)
 {
-  INLINE struct task_ctx_data *data;
+  struct task_ctx_data *data;
   
   data = get_task_ctx_data (task);
   

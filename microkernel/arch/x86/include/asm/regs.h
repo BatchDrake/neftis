@@ -84,11 +84,14 @@
   .endm
   
   .macro SAVE_ALL
+    .extern kernel_pagedir
     pusha
     movl %cr3, %eax
     pushl %eax
     movl %cr0, %eax
     pushl %eax
+    movl kernel_pagedir, %eax
+    movl %eax, %cr3
     push %ss
     push %fs
     push %gs

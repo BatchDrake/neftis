@@ -41,7 +41,9 @@
 #include <arch.h>
 #include <kctx.h>
 
-static int  got_interrupts_working = 0;
+busword_t kernel_pagedir;
+
+static int got_interrupts_working = 0;
 extern int kernel_start;
 extern int kernel_end;
 extern int text_start;
@@ -147,6 +149,12 @@ hw_memory_init (void)
 }
 
 extern char bootstack[4 * PAGE_SIZE];
+
+busword_t
+vm_get_prefered_stack_bottom (void)
+{
+  return (busword_t) &text_start;
+}
 
 int
 vm_kernel_space_map_image (struct vm_space *space)
@@ -356,17 +364,18 @@ void
 hw_vm_init (void)
 {
   DWORD cr0, cr3;
+
+  kernel_pagedir = current_kctx->kc_vm_space->vs_pagetable;
   
-  SET_REGISTER ("%cr3", current_kctx->kc_vm_space->vs_pagetable);
+  SET_REGISTER ("%cr3", kernel_pagedir);
   
   GET_REGISTER ("%cr0", cr0);
   
   cr0 |= CR0_PAGING_ENABLED;
   
   SET_REGISTER ("%cr0", cr0);
-  
-  debug ("paging enabled correctly, pagedir: %p\n",
-    current_kctx->kc_vm_space->vs_pagetable);
+
+  debug ("paging enabled correctly, pagedir: %p\n", kernel_pagedir);
 }
 
 void

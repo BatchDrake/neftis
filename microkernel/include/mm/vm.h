@@ -40,6 +40,14 @@
  *    pages, but in an unswappable way. In other words, these pages can't
  *    be stolen by swapper.
  *
+ * VREGION_TYPE_STACK
+ *    This region is intended to hold the stack. Only applicable to system
+ *    and user processes. For system processes, interrupt frames are pushed
+ *    to this region. For user processes, it only means that this region
+ *    grows downwards and pagefaults in the adjacent pages should be
+ *    followed by a stack grow operation performed by the kernel. The kernel
+ *    stack (used for interrupt frames) is placed somewhere else.
+ *
  * VREGION_TYPE_SHARED
  *    Shared region of memory among processes. This really points to an
  *    external structure that stores information about where to locate
@@ -87,12 +95,13 @@
  
 #define VREGION_TYPE_ANON        0 
 #define VREGION_TYPE_ANON_NOSWAP 1 
-#define VREGION_TYPE_SHARED      2
-#define VREGION_TYPE_COPYONWRITE 3 
-#define VREGION_TYPE_IOMAP       4
-#define VREGION_TYPE_ZERO        5
-#define VREGION_TYPE_KERNEL      6 
-#define VREGION_TYPE_CUSTOM      7 
+#define VREGION_TYPE_STACK       2
+#define VREGION_TYPE_SHARED      3
+#define VREGION_TYPE_COPYONWRITE 4 
+#define VREGION_TYPE_IOMAP       5
+#define VREGION_TYPE_ZERO        6
+#define VREGION_TYPE_KERNEL      7 
+#define VREGION_TYPE_CUSTOM      8 
 
 #define VREGION_ACCESS_READ      (1 << 1)
 #define VREGION_ACCESS_WRITE     (1 << 2)
@@ -159,11 +168,13 @@ struct vanon_strip *vm_alloc_colored (struct mm_region *, busword_t, int);
 void vm_space_destroy (struct vm_space *);
 void vm_region_invalidate (struct vm_region *);
 struct vm_region *vm_region_shared (busword_t, busword_t, busword_t);
+struct vm_region *vm_region_stack (busword_t, busword_t);
 int vm_space_add_region (struct vm_space *, struct vm_region *);
 int vm_space_overlap_region (struct vm_space *, struct vm_region *);
 int vm_update_region (struct vm_space *, struct vm_region *);
 int vm_update_tables (struct vm_space *);
 struct vm_space *vm_kernel_space (void);
+struct vm_space *vm_bare_process_space (void);
 const char *vm_type_to_string (int);
 void vm_space_debug (struct vm_space *);
 void vm_init (void);

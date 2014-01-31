@@ -25,6 +25,7 @@ neftis_SOURCES=arch/x86/boot.S \
                kctx.c          \
                kmalloc.c       \
                list.c          \
+               loader.c        \
                lock.c          \
                main.c          \
                mm.c            \

@@ -140,10 +140,13 @@ callback (struct vm_space *space, int type, int flags, busword_t virt, busword_t
 void
 test_kthreads (void)
 {
-  struct task *task1, *task2;
+  struct task *task1, *task2, *task3;
   loader_handle *handle;
   int i;
 
+
+  task3 = system_process_new ();
+  
   debug ("Performing ELF test...\n");
   
   if ((handle = loader_open_exec (NULL, example_elf, sizeof (example_elf))) == NULL)

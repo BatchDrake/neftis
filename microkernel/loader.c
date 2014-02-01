@@ -104,3 +104,9 @@ loader_init (void)
 }
 
 
+DEBUG_FUNC (loader_register);
+DEBUG_FUNC (loader_open_exec);
+DEBUG_FUNC (loader_get_exec_entry);
+DEBUG_FUNC (loader_walk_exec);
+DEBUG_FUNC (loader_close_exec);
+DEBUG_FUNC (loader_init);

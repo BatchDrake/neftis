@@ -17,7 +17,6 @@
  */
  
 #include <types.h>
-#include <arch.h>
 
 #include <mm/regions.h>
 #include <mm/coloring.h>
@@ -26,6 +25,7 @@
 
 #include <misc/list.h>
 
+#include <arch.h>
 #include <kctx.h>
 
 INLINE struct vanon_strip *
@@ -419,14 +419,53 @@ vm_region_shared (busword_t virt, busword_t phys, busword_t pages)
   return region;
 }
 
+busword_t
+virt2phys (const struct vm_space *space, busword_t virt)
+{
+  struct vm_region *curr;
+  struct vanon_strip *strip;
+  
+  curr = space->vs_regions;
+
+  while (curr)
+  {
+    if (virt >= curr->vr_virt_start && virt <= curr->vr_virt_end)
+    {
+      if (curr->vr_type == VREGION_TYPE_KERNEL ||
+          curr->vr_type == VREGION_TYPE_IOMAP)
+        return virt - curr->vr_virt_start + curr->vr_phys_start;
+      
+      strip = curr->vr_strips.anon;
+
+      while (strip)
+      {
+        if (virt >= strip->vs_virt_start && ((virt - strip->vs_virt_start) >> __PAGE_BITS) < strip->vs_pages)
+          return virt - strip->vs_virt_start + strip->vs_phys_start;
+        
+        strip = LIST_NEXT (strip);
+      }
+
+      return 0;
+    }
+    else if (virt < curr->vr_virt_start) /* As it's sorted.. */
+      return 0;
+    
+    curr = LIST_NEXT (curr);
+  }
+
+  return 0;
+}
+
+
 INLINE int
 vm_update_tables_anon (struct vm_space *space, struct vm_region *region)
 {
   BYTE flags;
   struct vanon_strip *strip;
   
-  ASSERT (region->vr_type == VREGION_TYPE_ANON ||
-          region->vr_type == VREGION_TYPE_ANON_NOSWAP);
+  ASSERT (region->vr_type == VREGION_TYPE_ANON        ||
+          region->vr_type == VREGION_TYPE_ANON_NOSWAP ||
+          region->vr_type == VREGION_TYPE_STACK);
           
   flags = region->vr_access & 0xe; /* 1110 */
   
@@ -715,6 +754,11 @@ vm_init (void)
 DEBUG_FUNC (vanon_strip_new);
 DEBUG_FUNC (vanon_strip_destroy);
 DEBUG_FUNC (vanon_strip_destroy_nofree);
+DEBUG_FUNC (vm_update_tables_anon);
+DEBUG_FUNC (vm_update_tables_iomap);
+DEBUG_FUNC (vm_update_tables_kernel);
+DEBUG_FUNC (vm_update_region);
+DEBUG_FUNC (vm_update_tables);
 DEBUG_FUNC (vm_region_anon_destroy);
 DEBUG_FUNC (vm_region_new);
 DEBUG_FUNC (vm_region_destroy);
@@ -724,6 +768,8 @@ DEBUG_FUNC (vm_test_range);
 DEBUG_FUNC (vm_space_add_region);
 DEBUG_FUNC (vm_region_iomap);
 DEBUG_FUNC (vm_kernel_space);
+DEBUG_FUNC (vm_kernel_space_map_image);
+DEBUG_FUNC (vm_bare_process_space);
 DEBUG_FUNC (vm_type_to_string);
 DEBUG_FUNC (vm_space_debug);
 

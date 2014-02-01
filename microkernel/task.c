@@ -324,4 +324,4 @@ DEBUG_FUNC (get_kernel_thread);
 DEBUG_FUNC (switch_to);
 DEBUG_FUNC (idle_task);
 DEBUG_FUNC (init_kernel_threads);
-
+DEBUG_FUNC (system_process_new);

@@ -99,19 +99,65 @@ __alloc_task (void)
   return new_task;
 }
 
+busword_t
+__task_find_stack_bottom (struct task *task)
+{
+  struct vm_region *curr;
+
+  if (task->ts_vm_space == NULL)
+    return KERNEL_ERROR_VALUE;
+
+  curr = task->ts_vm_space->vs_regions;
+
+  while (curr)
+  {
+    if (curr->vr_type == VREGION_TYPE_STACK)
+      return curr->vr_virt_end - sizeof (busword_t) + 1;
+
+    curr = LIST_NEXT (curr);
+  }
+
+  return KERNEL_ERROR_VALUE;
+}
+
 void
 __task_config_start (struct task *task, void (*start) ())
 {
   struct x86_stack_frame *frameptr;
   struct task_ctx_data *data;
-  
+
   data = get_task_ctx_data (task);
+
+  /* Kernel threads (and the idle process) run at kernel stack */
   
-  data->stack_info.esp -= sizeof (struct x86_stack_frame);
-  
-  frameptr = (struct x86_stack_frame *) data->stack_info.esp;
-  
-  
+  if (task->ts_type == TASK_TYPE_KERNEL_THREAD ||
+      task->ts_type == TASK_TYPE_IDLE)
+  {
+    /* Fix this, this should be an absolute assignation */
+    data->stack_info.esp -= sizeof (struct x86_stack_frame);
+    frameptr = (struct x86_stack_frame *) data->stack_info.esp;
+  }
+  else if (task->ts_type == TASK_TYPE_SYS_PROCESS)
+  {
+    /* Sys processes are exactly like usermode processes but with
+       with a higher level of privileges (kernel mode, to be precise).
+
+       As these processes run at their own address space, its base stack
+       address is private */
+    if ((data->stack_info.esp = __task_find_stack_bottom (task)) == KERNEL_ERROR_VALUE)
+      FAIL ("Something weird happened: cannot find stack bottom in a SYS_PROCESS task!\n");
+
+    data->stack_info.esp -= sizeof (struct x86_stack_frame);
+
+    if ((frameptr = (struct x86_stack_frame *) virt2phys (task->ts_vm_space, data->stack_info.esp)) == NULL)
+      FAIL ("Cannot convert virtual address %p to physycal address\n", data->stack_info.esp);
+
+    debug ("System process stack pointer:  %p\n", data->stack_info.esp);
+    debug ("System process physical frame: %p\n", frameptr);
+  }
+  else
+    FAIL ("Don't know how to build start frame for this type of task!\n");
+
   x86_init_stack_frame (frameptr);
   
   /* Return address goes where? */

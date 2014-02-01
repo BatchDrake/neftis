@@ -1,11 +1,11 @@
 # Makefile para neftis kernel
 AUTOMAKE_OPTIONS = subdir-objects
-SUBDIRS=arch/x86
+SUBDIRS=arch/x86 loaders/elf
 noinst_PROGRAMS=neftis
 
 OBJCOPYFLAGS=-R .note -R .note.gnu.build-id -R .comment
 
-neftis_LDADD=arch/x86/libx86.a
+neftis_LDADD=arch/x86/libx86.a loaders/elf/libelf.a
             
 neftis_LDFLAGS=-Wl,-Tarch/x86/kernel.lds 
 

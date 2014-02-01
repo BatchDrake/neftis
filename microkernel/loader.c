@@ -82,7 +82,7 @@ loader_get_exec_entry (loader_handle *handle)
 
 /* Walk exec gives information about type & flags of the computed segment */
 int
-loader_walk_exec (loader_handle *handle, int (*callback) (struct vm_space *, int, int, busword_t, busword_t))
+loader_walk_exec (loader_handle *handle, int (*callback) (struct vm_space *, int, int, busword_t, busword_t, void *, busword_t))
 {
   return (handle->loader->walkseg) (handle->opaque, handle->target_space, callback);
 }
@@ -95,5 +95,12 @@ loader_close_exec (loader_handle *handle)
   spfree (handle);
 }
 
+void elf_init (void);
+
+void
+loader_init (void)
+{
+  elf_init ();
+}
 
 

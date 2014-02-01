@@ -179,6 +179,7 @@ const char *vm_type_to_string (int);
 void vm_space_debug (struct vm_space *);
 void vm_init (void);
 busword_t virt2phys (const struct vm_space *, busword_t);
+int copy2virt (const struct vm_space *, busword_t, const void *, busword_t);
 
 #endif /* _MM_VM_H */
 

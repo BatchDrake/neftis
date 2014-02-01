@@ -145,11 +145,11 @@ vm_get_colored_range (struct mm_region *from, int color, int up_to)
     if ((page = mm_get_colored_page (from, color + i)) == 
       (busword_t) KERNEL_ERROR_VALUE)
       break;
-      
+
     if (!new->vs_pages)
     {
       MMR_MARK_PAGE (from, page);
-      new->vs_phys_start = (busword_t) MMR_PAGE_TO_ADDR (from, i);
+      new->vs_phys_start = (busword_t) MMR_PAGE_TO_ADDR (from, page);
       new->vs_pages      = 1;
       new->vs_ref_cntr   = 1;
     }
@@ -189,7 +189,7 @@ vm_alloc_colored (struct mm_region *region, busword_t virtual, int number)
   color = ADDR_COLOR (mm_get_cache_size (), virtual);
   
   page_count = 0;
-  
+
   for (; page_count < number; page_count += new->vs_pages)
   {
     if (PTR_UNLIKELY_TO_FAIL 
@@ -199,7 +199,7 @@ vm_alloc_colored (struct mm_region *region, busword_t virtual, int number)
     )
     {
       if (list != NULL)
-      {
+      {        
         vanon_strip_destroy (list);
         return KERNEL_INVALID_POINTER;
       }
@@ -323,11 +323,11 @@ vm_region_anonmap (busword_t virt, busword_t pages)
   extern struct mm_region *mm_regions;
   
   /* TODO: do this NUMA-friendly */
-  
+
   PTR_RETURN_ON_PTR_FAILURE (new = vm_region_new (VREGION_TYPE_ANON));
-    
+                         
   region = mm_regions;
-  
+
   while (region != NULL)
   {
     if ((strips = vm_alloc_colored (region, virt, pages)) != NULL)
@@ -337,7 +337,7 @@ vm_region_anonmap (busword_t virt, busword_t pages)
   }
   
   if (PTR_UNLIKELY_TO_FAIL (strips))
-  {
+  { 
     vm_region_destroy (new);
     return KERNEL_INVALID_POINTER;
   }
@@ -456,6 +456,35 @@ virt2phys (const struct vm_space *space, busword_t virt)
   return 0;
 }
 
+
+int
+copy2virt (const struct vm_space *space, busword_t virt, const void *orig, busword_t size)
+{
+  busword_t offset = virt &  PAGE_MASK; 
+  busword_t page   = virt & ~PAGE_MASK;
+  busword_t phys, len;
+  
+  /* TODO: implement this faster */
+
+  while (size)
+  {
+    if (!(phys = virt2phys (space, page)))
+      break;
+    
+    if ((len = PAGE_SIZE - offset) > size)
+      len = size;
+
+    memcpy (phys + offset, orig, len);
+
+    orig += len;
+    page += PAGE_SIZE;
+    size -= len;
+    
+    offset = 0;
+  }
+
+  return size;
+}
 
 INLINE int
 vm_update_tables_anon (struct vm_space *space, struct vm_region *region)

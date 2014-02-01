@@ -41,7 +41,7 @@ mm_register_region (physptr_t start, physptr_t end)
   struct mm_region *new;
   int bitmap_pages;
   int i;
-  
+
   if (PAGE_OFFSET (start) != 0)
   {
     /* bug! */
@@ -198,6 +198,7 @@ page_alloc (memsize_t pages)
       mm_mark_range (this_region, page, pages);
       
       spin_unlock (&this_region->mr_lock);
+      
       return (physptr_t) MMR_PAGE_TO_ADDR (this_region, page);
     }
     

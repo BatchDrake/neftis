@@ -128,13 +128,33 @@ static int
 callback (struct vm_space *space, int type, int flags, busword_t virt, busword_t size, void *data, busword_t datasize)
 {
   char sflags[4] = {0};
-
+  struct vm_region *region;
+  busword_t start_page;
+  busword_t actual_size;
+  busword_t actual_page_count;
+  busword_t pending;
+  
   sflags[0] = (flags & VREGION_ACCESS_READ)  ? 'r' : '-';
   sflags[1] = (flags & VREGION_ACCESS_WRITE) ? 'w' : '-';
   sflags[2] = (flags & VREGION_ACCESS_EXEC)  ? 'x' : '-';
   
   debug ("  ELF segment at @ %p [%s] <-- %p (%H)\n",
           virt, sflags, data, size);
+
+  start_page = PAGE_START (virt);
+  actual_size = size + (virt - start_page);
+  actual_page_count = (actual_size >> __PAGE_BITS) + !!(actual_size & PAGE_MASK);
+  
+  if ((region = vm_region_anonmap (start_page, actual_page_count)) == KERNEL_INVALID_POINTER)
+    FAIL ("cannot anonmap!\n");
+
+  if (vm_space_add_region (space, region) != KERNEL_SUCCESS_VALUE)
+    FAIL ("no memory to allocate region\n");
+  
+  if ((pending = copy2virt (space, virt, data, datasize)) != 0)
+    FAIL ("overflow when copying to userspace by %H\n", pending);
+
+  return 0;
 }
 
 void
@@ -149,11 +169,13 @@ test_kthreads (void)
   
   debug ("Performing ELF test...\n");
   
-  if ((handle = loader_open_exec (NULL, example_elf, sizeof (example_elf))) == NULL)
+  if ((handle = loader_open_exec (task3->ts_vm_space, example_elf, sizeof (example_elf))) == NULL)
     FAIL ("Cannot load sample ELF file\n");
 
   loader_walk_exec (handle, callback);
 
+  vm_space_debug (task3->ts_vm_space);
+  
   loader_close_exec (handle);
 
   debug ("Test done\n");

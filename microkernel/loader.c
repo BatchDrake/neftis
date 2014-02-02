@@ -43,7 +43,7 @@ loader_register (const char *name, const char *desc)
 
 /* TODO: add error status */
 loader_handle *
-loader_open_exec (struct vm_space *space, void *exec_start, uint32_t exec_size)
+loader_open_exec (struct vm_space *space, const void *exec_start, busword_t exec_size)
 {
   int i;
   loader_handle *handle;
@@ -82,7 +82,7 @@ loader_get_exec_entry (loader_handle *handle)
 
 /* Walk exec gives information about type & flags of the computed segment */
 int
-loader_walk_exec (loader_handle *handle, int (*callback) (struct vm_space *, int, int, busword_t, busword_t, void *, busword_t))
+loader_walk_exec (loader_handle *handle, int (*callback) (struct vm_space *, int, int, busword_t, busword_t, const void *, busword_t))
 {
   return (handle->loader->walkseg) (handle->opaque, handle->target_space, callback);
 }

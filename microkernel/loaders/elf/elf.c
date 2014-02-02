@@ -29,7 +29,7 @@
 #include "elf_state.h"
 
 void *
-elf32_open (void *base, uint32_t size)
+elf32_open (const void *base, uint32_t size)
 {
   struct elf32_state *state;
   Elf32_Ehdr *ehdr;
@@ -90,11 +90,12 @@ elf32_entry (void *opaque)
 }
 
 int
-elf32_walkseg (void *opaque, struct vm_space *space, int (*callback) (struct vm_space *, int, int, busword_t, busword_t, void *, busword_t))
+elf32_walkseg (void *opaque, struct vm_space *space, int (*callback) (struct vm_space *, int, int, busword_t, busword_t, const void *, busword_t))
 {
   unsigned int i, phnum;
   int flags;
   int count = 0;
+  BOOL zeropg = FALSE;
   
   struct elf32_state *state = (struct elf32_state *) opaque;
 
@@ -105,7 +106,10 @@ elf32_walkseg (void *opaque, struct vm_space *space, int (*callback) (struct vm_
     {
       if (IN_BOUNDS (state->phdrs[i].p_offset, state->size) ||
           IN_BOUNDS (state->phdrs[i].p_offset + state->phdrs[i].p_filesz - 1, state->size))
-        return KERNEL_ERROR_VALUE;
+      {
+	warning ("program header %d maps outside executable, assuming zero page\n", i);
+        zeropg = TRUE;
+      }
 
       flags = 0;
 
@@ -118,7 +122,7 @@ elf32_walkseg (void *opaque, struct vm_space *space, int (*callback) (struct vm_
       if (state->phdrs[i].p_flags & PF_R)
         flags |= VREGION_ACCESS_READ;
       
-      if ((callback) (space, VREGION_TYPE_ANON, flags, state->phdrs[i].p_vaddr, state->phdrs[i].p_memsz, ((void *) state->header) + state->phdrs[i].p_offset, state->phdrs[i].p_filesz) == -1)
+      if ((callback) (space, VREGION_TYPE_ANON, flags, state->phdrs[i].p_vaddr, state->phdrs[i].p_memsz, ((void *) state->header) + state->phdrs[i].p_offset, zeropg ? 0 : state->phdrs[i].p_filesz) == -1)
         return KERNEL_ERROR_VALUE;
 
       ++count;

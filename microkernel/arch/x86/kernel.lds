@@ -47,7 +47,13 @@ SECTIONS{
       *(.bss)
       bss_end = .;
     }
-    
+
+    debugsyms : AT (ADDR (.bss) - kernel_base + kernel_start)
+    {
+	__start_debugsyms = .;
+	*(debugsyms)
+	__stop_debugsyms = .;
+    }
     . = ALIGN (0x1000);
     
     kernel_end = . - kernel_base + kernel_start;

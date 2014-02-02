@@ -18,6 +18,7 @@
 #include <types.h>
 
 #include <task/task.h>
+#include <task/loader.h>
 
 #include <util.h>
 #include <arch.h>
@@ -254,27 +255,65 @@ kernel_task_new (void (*entry) (void))
 }
 
 struct task *
-system_process_new (void)
+sysproc_load (const void *data, busword_t size)
 {
   struct task *task;
+  struct vm_region *stack;
   struct vm_space *space;
+  loader_handle *handler;
+  void (*entry) (void);
   tid_t tid;
 
-  PTR_RETURN_ON_PTR_FAILURE (space = vm_bare_process_space ());
+  PTR_RETURN_ON_PTR_FAILURE (space = vm_space_load_from_exec (data, size, (busword_t *) &entry));
+
+  debug ("Entry point: %p\n", entry);
+  debug ("Pagedir: %p\n", space->vs_pagetable);
+
+  /* Use space data to look for free space */
+  if (PTR_UNLIKELY_TO_FAIL (stack = vm_region_kernel_stack (TASK_SYS_STACK_PAGES)))
+  {
+    error ("couldn't allocate kernel stack!\n");
+
+    vm_space_destroy (space);
+
+    return KERNEL_INVALID_POINTER;
+  }
+
+  if (UNLIKELY_TO_FAIL (vm_space_add_region (space, stack)))
+  {
+    error ("couldn't add stack to new space (bottom = %p)\n", stack->vr_virt_start);
+
+    vm_region_destroy (stack);
+
+    vm_space_destroy (space);
+
+    return KERNEL_INVALID_POINTER;
+  }
   
   if ((tid = __find_free_tid ()) == KERNEL_ERROR_VALUE)
-    return NULL;
+  {
+    vm_space_destroy (space);
+
+    return KERNEL_INVALID_POINTER;
+  }
 
   if (__ensure_tid (tid) == KERNEL_ERROR_VALUE)
-    return NULL;
+  {
+    vm_space_destroy (space);
+    return KERNEL_INVALID_POINTER;
+  }
   
   if ((task = __alloc_task ()) == NULL)
-    return NULL;
+  {
+    vm_space_destroy (space);
+    return KERNEL_INVALID_POINTER;
+  }
 
   if (set_task (tid, task) == KERNEL_ERROR_VALUE)
   {
+    vm_space_destroy (space);
     task_destroy (task);
-    return NULL;
+    return KERNEL_INVALID_POINTER;
   }
 
   task->ts_tid   = tid;
@@ -282,8 +321,8 @@ system_process_new (void)
   task->ts_type  = TASK_TYPE_SYS_PROCESS;
   task->ts_vm_space = space;
   
-  __task_config_start (task, NULL);
-  
+  __task_config_start (task, entry);
+
   return task;
 }
 
@@ -309,6 +348,8 @@ init_kernel_threads (void)
     
   new->ts_state = TASK_STATE_NEW;
   new->ts_type  = TASK_TYPE_IDLE;
+
+  new->ts_vm_space = current_kctx->kc_vm_space;
   
   __task_config_start (new, idle_task);
 
@@ -324,4 +365,3 @@ DEBUG_FUNC (get_kernel_thread);
 DEBUG_FUNC (switch_to);
 DEBUG_FUNC (idle_task);
 DEBUG_FUNC (init_kernel_threads);
-DEBUG_FUNC (system_process_new);

@@ -129,6 +129,20 @@ __task_config_start (struct task *task, void (*start) ())
   data = get_task_ctx_data (task);
 
   /* Kernel threads (and the idle process) run at kernel stack */
+  /* Sys processes are exactly like usermode processes but with
+     with a higher level of privileges (kernel mode, to be precise).
+
+     The problem arrives when handling interrupts. As there is no
+     privilege switch, virtual space stays the same and the stack
+     should be shared with the kernel space. The only possible
+     solution here is to allocate stack with 1:1 mapping. Which, by the way,
+     is difficult its address space is big as collisions can occur.
+
+     We can switch the ESP to physycal at context switch, but that's
+     slow has hell.
+
+     TODO: think about it.
+    */
   
   if (task->ts_type == TASK_TYPE_KERNEL_THREAD ||
       task->ts_type == TASK_TYPE_IDLE)
@@ -139,11 +153,6 @@ __task_config_start (struct task *task, void (*start) ())
   }
   else if (task->ts_type == TASK_TYPE_SYS_PROCESS)
   {
-    /* Sys processes are exactly like usermode processes but with
-       with a higher level of privileges (kernel mode, to be precise).
-
-       As these processes run at their own address space, its base stack
-       address is private */
     if ((data->stack_info.esp = __task_find_stack_bottom (task)) == KERNEL_ERROR_VALUE)
       FAIL ("Something weird happened: cannot find stack bottom in a SYS_PROCESS task!\n");
 
@@ -163,6 +172,14 @@ __task_config_start (struct task *task, void (*start) ())
   /* Return address goes where? */
   
   frameptr->priv.eip = (physptr_t) start;
+
+  if (task->ts_vm_space != NULL)
+    frameptr->cr3 = (physptr_t) task->ts_vm_space->vs_pagetable;
+  else
+  {
+    FAIL ("Building task of type %d (entry: %p) with no vm_space!\n",
+	  task->ts_type, start);
+  }
 }
 
 
@@ -232,8 +249,8 @@ DEBUG_FUNC (esp_is_sane);
 DEBUG_FUNC (get_task_ctx_data);
 DEBUG_FUNC (x86_init_stack_frame);
 DEBUG_FUNC (__alloc_task);
+DEBUG_FUNC (__task_find_stack_bottom);
 DEBUG_FUNC (__task_config_start);
 DEBUG_FUNC (__task_perform_switch);
 DEBUG_FUNC (__task_switch_from_current);
 DEBUG_FUNC (__task_switch_from_interrupt);
-

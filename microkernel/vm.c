@@ -24,6 +24,7 @@
 #include <mm/spalloc.h>
 
 #include <misc/list.h>
+#include <task/loader.h>
 
 #include <arch.h>
 #include <kctx.h>
@@ -82,7 +83,8 @@ vm_region_new (int type)
   if (type != VREGION_TYPE_KERNEL &&
       type != VREGION_TYPE_ANON   &&
       type != VREGION_TYPE_ANON_NOSWAP &&
-      type != VREGION_TYPE_IOMAP)
+      type != VREGION_TYPE_IOMAP  &&
+      type != VREGION_TYPE_STACK)
   {
     debug ("region type %d not supported by microkernel\n", type);
     return NULL;
@@ -206,7 +208,7 @@ vm_alloc_colored (struct mm_region *region, busword_t virtual, int number)
     }
     
     new->vs_virt_start = virtual + (page_count << __PAGE_BITS);
-    
+
     sorted_list_insert ((void **) &list, new, new->vs_virt_start);
   }
   
@@ -355,9 +357,9 @@ vm_region_anonmap (busword_t virt, busword_t pages)
 /* User for allocating stack regions. This is basically an anonmap
    that starts at stack_bottom - (pages << __PAGE_BITS) and ends
    at stack_bottom - 1. This means that if we want a stack bottom at
-   0xbfffffff (Linux-x86 style), we need to call:
+   0xcfffffff (Linux-x86 style), we need to call:
 
-   vm_region_stack (0xc0000000, 16)
+   vm_region_stack (0xd0000000, 16)
 
    Which, under x86, allocates 64 KiB of stack right below of the
    kernel space
@@ -377,15 +379,53 @@ vm_region_stack (busword_t stack_bottom, busword_t pages)
   return new;
 }
 
+/* System processes require a 1:1 stack mapping to make
+   context switchings easier */
+struct vm_region *
+vm_region_kernel_stack (busword_t pages)
+{
+  struct vm_region *region;
+  struct vanon_strip *strip;
+  void *start;
+
+  PTR_RETURN_ON_PTR_FAILURE (region = vm_region_new (VREGION_TYPE_STACK));
+
+  if ((start = page_alloc (pages)) == KERNEL_INVALID_POINTER)
+  {
+    spfree (region);
+    return KERNEL_INVALID_POINTER;
+  }
+
+  if (PTR_UNLIKELY_TO_FAIL (strip = vanon_strip_new ()))
+  {
+    page_free (start, pages);
+    spfree (region);
+    return KERNEL_INVALID_POINTER;
+  }
+
+  strip->vs_ref_cntr     = 1;
+  strip->vs_pages        = pages;
+  strip->vs_virt_start   = (busword_t) start;
+  strip->vs_phys_start   = (busword_t) start;
+  strip->vs_region       = region;
+
+  region->vr_virt_start  = (busword_t) start;
+  region->vr_virt_end    = (busword_t) start + (pages << __PAGE_BITS) - 1;
+  region->vr_strips.anon = strip;
+  region->vr_access      = VREGION_ACCESS_READ | VREGION_ACCESS_WRITE;
+
+  return region;
+}
+
 /* TODO: design macros to generalize dynamic allocation */
 struct vm_region *
 vm_region_iomap (busword_t virt, busword_t phys, busword_t pages)
 {
   struct vm_region *region;
   struct vanon_strip *strip;
-  
+
   PTR_RETURN_ON_PTR_FAILURE (region = vm_region_new (VREGION_TYPE_IOMAP));
-    
+
   if (PTR_UNLIKELY_TO_FAIL (strip = vanon_strip_new ()))
   {
     spfree (region);
@@ -505,7 +545,7 @@ vm_update_tables_anon (struct vm_space *space, struct vm_region *region)
     RETURN_ON_FAILURE
     (__vm_map_to (space->vs_pagetable, 
                      strip->vs_virt_start,
-                     strip->vs_virt_start,
+		     strip->vs_phys_start, /* What the what */
                      strip->vs_pages,
                      flags)
     );
@@ -683,7 +723,7 @@ vm_kernel_space (void)
 }
 
 struct vm_space *
-vm_bare_process_space (void)
+vm_bare_sysproc_space (void)
 {
   extern struct mm_region *mm_regions;
   busword_t stack_bottom;
@@ -703,38 +743,74 @@ vm_bare_process_space (void)
     return KERNEL_INVALID_POINTER;
   }
 
-  stack_bottom = vm_get_prefered_stack_bottom ();
-
-  if (PTR_UNLIKELY_TO_FAIL (stack = vm_region_stack (stack_bottom, TASK_SYS_STACK_PAGES)))
-  {
-    error ("couldn't allocate stack (bottom = %p)\n", stack_bottom - 1);
-    
-    vm_space_destroy (new_space);
-
-    return KERNEL_INVALID_POINTER;
-  }
-
-  if (UNLIKELY_TO_FAIL (vm_space_add_region (new_space, stack)))
-  {
-    error ("couldn't add stack to new space (bottom = %p)\n", stack_bottom - 1);
-
-    vm_region_destroy (stack);
-    
-    vm_space_destroy (new_space);
-
-    return KERNEL_INVALID_POINTER;
-  }
-  
-  if (UNLIKELY_TO_FAIL (vm_update_tables (new_space)))
-  {
-    error ("failed to update tables");
-
-    vm_space_destroy (new_space);
-    
-    return KERNEL_INVALID_POINTER;
-  }
-  
   return new_space;
+}
+
+static int
+__load_segment_cb (struct vm_space *space, int type, int flags, busword_t virt, busword_t size, const void *data, busword_t datasize)
+{
+  struct vm_region *region;
+  busword_t start_page;
+  busword_t actual_size;
+  busword_t actual_page_count;
+  busword_t pending;
+
+  start_page = PAGE_START (virt);
+  actual_size = size + (virt - start_page);
+  actual_page_count = (actual_size >> __PAGE_BITS) + !!(actual_size & PAGE_MASK);
+
+  if (datasize > size)
+  {
+    error ("Segment data size overflows segment size\n");
+    return -1;
+  }
+
+  if ((region = vm_region_anonmap (start_page, actual_page_count)) == KERNEL_INVALID_POINTER)
+    return -1;
+
+  region->vr_access |= flags;
+
+  if (vm_space_add_region (space, region) != KERNEL_SUCCESS_VALUE)
+  {
+    error ("Segment collision (cannot load %p-%p)\n", start_page, start_page + (actual_page_count << __PAGE_BITS) - 1);
+
+    vm_region_destroy (region);
+    
+    return -1;
+  }
+  
+  if ((pending = copy2virt (space, virt, data, datasize)) != 0)
+    FAIL ("unexpected segment overrun when copying data to user\n");
+
+  return 0;
+}
+
+struct vm_space *
+vm_space_load_from_exec (const void *exec_start, busword_t exec_size, busword_t *entry)
+{
+  struct vm_space  *space;
+  loader_handle    *handle;
+
+  PTR_RETURN_ON_PTR_FAILURE (space = vm_bare_sysproc_space ());
+
+  if ((handle = loader_open_exec (space, exec_start, exec_size)) == KERNEL_INVALID_POINTER)
+  {
+    vm_space_destroy (space);
+    return KERNEL_INVALID_POINTER;
+  }
+
+  if (loader_walk_exec (handle, __load_segment_cb) == KERNEL_ERROR_VALUE)
+  {
+    vm_space_destroy (space);
+    return KERNEL_INVALID_POINTER;
+  }
+
+  if (entry != NULL)
+    *entry = loader_get_exec_entry (handle);
+  
+  loader_close_exec (handle);
+
+  return space;
 }
 
 const char *
@@ -798,7 +874,6 @@ DEBUG_FUNC (vm_space_add_region);
 DEBUG_FUNC (vm_region_iomap);
 DEBUG_FUNC (vm_kernel_space);
 DEBUG_FUNC (vm_kernel_space_map_image);
-DEBUG_FUNC (vm_bare_process_space);
 DEBUG_FUNC (vm_type_to_string);
 DEBUG_FUNC (vm_space_debug);
 

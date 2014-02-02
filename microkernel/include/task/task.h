@@ -118,6 +118,10 @@ int   __ensure_tid (tid_t);
 void init_kernel_threads (void);
 int set_task (tid_t, struct task *);
 struct task *kernel_task_new (void (*) (void));
+
+struct task *sysproc_load (const void *data, busword_t size);
+
 void task_destroy (struct task *);
+
 #endif /* _TASK_TASK_H */
 

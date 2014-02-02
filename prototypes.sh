@@ -5,7 +5,7 @@ if [ $# != 1 ]; then
 	exit 1
 fi
 
-cat "$1" | grep '^[a-zA-Z0-9_]* (' | sed 's/ (.*/);/g' | sed 's/^/DEBUG_FUNC (/g'
+cat "$1" | grep '^[a-zA-Z0-9_]* (' | grep -v DEBUG_FUNC | sed 's/ (.*/);/g' | sed 's/^/DEBUG_FUNC (/g'
 
 
 

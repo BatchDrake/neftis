@@ -169,12 +169,15 @@ void vm_space_destroy (struct vm_space *);
 void vm_region_invalidate (struct vm_region *);
 struct vm_region *vm_region_shared (busword_t, busword_t, busword_t);
 struct vm_region *vm_region_stack (busword_t, busword_t);
+struct vm_region *vm_region_kernel_stack (busword_t);
+
 int vm_space_add_region (struct vm_space *, struct vm_region *);
 int vm_space_overlap_region (struct vm_space *, struct vm_region *);
 int vm_update_region (struct vm_space *, struct vm_region *);
 int vm_update_tables (struct vm_space *);
 struct vm_space *vm_kernel_space (void);
-struct vm_space *vm_bare_process_space (void);
+struct vm_space *vm_bare_sysproc_space (void);
+struct vm_space *vm_space_load_from_exec (const void *, busword_t, busword_t *);
 const char *vm_type_to_string (int);
 void vm_space_debug (struct vm_space *);
 void vm_init (void);

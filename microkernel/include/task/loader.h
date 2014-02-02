@@ -29,9 +29,9 @@ struct loader
   const char *name;
   const char *desc;
 
-  void *        (*open)    (void *, uint32_t);
+  void *        (*open)    (const void *, busword_t);
   busword_t     (*entry)   (void *);
-  int           (*walkseg) (void *, struct vm_space *, int (*) (struct vm_space *, int, int, busword_t, busword_t, void *, busword_t));
+  int           (*walkseg) (void *, struct vm_space *, int (*) (struct vm_space *, int, int, busword_t, busword_t, const void *, busword_t));
   void          (*close)   (void *);
 };
 
@@ -39,8 +39,8 @@ typedef struct
 {
   struct loader   *loader;
   struct vm_space *target_space;
-  void            *exec_base;
-  uint32_t         exec_size;
+  const void      *exec_base;
+  busword_t        exec_size;
   void            *opaque;
 }
 loader_handle;
@@ -55,9 +55,9 @@ loader_is_usable (struct loader *loader)
 }
 
 struct loader *loader_register (const char *, const char *);
-loader_handle *loader_open_exec (struct vm_space *, void *, uint32_t);
+loader_handle *loader_open_exec (struct vm_space *, const void *, uint32_t);
 busword_t loader_get_exec_entry (loader_handle *);
-int loader_walk_exec (loader_handle *, int (*) (struct vm_space *, int, int, busword_t, busword_t, void *, busword_t));
+int loader_walk_exec (loader_handle *, int (*) (struct vm_space *, int, int, busword_t, busword_t, const void *, busword_t));
 void loader_close_exec (loader_handle *);
 void loader_init (void);
 

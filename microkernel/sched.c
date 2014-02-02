@@ -25,7 +25,7 @@
 #include <arch.h>
 #include <kctx.h>
 
-struct sched *sys_sched_list;
+struct sched *sys_sched_list = NULL; /* X-files */
 
 #define SCHEDULER_CHECK()               \
   if (!likely (scheduler_present ()))   \

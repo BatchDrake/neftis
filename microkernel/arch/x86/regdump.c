@@ -24,6 +24,7 @@
 
 extern char bootstack[4 * PAGE_SIZE];
 extern void _start;
+extern void kernel_base;
 
 #define DISTANCE(x, y) \
   ((busword_t) (x) < (busword_t) (y) ? \
@@ -40,11 +41,14 @@ struct kernel_symbol *get_nearest_symbol (void *addr)
   
   nearest = NULL;
   
+  if ((busword_t) addr < (busword_t) &kernel_base ||
+      (busword_t) addr >= (busword_t) &__stop_debugsyms)
+    return NULL;
+
   for (this_sym = &__start_debugsyms; 
        (busword_t) this_sym < (busword_t) &__stop_debugsyms; 
         this_sym++)
   {
-    
     if ((busword_t) addr >= (busword_t) this_sym->addr)
     {
       if (nearest == NULL)

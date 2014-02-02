@@ -85,7 +85,7 @@ kernel_thread_one (void)
   int line;
 
   line = syscon->pos_y;
-  
+
   for (;;)
   {
     if ((k++ % 100) == 0)

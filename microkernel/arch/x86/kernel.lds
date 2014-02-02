@@ -48,7 +48,7 @@ SECTIONS{
       bss_end = .;
     }
 
-    debugsyms : AT (ADDR (.bss) - kernel_base + kernel_start)
+    debugsyms : AT (ADDR (debugsyms) - kernel_base + kernel_start)
     {
 	__start_debugsyms = .;
 	*(debugsyms)

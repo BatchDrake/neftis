@@ -361,6 +361,15 @@ __vm_free_page_table (void *pagedir)
 }
 
 void
+__halt (void)
+{
+  __asm__ __volatile__ ("1:");
+  __asm__ __volatile__ ("cli");
+  __asm__ __volatile__ ("hlt");
+  __asm__ __volatile__ ("jmp 1b");
+}
+
+void
 hw_vm_init (void)
 {
   DWORD cr0, cr3;

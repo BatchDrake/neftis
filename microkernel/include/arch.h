@@ -19,8 +19,10 @@
 #ifndef _ARCH_H
 #define _ARCH_H
 
-/* Boot arch-dependant functions */
+/* Misc functions */
+void __halt (void);
 
+/* Boot arch-dependant functions */
 void boot_console_init (void);
 
 void hw_memory_init (void);

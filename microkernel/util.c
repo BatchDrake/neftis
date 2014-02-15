@@ -19,6 +19,7 @@
 #include <util.h>
 #include <stdarg.h>
 #include <console/console.h>
+#include <arch.h>
 
 extern struct console *syscon;
 
@@ -35,6 +36,6 @@ void panic (const char *msg, ...)
 
 void kernel_halt ()
 {
-  for (;;);
+  __halt ();
 }
 

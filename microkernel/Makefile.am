@@ -31,6 +31,7 @@ neftis_SOURCES=arch/x86/boot.S \
                mm.c            \
                mutex.c         \
                printk.c        \
+               radix_tree.c    \
                sched.c         \
                spalloc.c       \
                stdlib.c        \

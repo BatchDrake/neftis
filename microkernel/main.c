@@ -32,6 +32,8 @@
 #include <task/sched.h>
 #include <task/loader.h>
 
+#include <misc/radix_tree.h>
+
 #include <arch.h>
 #include <kctx.h>
 
@@ -128,10 +130,63 @@ kernel_thread_two (void)
 }
 
 void
+test_radix_entry (struct radix_tree_node *node, radixkey_t key)
+{
+  void **slot;
+
+  if ((slot = radix_tree_lookup_slot (node, key)) == NULL)
+    printk ("  Key %p not found :(\n", (uint32_t) key);
+  else
+    printk ("  Key %p: %p\n", (uint32_t) key, *slot);
+}
+
+void
 test_kthreads (void)
 {
   struct task *task1, *task2, *task3;
+  struct radix_tree_node *root;
+
   int i;
+
+  if ((root = radix_tree_node_new (0x8048000, RADIX_TREE_KEYLEN_MAX - 1)) == NULL)
+    FAIL ("No memory!\n");
+
+  root->slots[0] = (void *) 0x8888;
+
+  radix_tree_debug (root, 0);
+  printk ("\n");
+
+  if (radix_tree_insert (root, 0x8049000, (void *) 0x9999) == KERNEL_ERROR_VALUE)
+    FAIL ("radix_tree_insert failed!\n");
+
+  radix_tree_debug (root, 0);
+
+  if (radix_tree_insert (root, 0x804a000, (void *) 0xaaaa) == KERNEL_ERROR_VALUE)
+    FAIL ("radix_tree_insert failed!\n");
+
+  radix_tree_debug (root, 0);
+
+  if (radix_tree_insert (root, 0x80d0000, (void *) 0xd000) == KERNEL_ERROR_VALUE)
+    FAIL ("radix_tree_insert failed!\n");
+
+  radix_tree_debug (root, 0);
+
+  if (radix_tree_insert (root, 0x80d1000, (void *) 0xd100) == KERNEL_ERROR_VALUE)
+    FAIL ("radix_tree_insert failed!\n");
+
+  radix_tree_debug (root, 0);
+
+  printk ("Recovering info:\n");
+  test_radix_entry (root, 0x8048000);
+  test_radix_entry (root, 0x8049000);
+  test_radix_entry (root, 0x804a000);
+  test_radix_entry (root, 0x80d0000);
+  test_radix_entry (root, 0x80d1000);
+  test_radix_entry (root, 0x8000000);
+  test_radix_entry (root, 0x8040000);
+  test_radix_entry (root, 0x8048000);
+
+  printk ("\n");
 
   if ((task3 = sysproc_load (example_elf, sizeof (example_elf))) == KERNEL_INVALID_POINTER)
     FAIL ("cannot open elf??\n");

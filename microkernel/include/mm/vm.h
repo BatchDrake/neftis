@@ -21,6 +21,7 @@
 
 #include <types.h>
 #include <misc/list.h>
+#include <misc/radix_tree.h>
 #include <mm/regions.h>
 
 /* 
@@ -116,7 +117,50 @@
 #define VM_PAGE_KERNEL           64  /* Keep always in TLB */
 #define VM_PAGE_IOMAP            128 /* Don't cache this */
 
-/* Uses cache-coloring */
+/* Please NOTE: this new approach for managing virtual memory
+   regions knows NOTHING about the structures used to store
+   page information. API will have functions like "map_range",
+   but that's all. */
+/*
+ * This is how we deal with shared memory ranges:
+ * - shared->init allocates a new range, and sets the reference count to 1
+ * - When shared->dup is called upon this range, we copy the pointers from
+ *   the original range and increment the reference count. We also use the
+ *   tree from the original range (just copy the pointer). We also add a
+ *   list of clients of this region.
+ * - Resize operation goes through every client of this region, and determines
+ *   the highest (and lowest) virtual address. If we leave some pages totally
+ *   inaccessible, we can free them.
+ * - Destroying it decrements reference count
+ * - If reference count goes to zero, we free everything.
+ */
+
+struct task;
+struct vm_region;
+
+struct vm_region_ops
+{
+  char *name;
+
+  /* Initialize this region */
+  int (*init)        (struct task *, struct vm_region *, void *);
+
+  /* Destroy this region */
+  int (*destroy)     (struct task *, struct vm_region *);
+
+  /* Resize region (grow / shrink) */
+  int (*resize)      (struct task *, struct vm_region *, busword_t, busword_t);
+
+  /* Duplicate region */
+  int (*dup)         (struct task *, struct vm_region *, struct vm_region *);
+
+  /* Page fault handlers */
+  int (*read_fault)  (struct task *, struct vm_region *, busword_t);
+  int (*write_fault) (struct task *, struct vm_region *, busword_t);
+  int (*exec_fault)  (struct task *, struct vm_region *, busword_t);
+};
+
+/* Uses cache-coloring. DEPRECATED. */
 struct vanon_strip
 {
   SORTED_LIST;
@@ -130,16 +174,25 @@ struct vanon_strip
   struct    vm_region *vs_region;
 };
 
+/* I don't care too much about this. I don't expect a process to
+   have thousands of regions, but if it ends up becoming like that,
+   vm_region will be inside a tree */
 struct vm_region
 {
   SORTED_LIST;
-  
-  int   vr_type;
+
+  struct vm_region_ops *vr_ops;
+  void                 *vr_ops_data; /* Opaque data */
   
   DWORD vr_access;
   
   busword_t vr_virt_start;
   busword_t vr_virt_end;
+
+  struct radix_tree_node *vr_page_tree; /* Radix tree of pages */
+
+  /* EVERYTHING BELOW THIS POINT IS DEPRECATED */
+  int   vr_type;
 
   union
   {
@@ -156,7 +209,6 @@ struct vm_region
 struct vm_space
 {
   struct vm_region *vs_regions;
-  
   /* This is hardware dependant */
   void *vs_pagetable;
 };

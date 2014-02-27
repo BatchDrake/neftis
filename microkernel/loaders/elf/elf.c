@@ -20,6 +20,8 @@
 
 #include <mm/regions.h>
 #include <mm/spalloc.h>
+#include <mm/vm.h>
+#include <mm/anon.h>
 
 #include <task/loader.h>
 #include <string.h>
@@ -122,7 +124,7 @@ elf32_walkseg (void *opaque, struct vm_space *space, int (*callback) (struct vm_
       if (state->phdrs[i].p_flags & PF_R)
         flags |= VREGION_ACCESS_READ;
       
-      if ((callback) (space, VREGION_TYPE_ANON, flags, state->phdrs[i].p_vaddr, state->phdrs[i].p_memsz, ((void *) state->header) + state->phdrs[i].p_offset, zeropg ? 0 : state->phdrs[i].p_filesz) == -1)
+      if ((callback) (space, VREGION_ROLE_USERMAP, flags, state->phdrs[i].p_vaddr, state->phdrs[i].p_memsz, ((void *) state->header) + state->phdrs[i].p_offset, zeropg ? 0 : state->phdrs[i].p_filesz) == -1)
         return KERNEL_ERROR_VALUE;
 
       ++count;

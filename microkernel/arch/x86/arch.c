@@ -31,6 +31,7 @@
 
 #include <mm/regions.h>
 #include <mm/vm.h>
+#include <mm/anon.h>
 
 #include <misc/hook.h>
 
@@ -166,61 +167,18 @@ vm_kernel_space_map_image (struct vm_space *space)
   busword_t stack_length;
   
   /* Register upper region kernel */
+
+  image_size = __UNITS ((busword_t) &kernel_end - (busword_t) &kernel_start, PAGE_SIZE);
+
+  RETURN_ON_PTR_FAILURE (region = vm_region_remap ((busword_t) &text_start, (busword_t) &kernel_start, image_size, VREGION_ACCESS_READ | VREGION_ACCESS_WRITE | VREGION_ACCESS_EXEC | VM_PAGE_KERNEL));
   
-  RETURN_ON_PTR_FAILURE (region = vm_region_new (VREGION_TYPE_KERNEL));
-    
-  region->vr_access = VREGION_ACCESS_READ  |
-                      VREGION_ACCESS_WRITE |
-                      VREGION_ACCESS_EXEC;
-
-  region->vr_phys_start = (busword_t) &kernel_start;
-  phys_end              = (busword_t) &kernel_end - 1;
-
-  image_size            = phys_end - region->vr_phys_start + 1;
-  
-  region->vr_virt_start = (busword_t) &text_start;
-  region->vr_virt_end   = region->vr_virt_start + image_size - 1;
-
   MANDATORY (SUCCESS (vm_space_add_region (space, region)));
 
   /* Register stack address. THIS MUST DISAPPEAR */
-  RETURN_ON_PTR_FAILURE (region = vm_region_new (VREGION_TYPE_KERNEL));
-    
-  region->vr_access = VREGION_ACCESS_READ  |
-                      VREGION_ACCESS_WRITE |
-                      VREGION_ACCESS_EXEC;
-
-  stack_addr   = PAGE_BITS & (DWORD) bootstack;
-  stack_length = 5;
-  
-  region->vr_phys_start = stack_addr;
-  
-  region->vr_virt_start = stack_addr;
-  region->vr_virt_end   = region->vr_virt_start + stack_length * PAGE_SIZE - 1;
+  RETURN_ON_PTR_FAILURE (region = vm_region_physmap (PAGE_BITS & (DWORD) bootstack, 5, VREGION_ACCESS_READ | VREGION_ACCESS_WRITE | VM_PAGE_KERNEL));
 
   MANDATORY (SUCCESS (vm_space_add_region (space, region)));
   
-  return KERNEL_SUCCESS_VALUE;
-}
-
-int
-vm_user_space_map_image (struct vm_space *space)
-{
-  struct vm_region *region;
-  
-  /* TODO: protect data */
-  
-  if ((region = vm_region_new (VREGION_TYPE_KERNEL)) == NULL)
-    return KERNEL_ERROR_VALUE;
-    
-  region->vr_access = 0;
-
-  
-  region->vr_virt_start = (busword_t) &kernel_start;
-  region->vr_virt_end   = (busword_t) &kernel_end - 1;
-
-  MANDATORY (SUCCESS (vm_space_add_region (space, region)));
-    
   return KERNEL_SUCCESS_VALUE;
 }
 
@@ -322,7 +280,7 @@ __vm_flush_pages (busword_t virt, busword_t pages)
 int
 __vm_map_to (void *pagedir, busword_t virt, busword_t phys, busword_t pages,
   BYTE flags)
-{ 
+{
   return x86_pagedir_map_range (pagedir, virt, phys, pages, 
     __vm_flags_to_x86_flags (flags));
 }
@@ -374,7 +332,7 @@ hw_vm_init (void)
 {
   DWORD cr0, cr3;
 
-  kernel_pagedir = current_kctx->kc_vm_space->vs_pagetable;
+  kernel_pagedir = (busword_t) current_kctx->kc_vm_space->vs_pagetable;
   
   SET_REGISTER ("%cr3", kernel_pagedir);
   
@@ -385,6 +343,7 @@ hw_vm_init (void)
   SET_REGISTER ("%cr0", cr0);
 
   debug ("paging enabled correctly, pagedir: %p\n", kernel_pagedir);
+
 }
 
 void
@@ -460,7 +419,6 @@ DEBUG_FUNC (enable_interrupts);
 DEBUG_FUNC (disable_interrupts);
 DEBUG_FUNC (hw_memory_init);
 DEBUG_FUNC (vm_kernel_space_map_image);
-DEBUG_FUNC (vm_user_space_map_image);
 DEBUG_FUNC (vm_kernel_space_map_io);
 DEBUG_FUNC (__vm_flags_to_x86_flags);
 DEBUG_FUNC (__vm_map_to);

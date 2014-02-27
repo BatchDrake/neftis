@@ -19,6 +19,7 @@
 
 #include <task/task.h>
 #include <task/loader.h>
+#include <mm/anon.h>
 
 #include <util.h>
 #include <arch.h>
@@ -283,7 +284,7 @@ sysproc_load (const void *data, busword_t size)
   {
     error ("couldn't add stack to new space (bottom = %p)\n", stack->vr_virt_start);
 
-    vm_region_destroy (stack);
+    vm_region_destroy (stack, NULL);
 
     vm_space_destroy (space);
 

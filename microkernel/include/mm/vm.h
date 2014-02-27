@@ -1,6 +1,6 @@
 /*
- *    <one line to give the program's name and a brief idea of what it does.>
- *    Copyright (C) <year>  <name of author>
+ *    Atomik's virtual memory subsystem.
+ *    Copyright (C) 2014  Gonzalo J. Carracedo
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -23,86 +23,10 @@
 #include <misc/list.h>
 #include <misc/radix_tree.h>
 #include <mm/regions.h>
-
-/* 
- * NEFTIS VIRTUAL MEMORY SUBSYSTEM - An epic and vigorous prose by BatchDrake
- * --------------------------------------------------------------------------
- *
- * Neftis should be able to manage at least the following eight region types:
- *
- * VREGION_TYPE_ANON
- *    This type of region defines a cache-friendly set of pages that are
- *    susceptible to be stolen by a swapper process. Page faults in
- *    this region are told to the above mentioned daemon in order to 
- *    get back the the absent page, and probably some more with it.
- *
- * VREGION_TYPE_ANON_NOSWAP
- *    This region, like VREGION_TYPE_ANON, defines a cache-friendly set of 
- *    pages, but in an unswappable way. In other words, these pages can't
- *    be stolen by swapper.
- *
- * VREGION_TYPE_STACK
- *    This region is intended to hold the stack. Only applicable to system
- *    and user processes. For system processes, interrupt frames are pushed
- *    to this region. For user processes, it only means that this region
- *    grows downwards and pagefaults in the adjacent pages should be
- *    followed by a stack grow operation performed by the kernel. The kernel
- *    stack (used for interrupt frames) is placed somewhere else.
- *
- * VREGION_TYPE_SHARED
- *    Shared region of memory among processes. This really points to an
- *    external structure that stores information about where to locate
- *    the actual data within the cluster, and handle page faults to make
- *    access possible. Memory writes to this area outside the current
- *    machine should be serialized in some manner to avoid cache-inconsistent
- *    copies. Maybe sending broadcast signals of "page invalidate" or 
- *    something similar.
- *
- * VREGION_TYPE_COPYONWRITE
- *    Copy-on-write memory. This region references another region, and page
- *    faults will be managed as follows:
- *    
- *    Read-access page fault: this will call the read-access page fault
- *    handler of the original region, causing it to be immediatly available.
- *
- *    Write-access page fault: this will allocate a new page in a
- *    cache-friendly way and copying the original contents to it.
- *
- *    Copy-on-write regions are of the same size than the original one, and
- *    can only reference anon regions and other copy-on-write regions.
- *
- * VREGION_TYPE_IOMAP
- *    Defines a I/O dedicated region, physically mapped to an external device.
- *    Processes with this kind of regions shouldn't be able to migrate.
- *
- * VREGION_TYPE_ZERO
- *    In a similar way to Copy-on-Write regions, this defines a set of pages
- *    that point to the same page frame, filled up with zeroes. Any write
- *    against this region will allocate a new page.
- *
- * VREGION_TYPE_KERNEL
- *    Defines a 1:1 mapped area. This region is not migrated and exists just
- *    for architecture-dependant stuff related to context-switching.
- *    Despite the characteristics of this region, this makes the destination
- *    node impose a restriction: if the migrated process has no room for
- *    its own kernel regions, the process will be rejected.
- *
- * VREGION_TYPE_CUSTOM
- *    Non-allocated region with a subtype and custom page-fault handlers.
- *    Processes with this region can only migrate to nodes with the
- *    appropiate software to handle it (and only if this software allows
- *    migration).
- */
  
-#define VREGION_TYPE_ANON        0 
-#define VREGION_TYPE_ANON_NOSWAP 1 
-#define VREGION_TYPE_STACK       2
-#define VREGION_TYPE_SHARED      3
-#define VREGION_TYPE_COPYONWRITE 4 
-#define VREGION_TYPE_IOMAP       5
-#define VREGION_TYPE_ZERO        6
-#define VREGION_TYPE_KERNEL      7 
-#define VREGION_TYPE_CUSTOM      8 
+#define VREGION_ROLE_USERMAP     0
+#define VREGION_ROLE_STACK       1
+#define VREGION_ROLE_KERNEL      2
 
 #define VREGION_ACCESS_READ      (1 << 1)
 #define VREGION_ACCESS_WRITE     (1 << 2)
@@ -116,6 +40,8 @@
 #define VM_PAGE_DIRTY            32
 #define VM_PAGE_KERNEL           64  /* Keep always in TLB */
 #define VM_PAGE_IOMAP            128 /* Don't cache this */
+
+#define VM_PAGE_ALLFLAGS         255
 
 /* Please NOTE: this new approach for managing virtual memory
    regions knows NOTHING about the structures used to store
@@ -160,20 +86,6 @@ struct vm_region_ops
   int (*exec_fault)  (struct task *, struct vm_region *, busword_t);
 };
 
-/* Uses cache-coloring. DEPRECATED. */
-struct vanon_strip
-{
-  SORTED_LIST;
-  
-  int       vs_ref_cntr;
-  
-  busword_t vs_pages;
-  busword_t vs_virt_start;
-  busword_t vs_phys_start;
-  
-  struct    vm_region *vs_region;
-};
-
 /* I don't care too much about this. I don't expect a process to
    have thousands of regions, but if it ends up becoming like that,
    vm_region will be inside a tree */
@@ -181,6 +93,7 @@ struct vm_region
 {
   SORTED_LIST;
 
+  int                   vr_role;
   struct vm_region_ops *vr_ops;
   void                 *vr_ops_data; /* Opaque data */
   
@@ -190,20 +103,6 @@ struct vm_region
   busword_t vr_virt_end;
 
   struct radix_tree_node *vr_page_tree; /* Radix tree of pages */
-
-  /* EVERYTHING BELOW THIS POINT IS DEPRECATED */
-  int   vr_type;
-
-  union
-  {
-    struct
-    {
-      struct vanon_strip *anon;
-    }
-    vr_strips;
-
-    busword_t vr_phys_start;
-  };
 };
 
 struct vm_space
@@ -213,28 +112,32 @@ struct vm_space
   void *vs_pagetable;
 };
 
-struct vm_region *vm_region_new (int);
-void vm_region_destroy (struct vm_region *);
-struct vm_space *vm_space_new (void);
-struct vanon_strip *vm_alloc_colored (struct mm_region *, busword_t, int);
-void vm_space_destroy (struct vm_space *);
-void vm_region_invalidate (struct vm_region *);
-struct vm_region *vm_region_shared (busword_t, busword_t, busword_t);
-struct vm_region *vm_region_stack (busword_t, busword_t);
-struct vm_region *vm_region_kernel_stack (busword_t);
+/* Region operations */
+struct vm_region *vm_region_new (busword_t, busword_t, struct vm_region_ops *, void *);
+int vm_region_map_page (struct vm_region *, busword_t, busword_t, DWORD);
+busword_t vm_region_translate_page (struct vm_region *, busword_t, DWORD *);
 
+void vm_region_invalidate (struct vm_region *);
+void vm_region_destroy (struct vm_region *, struct task *);
+
+/* Space operations */
+struct vm_space *vm_space_new (void);
 int vm_space_add_region (struct vm_space *, struct vm_region *);
 int vm_space_overlap_region (struct vm_space *, struct vm_region *);
 int vm_update_region (struct vm_space *, struct vm_region *);
 int vm_update_tables (struct vm_space *);
+void vm_space_destroy (struct vm_space *);
+
 struct vm_space *vm_kernel_space (void);
 struct vm_space *vm_bare_sysproc_space (void);
 struct vm_space *vm_space_load_from_exec (const void *, busword_t, busword_t *);
-const char *vm_type_to_string (int);
+
 void vm_space_debug (struct vm_space *);
-void vm_init (void);
-busword_t virt2phys (const struct vm_space *, busword_t);
+
+/* Misc operations */
+busword_t virt2phys (const struct vm_space *space, busword_t virt);
 int copy2virt (const struct vm_space *, busword_t, const void *, busword_t);
+void vm_init (void);
 
 #endif /* _MM_VM_H */
 

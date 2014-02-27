@@ -111,7 +111,7 @@ __task_find_stack_bottom (struct task *task)
 
   while (curr)
   {
-    if (curr->vr_type == VREGION_TYPE_STACK)
+    if (curr->vr_role == VREGION_ROLE_STACK)
       return curr->vr_virt_end - sizeof (busword_t) + 1;
 
     curr = LIST_NEXT (curr);
@@ -160,9 +160,6 @@ __task_config_start (struct task *task, void (*start) ())
 
     if ((frameptr = (struct x86_stack_frame *) virt2phys (task->ts_vm_space, data->stack_info.esp)) == NULL)
       FAIL ("Cannot convert virtual address %p to physycal address\n", data->stack_info.esp);
-
-    debug ("System process stack pointer:  %p\n", data->stack_info.esp);
-    debug ("System process physical frame: %p\n", frameptr);
   }
   else
     FAIL ("Don't know how to build start frame for this type of task!\n");

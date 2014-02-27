@@ -108,6 +108,7 @@
     pop %gs
     pop %fs
     pop %ss
+      
     popl %eax
     movl %eax, %cr0
     popl %eax

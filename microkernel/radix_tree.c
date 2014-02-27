@@ -127,10 +127,89 @@ __radix_tree_node_lookup_slot (const struct radix_tree_node *node, radixkey_t ke
   return (void **) &node->slots[sub];
 }
 
+INLINE radixtag_t *
+__radix_tree_node_lookup_tag (const struct radix_tree_node *node, radixkey_t key, unsigned int offset)
+{
+  radixkey_t sub;
+  unsigned int likeness;
+  unsigned int acclen;
+  
+  acclen = offset + node->keylen;
+
+  ASSERT (acclen <= RADIX_TREE_KEYLEN_MAX);
+
+  /* Key doesn't fit completely, need to break this node */
+  likeness = radix_key_equal_size (key, node->key, acclen);
+
+  /* First different letter */
+  sub = radix_key_letter_at (key, likeness);
+  
+  ASSERT (likeness <= acclen);
+
+  if (likeness < acclen)
+    return KERNEL_INVALID_POINTER;
+  
+  if (acclen < RADIX_TREE_KEYLEN_MAX - 1)
+  {
+    if (node->leaves[sub] == NULL)
+      return KERNEL_INVALID_POINTER;
+    
+    return __radix_tree_node_lookup_tag (node->leaves[sub], key, acclen);
+  }
+ 
+  return (radixtag_t *) &node->tags[sub];
+}
+
+
 void **
 radix_tree_lookup_slot (const struct radix_tree_node *root, radixkey_t key)
 {
   return __radix_tree_node_lookup_slot (root, key, 0);
+}
+
+radixtag_t *
+radix_tree_lookup_tag (const struct radix_tree_node *root, radixkey_t key)
+{
+  return __radix_tree_node_lookup_tag (root, key, 0);
+}
+
+int
+radix_tree_set_tag (const struct radix_tree_node *root, radixkey_t key, radixtag_t ntag)
+{
+  radixtag_t *tag;
+
+  if ((tag = radix_tree_lookup_tag (root, key)) == NULL)
+    return -1;
+
+  *tag = ntag;
+
+  return 0;
+}
+
+int
+radix_tree_add_tags (const struct radix_tree_node *root, radixkey_t key, radixtag_t ntag)
+{
+  radixtag_t *tag;
+
+  if ((tag = radix_tree_lookup_tag (root, key)) == NULL)
+    return -1;
+
+  *tag |= ntag;
+
+  return 0;
+}
+
+int
+radix_tree_remove_tags (const struct radix_tree_node *root, radixkey_t key, radixtag_t ntag)
+{
+  radixtag_t *tag;
+
+  if ((tag = radix_tree_lookup_tag (root, key)) == NULL)
+    return -1;
+
+  *tag &= ~ntag;
+
+  return 0;
 }
 
 INLINE int
@@ -180,7 +259,7 @@ __radix_tree_node_insert (struct radix_tree_node *node, radixkey_t key, void *da
   unsigned int acclen;
   
   struct radix_tree_node *new_node;
-  
+
   acclen = offset + node->keylen;
 
   ASSERT (acclen <= RADIX_TREE_KEYLEN_MAX);
@@ -234,6 +313,66 @@ radix_tree_insert (struct radix_tree_node *root, radixkey_t key, void *data)
   return __radix_tree_node_insert (root, key, data, 0);
 }
 
+int
+radix_tree_set (struct radix_tree_node **root, radixkey_t key, void *data)
+{
+  void **ptr;
+
+  if (*root == NULL)
+  {
+    if ((*root = radix_tree_node_new (key, RADIX_TREE_KEYLEN_MAX - 1)) == NULL)
+      return -1;
+    
+    (*root)->slots[0] = data;
+
+    return 0;
+  }
+  else
+    return radix_tree_insert (*root, key, data);
+}
+
+void
+radix_tree_destroy (struct radix_tree_node *tree)
+{
+  warning ("unimplemented!\n");
+}
+
+
+INLINE int
+__radix_tree_walk (struct radix_tree_node *node, int (*callback) (radixkey_t, void **, radixtag_t *, void *), void *data, unsigned int offset)
+{
+  unsigned int acclen;
+  int i;
+  radixkey_t slotkey;
+
+  if (node == NULL)
+    return 0;
+  
+  acclen = offset + node->keylen;
+
+  if (acclen == RADIX_TREE_KEYLEN_MAX)
+    return (callback) (node->key, &node->slots[0], &node->tags[0], data);
+  else
+    for (i = 0; i < RADIX_TREE_SLOTS; ++i)
+      if (node->slots[i] != NULL)
+      {
+        if (acclen == RADIX_TREE_KEYLEN_MAX - 1)
+        {
+          slotkey = radix_key (node->key, acclen) | i;
+          
+          RETURN_ON_FAILURE ((callback) (slotkey, &node->slots[i], &node->tags[i], data));
+        }
+        else
+          RETURN_ON_FAILURE (__radix_tree_walk (node->leaves[i], callback, data, acclen));
+      }
+}
+
+int
+radix_tree_walk (struct radix_tree_node *node, int (*callback) (radixkey_t, void **, radixtag_t *, void *), void *data)
+{
+  return __radix_tree_walk (node, callback, data, 0);
+}
+
 void
 radix_tree_debug (struct radix_tree_node *node, unsigned int offset)
 {
@@ -278,15 +417,26 @@ radix_tree_debug (struct radix_tree_node *node, unsigned int offset)
   printk ("}\n");
 }
 
-DEBUG_FUNC (radix_tree_get_shift);
+
 DEBUG_FUNC (radix_tree_node_new);
+DEBUG_FUNC (radix_tree_node_dup);
+DEBUG_FUNC (radix_tree_get_shift);
 DEBUG_FUNC (radix_key_letter_at);
 DEBUG_FUNC (radix_key);
 DEBUG_FUNC (radix_key_equals);
 DEBUG_FUNC (radix_key_equal_size);
 DEBUG_FUNC (__radix_tree_node_lookup_slot);
+DEBUG_FUNC (__radix_tree_node_lookup_tag);
 DEBUG_FUNC (radix_tree_lookup_slot);
+DEBUG_FUNC (radix_tree_lookup_tag);
+DEBUG_FUNC (radix_tree_set_tag);
+DEBUG_FUNC (radix_tree_add_tags);
+DEBUG_FUNC (radix_tree_remove_tags);
 DEBUG_FUNC (__radix_tree_break);
 DEBUG_FUNC (__radix_tree_node_insert);
 DEBUG_FUNC (radix_tree_insert);
+DEBUG_FUNC (radix_tree_set);
+DEBUG_FUNC (radix_tree_destroy);
+DEBUG_FUNC (__radix_tree_walk);
+DEBUG_FUNC (radix_tree_walk);
 DEBUG_FUNC (radix_tree_debug);

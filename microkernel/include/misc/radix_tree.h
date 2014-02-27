@@ -30,14 +30,22 @@ struct radix_tree_node
     void                   *slots [RADIX_TREE_SLOTS];
   };
 
-  
-  uint8_t tags[RADIX_TREE_SLOTS];
+  radixtag_t tags[RADIX_TREE_SLOTS];
 };
 
 
 struct radix_tree_node *radix_tree_node_new (radixkey_t, int);
 void **radix_tree_lookup_slot (const struct radix_tree_node *, radixkey_t);
+radixtag_t *radix_tree_lookup_tag (const struct radix_tree_node *, radixkey_t);
+int radix_tree_set_tag (const struct radix_tree_node *, radixkey_t, radixtag_t);
+
+int radix_tree_add_tags (const struct radix_tree_node *, radixkey_t, radixtag_t);
+int radix_tree_remove_tags (const struct radix_tree_node *, radixkey_t, radixtag_t);
+
+int radix_tree_walk (struct radix_tree_node *, int (*) (radixkey_t, void **, radixtag_t *, void *), void *);
 int radix_tree_insert (struct radix_tree_node *, radixkey_t, void *);
+int radix_tree_set (struct radix_tree_node **, radixkey_t, void *);
 void radix_tree_debug (struct radix_tree_node *, unsigned int);
+void radix_tree_destroy (struct radix_tree_node *);
 
 #endif /* _RADIX_TREE_H */

@@ -89,7 +89,6 @@ x86_pagedir_map_range (DWORD *pagedir, DWORD virt, DWORD phys, DWORD pages,
     if (PAGE_ENTRY (this_virt) == 0)
     {
       if (x86_prepare_page_table (pagedir, this_virt) == -1)
-     
         return KERNEL_ERROR_VALUE;
         
       pagetable = x86_get_page_table (pagedir, this_virt);

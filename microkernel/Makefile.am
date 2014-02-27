@@ -19,6 +19,7 @@ neftis_CFLAGS=-fstrength-reduce \
 neftis_CCASFLAGS=-I../include -Iarch/x86/include @AM_CFLAGS@
 
 neftis_SOURCES=arch/x86/boot.S \
+               anonmap.c       \
                console.c       \
                hook.c          \
                irq.c           \

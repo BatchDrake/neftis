@@ -37,7 +37,7 @@ vm_region_new (busword_t start, busword_t end, struct vm_region_ops *ops, void *
   struct vm_region *new;
   
   CONSTRUCT_STRUCT (vm_region, new);
-  
+
   new->vr_ops = ops;
   new->vr_ops_data = data;
   new->vr_virt_start = start;
@@ -52,7 +52,8 @@ vm_region_destroy (struct vm_region *region, struct task *task)
   if (region->vr_ops->destroy != NULL)
     (region->vr_ops->destroy) (task, region);
 
-  radix_tree_destroy (region->vr_page_tree);
+  if (region->vr_type == VREGION_TYPE_PAGEMAP)
+    radix_tree_destroy (region->vr_page_tree);
   
   spfree (region);
 }
@@ -62,8 +63,10 @@ vm_region_map_page (struct vm_region *region, busword_t virt, busword_t phys, DW
 {
   void **slot;
 
+  if (region->vr_type == VREGION_TYPE_RANGEMAP)
+    return KERNEL_ERROR_VALUE;
+  
   /* TODO: define radix_tree_set_with_flags */
-
   if (radix_tree_set (&region->vr_page_tree, virt, (void *) phys) == KERNEL_ERROR_VALUE)
     return KERNEL_ERROR_VALUE;
 
@@ -79,16 +82,26 @@ vm_region_translate_page (struct vm_region *region, busword_t virt, DWORD *flags
   void **addr;
   radixtag_t *tag;
 
-  /* Really, this sucks */
-  if ((addr = radix_tree_lookup_slot (region->vr_page_tree, virt)) == NULL)
-    return (busword_t) KERNEL_ERROR_VALUE;
-
-  if (flags != NULL)
+  if (region->vr_type == VREGION_TYPE_RANGEMAP)
   {
-    if ((tag = radix_tree_lookup_tag (region->vr_page_tree, virt)) == NULL)
+    if (virt < region->vr_virt_start || virt > region->vr_virt_end)
       return (busword_t) KERNEL_ERROR_VALUE;
 
-    *flags = *tag;
+    return virt - region->vr_virt_start + region->vr_phys_start;
+  }
+  else
+  {
+    /* Really, this sucks */
+    if ((addr = radix_tree_lookup_slot (region->vr_page_tree, virt)) == NULL)
+      return (busword_t) KERNEL_ERROR_VALUE;
+
+    if (flags != NULL)
+    {
+      if ((tag = radix_tree_lookup_tag (region->vr_page_tree, virt)) == NULL)
+	return (busword_t) KERNEL_ERROR_VALUE;
+
+      *flags = *tag;
+    }
   }
   
   return (busword_t) *addr;
@@ -262,7 +275,10 @@ vm_update_region (struct vm_space *space, struct vm_region *region)
   if (space->vs_pagetable == NULL)
     space->vs_pagetable = __vm_alloc_page_table ();
 
-  return radix_tree_walk (region->vr_page_tree, __map_pages, space);
+  if (region->vr_type == VREGION_TYPE_RANGEMAP)
+    return __vm_map_to (space->vs_pagetable, region->vr_virt_start, region->vr_phys_start, __UNITS (region->vr_virt_end - region->vr_virt_start + 1, PAGE_SIZE), region->vr_access);
+  else
+    return radix_tree_walk (region->vr_page_tree, __map_pages, space);
 }
 
 /* Transforms segment information into hardware translation data (i.e.

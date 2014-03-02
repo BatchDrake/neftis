@@ -122,6 +122,7 @@ vm_region_anonmap (busword_t virt, busword_t pages, DWORD perms)
   PTR_RETURN_ON_PTR_FAILURE (new = vm_region_new (virt, virt + (pages << __PAGE_BITS) - 1, &anonmap_region_ops, NULL));
 
   new->vr_access = perms;
+  new->vr_type   = VREGION_TYPE_PAGEMAP;
   
   region = mm_regions;
 
@@ -153,14 +154,9 @@ vm_region_remap (busword_t virt, busword_t phys, busword_t pages, DWORD perms)
 
   PTR_RETURN_ON_PTR_FAILURE (new = vm_region_new (virt, virt + (pages << __PAGE_BITS) - 1, &kmap_region_ops, NULL));
 
+  new->vr_type   = VREGION_TYPE_RANGEMAP;
   new->vr_access = perms;
-
-  for (i = 0; i < pages; ++i)
-  {
-    vaddr = virt + (i << __PAGE_BITS);
-    paddr = phys + (i << __PAGE_BITS);
-    vm_region_map_page (new, vaddr, paddr, perms);
-  }
+  new->vr_phys_start = phys;
   
   return new;
   

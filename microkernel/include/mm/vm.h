@@ -23,7 +23,10 @@
 #include <misc/list.h>
 #include <misc/radix_tree.h>
 #include <mm/regions.h>
- 
+
+#define VREGION_TYPE_RANGEMAP    0
+#define VREGION_TYPE_PAGEMAP     1
+
 #define VREGION_ROLE_USERMAP     0
 #define VREGION_ROLE_STACK       1
 #define VREGION_ROLE_KERNEL      2
@@ -88,21 +91,29 @@ struct vm_region_ops
 
 /* I don't care too much about this. I don't expect a process to
    have thousands of regions, but if it ends up becoming like that,
-   vm_region will be inside a tree */
+   vm_region will be inside a tree in future versions */
 struct vm_region
 {
   SORTED_LIST;
 
+  int                   vr_type;
   int                   vr_role;
   struct vm_region_ops *vr_ops;
   void                 *vr_ops_data; /* Opaque data */
   
-  DWORD vr_access;
+  DWORD                 vr_access;
   
   busword_t vr_virt_start;
   busword_t vr_virt_end;
 
-  struct radix_tree_node *vr_page_tree; /* Radix tree of pages */
+  union
+  {
+    /* This is just an optimization: some maps are just remaps
+       of existing physical regions to virtual regions */
+    busword_t vr_phys_start;
+  
+    struct radix_tree_node *vr_page_tree; /* Radix tree of pages */
+  };
 };
 
 struct vm_space

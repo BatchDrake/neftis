@@ -145,9 +145,30 @@ test_kthreads (void)
 {
   struct task *task1, *task2, *task3;
 
-  int i;
+  int i = 0;
 
+#if 0
+  void *p;
+    
+  while ((p = page_alloc (16)) != NULL)
+  {
+    printk ("Alloc'd: %p (%d)\n", p, ++i);
+    page_free (p, 8);
+  }
 
+  printk ("Memory filled with a 8/8 pattern\n");
+
+  while ((p = page_alloc (9)) != NULL)
+  {
+    printk ("Alloc'd: %p (%d)\n", p, ++i);
+    page_free (p, 8);
+  }
+
+  printk ("Done\n");
+  
+  kernel_halt ();
+#endif
+  
   if ((task3 = sysproc_load (example_elf, sizeof (example_elf))) == KERNEL_INVALID_POINTER)
     FAIL ("cannot open elf??\n");
 

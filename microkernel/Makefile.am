@@ -20,6 +20,7 @@ neftis_CCASFLAGS=-I../include -Iarch/x86/include @AM_CFLAGS@
 
 neftis_SOURCES=arch/x86/boot.S \
                anonmap.c       \
+               buddy.c         \
                console.c       \
                hook.c          \
                irq.c           \
@@ -29,7 +30,6 @@ neftis_SOURCES=arch/x86/boot.S \
                loader.c        \
                lock.c          \
                main.c          \
-               mm.c            \
                mutex.c         \
                printk.c        \
                radix_tree.c    \

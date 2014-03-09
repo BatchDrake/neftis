@@ -198,6 +198,12 @@ strtoul (const char *start, int *err)
   return result * sign;
 }
 
+void
+do_nothing (void)
+{
+}
+
+DEBUG_FUNC (do_nothing);
 DEBUG_FUNC (strlen);
 DEBUG_FUNC (umax);
 DEBUG_FUNC (max);

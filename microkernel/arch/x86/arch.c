@@ -1,6 +1,6 @@
 /*
- *    <one line to give the program's name and a brief idea of what it does.>
- *    Copyright (C) <year>  <name of author>
+ *    Main architecture-specific functions for x86 platform.
+ *    Copyright (C) 2014  Gonzalo J. Carracedo
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -222,7 +222,7 @@ vm_kernel_space_map_io (struct vm_space *space)
   }
   else
   {
-    debug ("where are the memory maps? :S\n");
+    debug ("where are the memory maps? :S (mbi: %p, flags: %p)\n", mbi, mbi->flags);
     return KERNEL_ERROR_VALUE;
   }
   

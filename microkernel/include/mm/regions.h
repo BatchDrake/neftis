@@ -22,27 +22,37 @@
 #include <types.h>
 #include <lock/lock.h>
 
-struct mm_region
+#define MM_REGION_BUCKETS (BUSWORD_BITS - __PAGE_BITS)
+
+struct page
 {
-  struct mm_region *mr_next;
-  physptr_t         mr_start;
-  physptr_t         mr_end;
+  struct page  *free_prev;
+  struct page  *free_next;
+  unsigned long index;
   
-  memsize_t         mr_size;
-  memsize_t         mr_pages;
-  
-  memsize_t         mr_last_freed;
-  
-  /* !!!TODO: incluir un semáforo aquí. */
-  /* !!!TODO: si hay varias memorias, hacer una especie de
-     sem_trylock y comprobar otras áreas que estén libres */
-  
-  spin_t            mr_lock;     
-  uint8_t          *mr_bitmap;
+  int refcount;
 };
 
-#define MMR_BITMAP_SIZE(mr)  __UNITS(mr->mr_pages, 8)
-#define MMR_BITMAP_PAGES(mr) __UNITS(MMR_BITMAP_SIZE  (mr), PAGE_SIZE)
+struct free_bucket
+{
+  struct page *first;
+  char *map;
+};
+
+struct mm_region
+{
+  struct mm_region  *mr_next;
+  spin_t             mr_lock;
+  
+  physptr_t          mr_start;
+  struct page       *mr_page_list;
+  
+  physptr_t          mr_end;
+  
+  memsize_t          mr_pages;
+
+  struct free_bucket mr_buckets[MM_REGION_BUCKETS];
+};
 
 #define MMR_PAGE_TO_ADDR(mr, relpg)                      \
   (PAGE_START (mr->mr_start) + PAGE_ADDR (relpg))
@@ -54,15 +64,13 @@ struct mm_region
   (((busword_t) addr >= (busword_t) mr->mr_start) &&     \
   ((busword_t) addr <= (busword_t) mr->mr_end))
 
-#define MMR_PAGE_STATE(mr, relpg)                        \
-  (!!(mr->mr_bitmap[relpg >> 3] & (1 << (relpg & 7))))
-#define MMR_MARK_PAGE(mr, relpg)                         \
-  mr->mr_bitmap[relpg >> 3] |= (1 << (relpg & 7))
-#define MMR_UNMARK_PAGE(mr, relpg)                       \
-  mr->mr_bitmap[relpg >> 3] &= ~(1 << (relpg & 7))
+
 
 void mm_register_region (physptr_t, physptr_t);
-physptr_t page_alloc (memsize_t pages);
+physptr_t page_alloc (memsize_t);
+int page_free (void *, memsize_t);
+busword_t mm_region_alloc_colored_page (struct mm_region *, int);
+unsigned long mm_region_debug (struct mm_region *);
 
 #endif /* _MM_REGIONS_H */
 

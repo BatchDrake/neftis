@@ -150,13 +150,8 @@ mm_get_contiguous (struct mm_region *mr, memsize_t pages)
       if (avail)
         return this;
     }
-    
-not_yet:
-
-    do_nothing ();
   }
   
-
   return (busword_t) KERNEL_ERROR_VALUE;
 }
 
@@ -188,7 +183,7 @@ page_alloc (memsize_t pages)
 
   this_region = mm_regions;
   
-  while (this_region != NULL)
+  if (this_region != NULL)
   {
     spin_lock (&this_region->mr_lock);
     

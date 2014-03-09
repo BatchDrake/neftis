@@ -82,13 +82,11 @@ __alloc_colored (struct mm_region *from, struct vm_region *region, busword_t pag
     
     curr_color = ADDR_COLOR (cache_size, virt);
 
-    if ((page = mm_get_colored_page (from, curr_color)) == (busword_t) KERNEL_ERROR_VALUE)
+    if ((page = mm_region_alloc_colored_page (from, curr_color)) == (busword_t) KERNEL_ERROR_VALUE)
       goto fail;
 
-    if (vm_region_map_page (region, virt, MMR_PAGE_TO_ADDR (from, page), VM_PAGE_PRESENT | perms) == KERNEL_ERROR_VALUE)
+    if (vm_region_map_page (region, virt, page, VM_PAGE_PRESENT | perms) == KERNEL_ERROR_VALUE)
       goto fail;
-                            
-    MMR_MARK_PAGE (from, page);
   }
 
   spin_unlock (&from->mr_lock);
@@ -101,7 +99,7 @@ fail:
     virt = region->vr_virt_start + (i << __PAGE_BITS);
     
     if ((page = vm_region_translate_page (region, virt, NULL)) != (busword_t) KERNEL_ERROR_VALUE)                            
-      MMR_UNMARK_PAGE (from, MMR_ADDR_TO_PAGE (from, page));
+      page_free ((physptr_t) virt, 1);
   }
   
   spin_unlock (&from->mr_lock);

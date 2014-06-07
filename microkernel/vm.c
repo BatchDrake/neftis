@@ -205,6 +205,27 @@ vm_space_overlap_region (struct vm_space *space, struct vm_region *region)
   return 0;
 }
 
+struct vm_region *
+vm_space_find_region (const struct vm_space *space, busword_t virt)
+{
+  struct vm_region *curr;
+  busword_t off  = virt &  PAGE_MASK;
+  busword_t page = virt & ~PAGE_MASK;
+  busword_t phys;
+  
+  curr = space->vs_regions;
+
+  while (curr)
+  {
+    if (virt >= curr->vr_virt_start && virt <= curr->vr_virt_end)
+      return curr;
+    
+    curr = LIST_NEXT (curr);
+  }
+
+  return KERNEL_INVALID_POINTER;
+}
+
 busword_t
 virt2phys (const struct vm_space *space, busword_t virt)
 {
@@ -466,6 +487,45 @@ vm_space_debug (struct vm_space *space)
   }
 }
 
+int
+vm_handle_page_fault (struct task *task, busword_t addr, int access)
+{
+  struct vm_region *region = vm_space_find_region (task->ts_vm_space, addr);
+
+  if (region == KERNEL_INVALID_POINTER)
+  {
+    /* Send a signal, or whatever */
+    panic ("Task %d: segment violation (%p)\n", task->ts_tid, addr);
+    return -1;
+  }
+  
+  switch (access)
+  {
+  case VREGION_ACCESS_READ:
+    if (region->vr_ops->read_fault == NULL)
+      panic ("Task %d: region has no read page fault handler registered!\n", task->ts_tid);
+
+    return (region->vr_ops->read_fault) (task, region, addr);
+
+  case VREGION_ACCESS_WRITE:
+    if (region->vr_ops->write_fault == NULL)
+      panic ("Task %d: region has no write page fault handler registered!\n", task->ts_tid);
+
+    return (region->vr_ops->write_fault) (task, region, addr);
+
+  case VREGION_ACCESS_EXEC:
+    if (region->vr_ops->exec_fault == NULL)
+      panic ("Task %d: region has no exec page fault handler registered!\n", task->ts_tid);
+
+    return (region->vr_ops->exec_fault) (task, region, addr);
+
+  default:
+    FAIL ("?");
+  }
+
+  return 0;
+}
+
 void
 vm_init (void)
 { 
@@ -479,6 +539,7 @@ vm_init (void)
   hw_vm_init ();
 }
 
+DEBUG_FUNC (vm_handle_page_fault);
 DEBUG_FUNC (vm_region_new);
 DEBUG_FUNC (vm_region_destroy);
 DEBUG_FUNC (vm_region_map_page);

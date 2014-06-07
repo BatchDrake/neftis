@@ -148,6 +148,7 @@ void vm_space_debug (struct vm_space *);
 /* Misc operations */
 busword_t virt2phys (const struct vm_space *space, busword_t virt);
 int copy2virt (const struct vm_space *, busword_t, const void *, busword_t);
+int vm_handle_page_fault (struct task *, busword_t, int);
 void vm_init (void);
 
 #endif /* _MM_VM_H */

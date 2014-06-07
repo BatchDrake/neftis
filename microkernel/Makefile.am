@@ -22,6 +22,7 @@ neftis_SOURCES=arch/x86/boot.S \
                anonmap.c       \
                buddy.c         \
                console.c       \
+               exception.c     \
                hook.c          \
                irq.c           \
                kctx.c          \

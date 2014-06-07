@@ -37,14 +37,14 @@ static int anonmap_pagefault (struct task *task, struct vm_region *region, buswo
   else
     error ("segmentation fault: %p\n", failed_addr);
 
-  kernel_halt ();
+  return -1;
 }
 
 static int kmap_pagefault (struct task *task, struct vm_region *region, busword_t failed_addr)
 {
   error ("Kernel region fault: %p\n", failed_addr);
  
-  kernel_halt ();
+  return -1;
 }
 
 struct vm_region_ops anonmap_region_ops =

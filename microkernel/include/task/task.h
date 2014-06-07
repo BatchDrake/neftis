@@ -21,6 +21,7 @@
 
 #include <mm/vm.h>
 #include <misc/list.h>
+#include <task/exception.h>
 
 #include <arch.h>
 #include <kctx.h>
@@ -78,6 +79,13 @@ struct task
   tid_t               ts_tid;
   int                 ts_state;
   int                 ts_type;
+
+  /* These are kernel-mode exception handlers to be executed
+     directly in interrupt context. These exception handlers
+     may be used to build a usedspace stack frame to call
+     a usermode exception handler. */
+  
+  void              (*ts_ex_handlers[EX_MAX]) (struct task *, int, busword_t, busword_t, int);
   
   char                ts_arch_ctx_data[1];
 };

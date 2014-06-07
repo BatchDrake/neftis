@@ -27,6 +27,8 @@
 
 #include <kctx.h>
 
+#include <mm/vm.h>
+
 /* Be careful: IDT is paged, so you will need it to be visible at the time
    is needed in a privileged context. */
    
@@ -328,8 +330,11 @@ x86_init_all_gates (void)
 INLINE int
 interrupt_is_fatal (unsigned int interrupt)
 {
-  return interrupt <= X86_INT_SIMD_FPE || 
-         interrupt == KERNEL_BUGCHECK_INTERRUPT;
+  return (interrupt <= X86_INT_SIMD_FPE  &&
+	  interrupt != X86_INT_GENERAL_PROTECTION_FAULT &&
+	  interrupt != X86_INT_PAGE_FAULT) || 
+    interrupt == KERNEL_BUGCHECK_INTERRUPT;
+  
 }
 
 void
@@ -337,13 +342,18 @@ x86_isr_handler (struct x86_stack_frame *frame)
 {
   int old_ctx;
   void *old_frame;
+  struct task *task;
+  DWORD cr2;
   
   old_ctx   = get_current_context ();
   old_frame = get_interrupt_frame ();
+  task      = get_current_task ();
   
   set_current_context (KERNEL_CONTEXT_INTERRUPT);
   set_interrupt_frame (frame);
-  
+
+   __asm__ __volatile__ ("movl %%cr2, %0" : "=g" (cr2));
+      
   if (frame->int_no >= 32 && frame->int_no < 56)
   {
     
@@ -356,15 +366,54 @@ x86_isr_handler (struct x86_stack_frame *frame)
   }
   else
   {
-    if (frame->int_no == KERNEL_BUGCHECK_INTERRUPT)
-      panic ("microkernel bugcheck");
-    else
-      panic ("int %d, code %d", frame->int_no, frame->priv.error);
-  
-    x86_regdump (frame);
-  
-    if (interrupt_is_fatal (frame->int_no))
+    if (old_ctx == KERNEL_CONTEXT_BOOT_TIME)
+    {
+      panic ("microkernel interrupt %d while booting!\n", frame->int_no);
       kernel_halt ();
+    }
+    else if (old_ctx == KERNEL_CONTEXT_INTERRUPT)
+    {
+      panic ("fatal: microkernel fault while handling fault\n");
+
+      kernel_halt ();
+    }
+	
+    switch (frame->int_no)
+    {
+    case KERNEL_BUGCHECK_INTERRUPT:
+      panic ("microkernel bugcheck");
+      kernel_halt ();
+	    
+      break;
+      
+    case X86_INT_DIVIDE_BY_ZERO:
+    case X86_INT_X87_FLOATING_POINT_EXCEPTION:
+    case X86_INT_SIMD_FPE:
+      task_trigger_exception (task, EX_FPE, (busword_t) frame->priv.eip, 0, 0);
+      break;
+
+    case X86_INT_INVALID_OPCODE:
+      task_trigger_exception (task, EX_ILL_INSTRUCTION, (busword_t) frame->priv.eip, 0, 0);
+      break;
+
+    case X86_INT_SECURITY_EXCEPTION:
+      task_trigger_exception (task, EX_PRIV_INSTRUCTION, (busword_t) frame->priv.eip, 0, 0);
+      break;
+      
+    case X86_INT_GENERAL_PROTECTION_FAULT:
+    case X86_INT_DOUBLE_FAULT:
+    case X86_INT_PAGE_FAULT:
+      if (vm_handle_page_fault (task, cr2, VREGION_ACCESS_READ) == -1)
+	task_trigger_exception (task, EX_SEGMENT_VIOLATION, (busword_t) frame->priv.eip, cr2, 0);
+      
+      break;
+
+    default:
+      panic ("int %d, code %d", frame->int_no, frame->priv.error);
+      x86_regdump (frame);
+  
+      kernel_halt ();
+    }
   }
 
   set_interrupt_frame (old_frame);

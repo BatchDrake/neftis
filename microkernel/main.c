@@ -88,6 +88,8 @@ kernel_thread_one (void)
 
   line = syscon->pos_y;
 
+  *(int *) 0xa0000000 = 3;
+  
   for (;;)
   {
     if ((k++ % 100) == 0)

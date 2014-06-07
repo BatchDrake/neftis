@@ -1,6 +1,6 @@
 /*
- *    <one line to give the program's name and a brief idea of what it does.>
- *    Copyright (C) <year>  <name of author>
+ *    Basic task handling.
+ *    Copyright (C) 2013  Gonzalo J. Carracedo
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -217,6 +217,7 @@ idle_task (void)
   }
 }
 
+/* Tasks must be in TASK_STATE_EXITED before being deleted */
 void
 task_destroy (struct task *task)
 {

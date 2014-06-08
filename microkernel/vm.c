@@ -130,6 +130,8 @@ vm_space_destroy (struct vm_space *space)
   }
   
   __vm_free_page_table (space->vs_pagetable);
+
+  spfree (space);
 }
 
 /* Next level */

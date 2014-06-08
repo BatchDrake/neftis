@@ -1,6 +1,6 @@
 /*
- *    <one line to give the program's name and a brief idea of what it does.>
- *    Copyright (C) <year>  <name of author>
+ *    x86-dependant task functions
+ *    Copyright (C) 2013  Gonzalo J. Carracedo
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -97,6 +97,12 @@ __alloc_task (void)
   data->stack_info.useresp = 0; /* Define later. */
   
   return new_task;
+}
+
+void
+__free_task (struct task *task)
+{
+  page_free (task, KERNEL_MODE_STACK_PAGES);
 }
 
 busword_t

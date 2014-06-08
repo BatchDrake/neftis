@@ -221,7 +221,10 @@ idle_task (void)
 void
 task_destroy (struct task *task)
 {
-  debug ("stub!\n");
+  if (task->ts_type != TASK_TYPE_KERNEL_THREAD)
+    vm_space_destroy (task->ts_vm_space);
+  
+  __free_task (task);
 }
 
 /* This should lock */

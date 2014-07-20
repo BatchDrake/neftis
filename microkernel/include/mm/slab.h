@@ -31,6 +31,10 @@
 #define MM_SLAB_STATE_PARTIAL  1
 #define MM_SLAB_STATE_FULL     2
 
+#define MM_SLAB_NAME_MAX       64
+#define MM_SLAB_DEFAULT_ALIGN  4
+
+#define MM_CACHE_IS_BIG(cachep) (((struct kmem_cache *) (cachep))->object_size > MM_SMALL_SLAB_SIZE_MAX)
 struct kmem_cache
 {
   LINKED_LIST;
@@ -58,7 +62,7 @@ struct kmem_cache
   next_partial;
   
   int        state;
-  char      *name;
+  char       name[MM_SLAB_NAME_MAX];
 
   busword_t object_size;
   int       object_count;
@@ -69,14 +73,13 @@ struct kmem_cache
   int       last_allocated;
   int       last_freed;
   
-  int       pages_per_slab;
+  int       pages_per_slab; /* This will grow bigger */
   
   uint8_t  *bitmap;
   void     *data;
   void     *opaque;
   
   int       alignment;
-
   
   void (*constructor) (struct kmem_cache *, void *);
   void (*destructor)  (struct kmem_cache *, void *);
@@ -84,7 +87,7 @@ struct kmem_cache
 
 struct big_slab_header
 {
-  struct slab *header;
+  struct kmem_cache *header;
   struct big_slab_header *next;
   
   int   state;
@@ -94,7 +97,7 @@ struct big_slab_header
   
 struct small_slab_header
 {
-  struct slab *header;
+  struct kmem_cache *header;
   struct small_slab_header *next;
 
   int       state;

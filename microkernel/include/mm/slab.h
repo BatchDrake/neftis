@@ -34,6 +34,10 @@
 #define MM_SLAB_NAME_MAX       64
 #define MM_SLAB_DEFAULT_ALIGN  4
 
+#define MM_SLAB_NO_HINT        ((memsize_t) -1)
+
+#define OBJECT_ADDR_CACHE(slab, id) ((slab)->data + (slab)->object_size * (id))
+#define OBJECT_ADDR_SLAB(slab, id) ((slab)->data + (slab)->header->object_size * (id))
 #define MM_CACHE_IS_BIG(cachep) (((struct kmem_cache *) (cachep))->object_size > MM_SMALL_SLAB_SIZE_MAX)
 struct kmem_cache
 {
@@ -66,12 +70,13 @@ struct kmem_cache
 
   busword_t object_size;
   int       object_count;
-
+  int       object_used;
+  
   /* Improve allocation performance by giving
      hints about the bitmap status */
   
-  int       last_allocated;
-  int       last_freed;
+  memsize_t last_allocated;
+  memsize_t last_freed;
   
   int       pages_per_slab; /* This will grow bigger */
   
@@ -101,14 +106,17 @@ struct small_slab_header
   struct small_slab_header *next;
 
   int       state;
-
-  int       object_count;
+  
+  memsize_t pages;
+  memsize_t object_count;
+  memsize_t object_used;
+  
   uint8_t  *bitmap;
   void     *data;
 
   /* Hints */
-  int       last_allocated;
-  int       last_freed;
+  memsize_t last_allocated;
+  memsize_t last_freed;
 };
 
 struct kmem_cache *kmem_cache_create (const char *, busword_t, void (*) (struct kmem_cache *, void *), void (*) (struct kmem_cache *, void *));

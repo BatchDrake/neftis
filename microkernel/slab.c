@@ -27,6 +27,44 @@
 /* TODO: lock! */
 struct kmem_cache *kmem_cache_list;
 
+static inline void
+bitmap_mark (uint8_t *bitmap, memsize_t objno)
+{
+  bitmap[objno >> 3] |= 1 << (objno & 7);
+}
+
+
+static inline void
+bitmap_unmark (uint8_t *bitmap, memsize_t objno)
+{
+  bitmap[objno >> 3] &= ~(1 << (objno & 7));
+}
+
+static inline int
+bitmap_get (const uint8_t *bitmap, memsize_t objno)
+{
+  return bitmap[objno >> 3] & (1 << (objno & 7));
+}
+
+static inline memsize_t
+bitmap_search_free (const uint8_t *bitmap, memsize_t size, memsize_t hint)
+{
+  memsize_t i;
+
+  if (hint > size)
+    hint = 0;
+  
+  for (i = hint; i < size; ++i)
+    if (bitmap_get (bitmap, i))
+      return i;
+  
+  for (i = 0; i < hint; ++i)
+    if (bitmap_get (bitmap, i))
+      return i;
+
+  return -1;
+}
+
 static void
 kmem_construct (struct kmem_cache *cache, void *buf)
 {
@@ -73,8 +111,10 @@ kmem_cache_create (const char *name, busword_t size, void (*constructor) (struct
   is_big = MM_CACHE_IS_BIG (new);
   
   new->object_count   = is_big ? 1 : __UNITS (MM_SMALL_SLAB_SIZE_MAX, new->object_size);
-  new->last_allocated = 0;
-  new->last_freed     = 0;
+  new->object_used    = 0;
+  
+  new->last_allocated = MM_SLAB_NO_HINT;
+  new->last_freed     = MM_SLAB_NO_HINT;
 
   /* This field will be doubled every time the cache needs to grow bigger (applies to small caches only) */
   if (is_big)
@@ -100,10 +140,16 @@ kmem_cache_create (const char *name, busword_t size, void (*constructor) (struct
     new->bitmap         = (void *) new + sizeof (struct kmem_cache);
     new->data           = (void *) new + data_offset;
 
+    /* Clear bitmap */
+    memset (new->bitmap, 0, bitmap_size);
+    
     /* Preallocate all */
     for (i = 0; i < new->object_count; ++i)
       kmem_construct (new, new->data + i * new->object_size);
   }
+
+  /* Save cache to list */
+  list_insert_tail ((void *) &kmem_cache_list, new);
   
   return new;
 }
@@ -179,12 +225,22 @@ kmem_cache_alloc_small (struct kmem_cache *cache)
   data_offset = __ALIGN (sizeof (struct small_slab_header) + bitmap_size, PAGE_SIZE);
   
   new->object_count = (PAGE_SIZE - data_offset) / cache->object_size;
+  new->object_used  = 0;
+  
   new->bitmap = (void *) new + sizeof (struct small_slab_header);
   new->data   = (void *) new + data_offset;
 
+  new->last_allocated = MM_SLAB_NO_HINT;
+  new->last_freed     = MM_SLAB_NO_HINT;
+
+  new->pages          = cache->pages_per_slab;
+  
   /* Initialize everything */
   for (i = 0; i < new->object_count; ++i)
     kmem_construct (cache, new->data + i * cache->object_size);
+
+  /* Clear bitmap */
+  memset (new->bitmap, 0, bitmap_size);
   
   /* Double it, next slabs will be bigger */
   cache->pages_per_slab <<= 1;
@@ -192,19 +248,116 @@ kmem_cache_alloc_small (struct kmem_cache *cache)
   return new;
 }
 
+static void *
+__small_kmem_cache_alloc (struct kmem_cache *cache)
+{
+  int hint = 0;
+  memsize_t block;
+  struct small_slab_header *small_slab;
+
+  /* Check whether we have no small slabs */
+    
+  if (cache->next_free.next_small_free == NULL && cache->next_partial.next_small_partial == NULL)
+    if ((small_slab = kmem_cache_alloc_small (cache)) == NULL)
+      return NULL; /* No memory to allocate small slab */
+    else
+      list_insert_head ((void **) &cache->next_free.next_small_free, small_slab);
+    
+  if ((small_slab = cache->next_free.next_small_free) != NULL)
+    list_remove_element ((void **) &cache->next_free.next_small_free, small_slab);
+  else if ((small_slab = cache->next_partial.next_small_partial) != NULL)
+    list_remove_element ((void **) &cache->next_partial.next_small_partial, small_slab);
+
+  if (small_slab->last_freed != MM_SLAB_NO_HINT)
+    hint = small_slab->last_freed;
+  else if (small_slab->last_allocated != MM_SLAB_NO_HINT)
+    hint = small_slab->last_allocated + 1;
+    
+  if ((block = bitmap_search_free (small_slab->bitmap, small_slab->object_count, hint)) != -1)
+  {
+    /* Found usable block */
+
+    bitmap_mark (small_slab->bitmap, block);
+
+    if (++small_slab->object_used == small_slab->object_count)
+    {
+      small_slab->state = MM_SLAB_STATE_FULL;
+      list_insert_head ((void **) &cache->next_full.next_small_full, small_slab);
+    }
+    else
+    {
+      small_slab->state = MM_SLAB_STATE_PARTIAL;
+      list_insert_head ((void **) &cache->next_partial.next_small_partial, small_slab);
+    }
+  }
+
+  return OBJECT_ADDR_SLAB (small_slab, block);
+}
+
+static void *
+__big_kmem_cache_alloc(struct kmem_cache *cache)
+{
+  struct big_slab_header *big_slab;
+
+  /* Check whether we have no big slabs */
+  
+  if (cache->next_free.next_big_free == NULL)
+    if ((big_slab = kmem_cache_alloc_big (cache)) == NULL)
+      return NULL; /* No memory to allocate small slab */
+    else
+      list_insert_head ((void **) &cache->next_free.next_big_free, big_slab);
+    
+  /* Big slabs are either free or used */
+  list_remove_element ((void **) &cache->next_free.next_big_free, big_slab);
+
+  big_slab->state = MM_SLAB_STATE_FULL;
+
+  /* Move to full list */
+  list_insert_head ((void **) &cache->next_full.next_big_full, big_slab);
+
+  /* Big slabs are like small slabs with only one slot */
+  return big_slab->data;
+}
+
+
 void *
 kmem_cache_alloc (struct kmem_cache *cache)
 {
+  int hint = 0;
+  memsize_t block;
+  struct big_slab_header *big_slab;
+  
   /* Small slabs: */
   /*   Check if head is partial or empty. If it is, allocate there*/
-  /* For both slabs: */
-  /*   If it isn't, look first in free list and then in partial */
-  /*   If both lists are empty, grow cache */
+  
+  if (!MM_CACHE_IS_BIG (cache))
+  {
+    if (cache->state == MM_SLAB_STATE_EMPTY ||
+        cache->state == MM_SLAB_STATE_PARTIAL)
+    {
+      if (cache->last_freed != MM_SLAB_NO_HINT)
+        hint = cache->last_freed;
+      else if (cache->last_allocated != MM_SLAB_NO_HINT)
+        hint = cache->last_allocated + 1;
 
-  /*   If the slab was empty, mark it as partial and move it to partial list */
-  /*   If the slab was partial and now is full, mark it as full and move it to full list */
+      if ((block = bitmap_search_free (cache->bitmap, cache->object_count, hint)) != -1)
+      {
+        /* Found usable block */
 
-  return NULL;
+        bitmap_mark (cache->bitmap, block);
+
+        if (++cache->object_used == cache->object_count)
+          cache->state = MM_SLAB_STATE_FULL;
+
+        return OBJECT_ADDR_CACHE (cache, block);
+      }
+    }
+    else
+      return __small_kmem_cache_alloc (cache); /* Regular alloc */
+  }
+  else
+    return __big_kmem_cache_alloc (cache);
+  
 }
 
 void

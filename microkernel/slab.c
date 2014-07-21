@@ -53,28 +53,48 @@ bitmap_search_free (const uint8_t *bitmap, memsize_t size, memsize_t hint)
 
   if (hint > size)
     hint = 0;
-  
+
   for (i = hint; i < size; ++i)
-    if (bitmap_get (bitmap, i))
+    if (!bitmap_get (bitmap, i))
       return i;
   
   for (i = 0; i < hint; ++i)
-    if (bitmap_get (bitmap, i))
+    if (!bitmap_get (bitmap, i))
       return i;
-
+  
   return -1;
+}
+
+struct kmem_cache *
+kmem_cache_lookup (const char *name)
+{
+  struct kmem_cache *caches = kmem_cache_list;
+
+  while (caches != NULL)
+  {
+    if (strcmp (caches->name, name) == 0)
+      return caches;
+
+    caches = LIST_NEXT (caches);
+  }
+
+  return NULL;
 }
 
 static void
 kmem_construct (struct kmem_cache *cache, void *buf)
 {
-  (cache->constructor) (cache, buf);
+  if (cache->constructor != NULL)
+    (cache->constructor) (cache, buf);
+  else
+    memset (buf, 0, cache->object_size);
 }
 
 static void
 kmem_destruct (struct kmem_cache *cache, void *buf)
 {
-  (cache->destructor) (cache, buf);
+  if (cache->destructor != NULL)
+    (cache->destructor) (cache, buf);
 }
 
 struct kmem_cache *
@@ -90,8 +110,6 @@ kmem_cache_create (const char *name, busword_t size, void (*constructor) (struct
   
   memsize_t cache_pages;
 
-  /* TODO: implementation. */
-
   /* If cache is small cache: prealloc in first page */
   /* If cache is big, forget about bitmaps */
 
@@ -103,6 +121,10 @@ kmem_cache_create (const char *name, busword_t size, void (*constructor) (struct
   strncpy (new->name, name, MM_SLAB_NAME_MAX - 1);
   
   new->name[MM_SLAB_NAME_MAX - 1] = 0;
+
+  new->next_full.next_small_full       = NULL;
+  new->next_partial.next_small_partial = NULL;
+  new->next_free.next_small_free       = NULL;
   
   new->alignment      = MM_SLAB_DEFAULT_ALIGN;
   new->object_size    = __ALIGN (size, new->alignment);
@@ -118,10 +140,12 @@ kmem_cache_create (const char *name, busword_t size, void (*constructor) (struct
 
   /* This field will be doubled every time the cache needs to grow bigger (applies to small caches only) */
   if (is_big)
-    new->pages_per_slab = __UNITS (size + __ALIGN (sizeof (struct big_slab_header), new->alignment), PAGE_SIZE);
+    new->pages_per_slab  = __UNITS (size + __ALIGN (sizeof (struct big_slab_header), new->alignment), PAGE_SIZE);
   else
-    new->pages_per_slab = 1;
-                                  
+    new->pages_per_slab  = 1;
+  
+  new->slabs_per_alloc   = 1;
+  
   new->pages_per_slab = __UNITS (size, PAGE_SIZE);
   
   
@@ -174,8 +198,10 @@ kmem_cache_alloc_big (struct kmem_cache *cache)
   if ((new = page_alloc (cache->pages_per_slab)) == NULL)
     return NULL;
 
-  new->header = cache;
-  new->next   = NULL;
+  new->header     = cache;
+  new->_head.next = NULL; /* Make this opaque */
+  new->_head.prev = NULL;
+  
   new->state  = MM_SLAB_STATE_EMPTY;
 
   new->data   = (void *) new + __ALIGN (sizeof (struct big_slab_header), cache->alignment);
@@ -206,11 +232,13 @@ kmem_cache_alloc_small (struct kmem_cache *cache)
   int data_offset;
   memsize_t i;
   
-  if ((new = page_alloc (cache->pages_per_slab)) == NULL)
+  if ((new = page_alloc (MM_SMALL_SLAB_PAGES)) == NULL)
     return NULL;
 
-  new->header = cache;
-  new->next   = NULL;
+  new->header     = cache;
+  new->_head.next = NULL;
+  new->_head.prev = NULL;
+  
   new->state  = MM_SLAB_STATE_EMPTY;
 
   /* Because of alignment restrictions, bitmap may be
@@ -222,7 +250,7 @@ kmem_cache_alloc_small (struct kmem_cache *cache)
 
   k = 8 * (PAGE_SIZE - sizeof (struct small_slab_header)) / (1 + 8 * (cache->object_size + 1));
   bitmap_size = __UNITS (k, 8);
-  data_offset = __ALIGN (sizeof (struct small_slab_header) + bitmap_size, PAGE_SIZE);
+  data_offset = __ALIGN (sizeof (struct small_slab_header) + bitmap_size, cache->alignment);
   
   new->object_count = (PAGE_SIZE - data_offset) / cache->object_size;
   new->object_used  = 0;
@@ -233,17 +261,12 @@ kmem_cache_alloc_small (struct kmem_cache *cache)
   new->last_allocated = MM_SLAB_NO_HINT;
   new->last_freed     = MM_SLAB_NO_HINT;
 
-  new->pages          = cache->pages_per_slab;
-  
   /* Initialize everything */
   for (i = 0; i < new->object_count; ++i)
     kmem_construct (cache, new->data + i * cache->object_size);
 
   /* Clear bitmap */
   memset (new->bitmap, 0, bitmap_size);
-  
-  /* Double it, next slabs will be bigger */
-  cache->pages_per_slab <<= 1;
 
   return new;
 }
@@ -256,23 +279,22 @@ __small_kmem_cache_alloc (struct kmem_cache *cache)
   struct small_slab_header *small_slab;
 
   /* Check whether we have no small slabs */
-    
+
   if (cache->next_free.next_small_free == NULL && cache->next_partial.next_small_partial == NULL)
-    if ((small_slab = kmem_cache_alloc_small (cache)) == NULL)
-      return NULL; /* No memory to allocate small slab */
-    else
-      list_insert_head ((void **) &cache->next_free.next_small_free, small_slab);
-    
+    return NULL; /* No space in cache */
+  
   if ((small_slab = cache->next_free.next_small_free) != NULL)
     list_remove_element ((void **) &cache->next_free.next_small_free, small_slab);
   else if ((small_slab = cache->next_partial.next_small_partial) != NULL)
     list_remove_element ((void **) &cache->next_partial.next_small_partial, small_slab);
 
+  ASSERT (small_slab->header == cache);
+  
   if (small_slab->last_freed != MM_SLAB_NO_HINT)
     hint = small_slab->last_freed;
   else if (small_slab->last_allocated != MM_SLAB_NO_HINT)
     hint = small_slab->last_allocated + 1;
-    
+
   if ((block = bitmap_search_free (small_slab->bitmap, small_slab->object_count, hint)) != -1)
   {
     /* Found usable block */
@@ -290,23 +312,22 @@ __small_kmem_cache_alloc (struct kmem_cache *cache)
       list_insert_head ((void **) &cache->next_partial.next_small_partial, small_slab);
     }
   }
+  else
+    FAIL ("Incoherent SLAB structures (%d/%d used)\n", small_slab->object_used, small_slab->object_count);
 
   return OBJECT_ADDR_SLAB (small_slab, block);
 }
 
 static void *
-__big_kmem_cache_alloc(struct kmem_cache *cache)
+__big_kmem_cache_alloc (struct kmem_cache *cache)
 {
   struct big_slab_header *big_slab;
-
+  
   /* Check whether we have no big slabs */
   
   if (cache->next_free.next_big_free == NULL)
-    if ((big_slab = kmem_cache_alloc_big (cache)) == NULL)
-      return NULL; /* No memory to allocate small slab */
-    else
-      list_insert_head ((void **) &cache->next_free.next_big_free, big_slab);
-    
+    return NULL; /* No memory free */
+  
   /* Big slabs are either free or used */
   list_remove_element ((void **) &cache->next_free.next_big_free, big_slab);
 
@@ -318,7 +339,6 @@ __big_kmem_cache_alloc(struct kmem_cache *cache)
   /* Big slabs are like small slabs with only one slot */
   return big_slab->data;
 }
-
 
 void *
 kmem_cache_alloc (struct kmem_cache *cache)
@@ -332,8 +352,7 @@ kmem_cache_alloc (struct kmem_cache *cache)
   
   if (!MM_CACHE_IS_BIG (cache))
   {
-    if (cache->state == MM_SLAB_STATE_EMPTY ||
-        cache->state == MM_SLAB_STATE_PARTIAL)
+    if (cache->state == MM_SLAB_STATE_EMPTY || cache->state == MM_SLAB_STATE_PARTIAL)
     {
       if (cache->last_freed != MM_SLAB_NO_HINT)
         hint = cache->last_freed;
@@ -343,14 +362,17 @@ kmem_cache_alloc (struct kmem_cache *cache)
       if ((block = bitmap_search_free (cache->bitmap, cache->object_count, hint)) != -1)
       {
         /* Found usable block */
-
         bitmap_mark (cache->bitmap, block);
 
         if (++cache->object_used == cache->object_count)
           cache->state = MM_SLAB_STATE_FULL;
-
+        else
+          cache->state = MM_SLAB_STATE_PARTIAL;
+        
         return OBJECT_ADDR_CACHE (cache, block);
       }
+      else
+        FAIL ("Incoherent data in SLAB structures (object count: %d, used: %d, state: %d)\n", cache->object_count, cache->object_used, cache->state);
     }
     else
       return __small_kmem_cache_alloc (cache); /* Regular alloc */
@@ -360,17 +382,141 @@ kmem_cache_alloc (struct kmem_cache *cache)
   
 }
 
+static void
+__big_kmem_cache_free (struct kmem_cache *cache, void *ptr)
+{
+  struct big_slab_header *big_slab = (struct big_slab_header *) PAGE_START (ptr);
+
+  /* Sanity check */
+  ASSERT (cache == big_slab->header);
+  ASSERT (big_slab->state == MM_SLAB_STATE_FULL);
+  ASSERT (big_slab->data == ptr);
+  
+  list_remove_element ((void **) &cache->next_full.next_big_full, big_slab);
+
+  big_slab->state = MM_SLAB_STATE_EMPTY;
+
+  list_insert_head ((void **) &cache->next_free.next_big_free, big_slab);
+}
+
+static void
+__small_kmem_cache_free (struct kmem_cache *cache, void *ptr)
+{
+  struct small_slab_header *small_slab = (struct small_slab_header *) PAGE_START (ptr);
+  int block;
+  
+  /* Sanity check */
+  ASSERT (small_slab->object_used > 0);
+  ASSERT (cache == small_slab->header);
+  ASSERT (small_slab->state == MM_SLAB_STATE_FULL || small_slab->state == MM_SLAB_STATE_PARTIAL);
+  ASSERT (ptr >= small_slab->data && ptr < (void *) PAGE_START (ptr) + MM_SMALL_SLAB_PAGES * PAGE_SIZE);
+
+  block = (busword_t) (ptr - small_slab->data) / cache->object_size;
+
+  /* Check whether the pointer is the beginning of a block */
+  ASSERT (ptr == small_slab->data + block * cache->object_size);
+  ASSERT (bitmap_get (small_slab->bitmap, block));
+
+  if (small_slab->state == MM_SLAB_STATE_FULL)
+    list_remove_element ((void **) &cache->next_full.next_small_full, small_slab);
+  else
+    list_remove_element ((void **) &cache->next_partial.next_small_partial, small_slab);
+
+  bitmap_unmark (small_slab->bitmap, block);
+
+  if (--small_slab->object_used == 0)
+  {
+    small_slab->state = MM_SLAB_STATE_EMPTY;
+    list_insert_head ((void **) &cache->next_free.next_small_free, small_slab);
+  }
+  else
+  {
+    small_slab->state = MM_SLAB_STATE_PARTIAL;
+    list_insert_head ((void **) &cache->next_partial.next_small_partial, small_slab);
+  }
+}
+
 void
 kmem_cache_free (struct kmem_cache *cache, void *ptr)
 {
-  /* Get slab header, free object and check its new state. Move to a new list accordingly */
+  struct small_slab_header *small_slab;
+  int block;
+  
+  if (!MM_CACHE_IS_BIG (cache))
+  {
+    if (PAGE_START (ptr) == PAGE_START (cache))
+    {
+      ASSERT (ptr >= cache->data);
+
+      block = (busword_t) (ptr - cache->data) / cache->object_size;
+
+      ASSERT (cache->object_used > 0);
+      ASSERT (ptr == cache->data + block * cache->object_size);
+      ASSERT (bitmap_get (cache->bitmap, block));
+
+      bitmap_unmark (cache->bitmap, block);
+      
+      if (--cache->object_used == 0)
+        cache->state = MM_SLAB_STATE_EMPTY;
+      else
+        cache->state = MM_SLAB_STATE_PARTIAL;
+    }
+    else
+      __small_kmem_cache_free (cache, ptr);
+  }
+  else
+    __big_kmem_cache_free (cache, ptr);
+  
+}
+
+
+
+static int
+__small_kmem_cache_grow (struct kmem_cache *cache)
+{
+  memsize_t i;
+  struct small_slab_header *small_slab;
+  
+  for (i = 0; i < cache->slabs_per_alloc; ++i)
+  {
+    if ((small_slab = kmem_cache_alloc_small (cache)) == NULL)
+      return i == 0 ? -1 : 0;
+    else
+      list_insert_head ((void **) &cache->next_free.next_small_free, small_slab);
+  }
+
+  cache->slabs_per_alloc <<= 1; /* Next time we'll allocate twice */
+
+  return 0;
+}
+
+static int
+__big_kmem_cache_grow (struct kmem_cache *cache)
+{
+  memsize_t i;
+  struct big_slab_header *big_slab;
+  
+  for (i = 0; i < cache->slabs_per_alloc; ++i)
+  {
+    if ((big_slab = kmem_cache_alloc_big (cache)) == NULL)
+      return i == 0 ? -1 : 0;
+    else
+      list_insert_head ((void **) &cache->next_free.next_big_free, big_slab);
+  }
+
+  cache->slabs_per_alloc <<= 1; /* Next time we'll allocate twice */
+
+  return 0;
 }
 
 /* Grow cache */
 int
-kmem_cache_grow (struct kmem_cache *cache, int slabs)
+kmem_cache_grow (struct kmem_cache *cache)
 {
-  /* Alloc pages and move slab to free list */
+  if (MM_CACHE_IS_BIG (cache))
+    return __big_kmem_cache_grow (cache);
+  else
+    return __small_kmem_cache_grow (cache);
 }
 
 /* Deliver some unused pages to the kernel */

@@ -77,14 +77,16 @@ struct kmem_cache
   
   memsize_t last_allocated;
   memsize_t last_freed;
-  
-  int       pages_per_slab; /* This will grow bigger */
-  
+
+  int       pages_per_slab;  /* In big slabs: number of pages per slab */
+  int       slabs_per_alloc; /* In small slabs: number of one-page slabs to allocate */
+
+    
   uint8_t  *bitmap;
   void     *data;
   void     *opaque;
   
-  int       alignment;
+  int       alignment; /* Never, NEVER this field can be > PAGE_SIZE/2 */
   
   void (*constructor) (struct kmem_cache *, void *);
   void (*destructor)  (struct kmem_cache *, void *);
@@ -92,8 +94,9 @@ struct kmem_cache
 
 struct big_slab_header
 {
+  LINKED_LIST;
+  
   struct kmem_cache *header;
-  struct big_slab_header *next;
   
   int   state;
 
@@ -102,14 +105,14 @@ struct big_slab_header
   
 struct small_slab_header
 {
+  LINKED_LIST;
+  
   struct kmem_cache *header;
-  struct small_slab_header *next;
 
   int       state;
   
-  memsize_t pages;
-  memsize_t object_count;
-  memsize_t object_used;
+  int       object_count;
+  int       object_used;
   
   uint8_t  *bitmap;
   void     *data;
@@ -121,11 +124,12 @@ struct small_slab_header
 
 struct kmem_cache *kmem_cache_create (const char *, busword_t, void (*) (struct kmem_cache *, void *), void (*) (struct kmem_cache *, void *));
 
+struct kmem_cache *kmem_cache_lookup (const char *);
 void  kmem_cache_set_opaque (struct kmem_cache *, void *);
 void *kmem_cache_get_opaque (struct kmem_cache *);
 void *kmem_cache_alloc (struct kmem_cache *);
 void  kmem_cache_free (struct kmem_cache *, void *);
-int   kmem_cache_grow (struct kmem_cache *, int);
+int   kmem_cache_grow (struct kmem_cache *);
 int   kmem_cache_shrink (struct kmem_cache *);
 int   kmem_cache_reap (struct kmem_cache *);
 int   kmem_cache_destroy (struct kmem_cache *);

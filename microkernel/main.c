@@ -92,6 +92,18 @@ test_kthreads (void)
 DEBUG_FUNC (test_kthreads);
 DEBUG_FUNC (kernel_thread_test_slab);
 
+void
+kernel_banner (void)
+{
+  puts ("    ___   __                  _ __  \n");
+  puts ("   /   | / /_____  ____ ___  (_/ /__\n");
+  puts ("  / /| |/ __/ __ \\/ __ `__ \\/ / //_/\n");
+  puts (" / ___ / /_/ /_/ / / / / / / / ,<   \n");
+  puts ("/_/  |_\\__/\\____/_/ /_/ /_/_/_/|_|   \n");
+  puts ("\n");
+  puts ("Based on Neftis microkernel\n");
+}
+
 void 
 main (void)
 {
@@ -100,6 +112,8 @@ main (void)
   boot_console_init ();
   
   puts (KERNEL_BOOT_STRING);
+
+  kernel_banner ();
   
   kctx_init ();
   

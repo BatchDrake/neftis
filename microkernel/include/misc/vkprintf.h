@@ -1,6 +1,6 @@
 /*
- *    <one line to give the program's name and a brief idea of what it does.>
- *    Copyright (C) <year>  <name of author>
+ *    vkprintf.h: Formatted output.
+ *    Copyright (C) 2014  Gonzalo J. Carracedo <BatchDrake@gmail.com>
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -15,34 +15,24 @@
  *    You should have received a copy of the GNU General Public License
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
- 
-#include <util.h>
+
+#ifndef _MISC_VKPRINTF_H
+#define _MISC_VKPRINTF_H
+
+#include <types.h>
 #include <stdarg.h>
-#include <console/console.h>
-#include <arch.h>
 
-extern struct console *syscon;
-
-void
-panic (const char *msg, ...)
+struct vkprintf_stream
 {
-  va_list ap;
+  memsize_t counter;
+  void *opaque;
   
-  va_start (ap, msg);
-  
-  puts ("\033[0;31mpanic: ");
-  printk (msg, ap);
-  putchar ('\n');
-}
+  int (*putchar) (struct vkprintf_stream *, char);
+  int (*puts) (struct vkprintf_stream *, const char *);
+};
 
-void
-kernel_halt (void)
-{
-  __halt ();
-}
+void  vkputchar (struct vkprintf_stream *, char);
+void  vkputs (struct vkprintf_stream *, const char *);
+void  vkprintf (struct vkprintf_stream *, const char *, va_list);
 
-void
-kernel_pause (void)
-{
-  __pause ();
-}
+#endif /* _MISC_VKPRINTF_H */

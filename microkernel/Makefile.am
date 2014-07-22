@@ -41,6 +41,7 @@ neftis_SOURCES=arch/x86/boot.S \
                task.c          \
                timer.c         \
                util.c          \
+               vkprintf.c      \
                vm.c            \
                waitqueue.c
                

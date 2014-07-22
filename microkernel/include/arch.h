@@ -21,6 +21,7 @@
 
 /* Misc functions */
 void __halt (void);
+void __pause (void);
 
 /* Boot arch-dependant functions */
 void boot_console_init (void);

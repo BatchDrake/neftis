@@ -46,11 +46,11 @@ task_trigger_exception (struct task *task, int exception, busword_t textaddr, bu
   if (task->ts_ex_handlers[exception] == NULL)
   {
     /* Process shall be killed */
-    
+
     (void) wake_up (task, TASK_STATE_EXITED, 0);
 
     task_destroy (task);
-
+    
     schedule ();
   }
   else

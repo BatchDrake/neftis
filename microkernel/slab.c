@@ -126,6 +126,7 @@ kmem_cache_create (const char *name, busword_t size, void (*constructor) (struct
   new->next_partial.next_small_partial = NULL;
   new->next_free.next_small_free       = NULL;
   
+  new->state          = MM_SLAB_STATE_EMPTY;
   new->alignment      = MM_SLAB_DEFAULT_ALIGN;
   new->object_size    = __ALIGN (size, new->alignment);
 
@@ -157,7 +158,6 @@ kmem_cache_create (const char *name, busword_t size, void (*constructor) (struct
   /* Small cache can be preallocated now */
   if (!is_big)
   {
-    new->state          = MM_SLAB_STATE_EMPTY;
     bitmap_size         = __UNITS (new->object_count, 8);
     data_offset         = __ALIGN (sizeof (struct kmem_cache) + bitmap_size, new->alignment);
 
@@ -325,7 +325,7 @@ __big_kmem_cache_alloc (struct kmem_cache *cache)
   
   /* Check whether we have no big slabs */
   
-  if (cache->next_free.next_big_free == NULL)
+  if ((big_slab = cache->next_free.next_big_free) == NULL)
     return NULL; /* No memory free */
   
   /* Big slabs are either free or used */
@@ -391,6 +391,7 @@ __big_kmem_cache_free (struct kmem_cache *cache, void *ptr)
   ASSERT (cache == big_slab->header);
   ASSERT (big_slab->state == MM_SLAB_STATE_FULL);
   ASSERT (big_slab->data == ptr);
+
   
   list_remove_element ((void **) &cache->next_full.next_big_full, big_slab);
 
@@ -441,6 +442,8 @@ kmem_cache_free (struct kmem_cache *cache, void *ptr)
 {
   struct small_slab_header *small_slab;
   int block;
+
+  ASSERT (ptr);
   
   if (!MM_CACHE_IS_BIG (cache))
   {
@@ -539,3 +542,28 @@ kmem_cache_destroy (struct kmem_cache *cache)
 {
   /* Check if both partial and full are NULL and free everything */
 }
+
+DEBUG_FUNC (bitmap_mark);
+DEBUG_FUNC (bitmap_unmark);
+DEBUG_FUNC (bitmap_get);
+DEBUG_FUNC (bitmap_search_free);
+DEBUG_FUNC (kmem_cache_lookup);
+DEBUG_FUNC (kmem_construct);
+DEBUG_FUNC (kmem_destruct);
+DEBUG_FUNC (kmem_cache_create);
+DEBUG_FUNC (kmem_cache_set_opaque);
+DEBUG_FUNC (kmem_cache_get_opaque);
+DEBUG_FUNC (kmem_cache_alloc_big);
+DEBUG_FUNC (kmem_cache_alloc_small);
+DEBUG_FUNC (__small_kmem_cache_alloc);
+DEBUG_FUNC (__big_kmem_cache_alloc);
+DEBUG_FUNC (kmem_cache_alloc);
+DEBUG_FUNC (__big_kmem_cache_free);
+DEBUG_FUNC (__small_kmem_cache_free);
+DEBUG_FUNC (kmem_cache_free);
+DEBUG_FUNC (__small_kmem_cache_grow);
+DEBUG_FUNC (__big_kmem_cache_grow);
+DEBUG_FUNC (kmem_cache_grow);
+DEBUG_FUNC (kmem_cache_shrink);
+DEBUG_FUNC (kmem_cache_reap);
+DEBUG_FUNC (kmem_cache_destroy);

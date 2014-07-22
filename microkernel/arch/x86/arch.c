@@ -319,6 +319,12 @@ __vm_free_page_table (void *pagedir)
 }
 
 void
+__pause (void)
+{
+  __asm__ __volatile__ ("hlt");
+}
+
+void
 __halt (void)
 {
   __asm__ __volatile__ ("1:");

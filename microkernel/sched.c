@@ -210,9 +210,9 @@ defsched_init (void)
   RETURN_ON_PTR_FAILURE (info = defsched_info_new ());
   
   (__curr_sched ())->sc_private = info;
-  
+
   CURRENT_INFO->idle = get_kernel_thread (KERNEL_THREAD_IDLE);
-  
+
   return 0;
 }
 
@@ -298,17 +298,25 @@ defsched_wake_up (struct task *task, int op, int reason)
       if (reason == WAKEUP_INTERRUPT ||
           reason == WAKEUP_MUTEX ||
           reason == WAKEUP_IPC)
-            switch_to (task);
+        switch_to (task);
       break;
       
-    default:
-      if (task->ts_state == TASK_STATE_RUNNING)
-        if (defsched_remove_from_runqueue (task) == -1)
-          FAIL ("not in runqueue but running. how?\n");
-      
-      task->ts_state = op;
-      
-      break;
+  case TASK_STATE_EXITED:
+    if (task->ts_state == TASK_STATE_RUNNING)
+      if (defsched_remove_from_runqueue (task) == -1)
+        FAIL ("not in runqueue but running. how?\n");
+    
+    task->ts_state = op;
+    break;
+    
+  default:
+    if (task->ts_state == TASK_STATE_RUNNING)
+      if (defsched_remove_from_runqueue (task) == -1)
+        FAIL ("not in runqueue but running. how?\n");
+    
+    task->ts_state = op;
+    
+    break;
   }
   
   return 0;
@@ -344,7 +352,7 @@ defsched_sched (void)
   
   if (new == NULL)
     new = CURRENT_INFO->idle;
-  
+
   if (get_current_context () == KERNEL_CONTEXT_INTERRUPT)
     switch_to (new);
 }

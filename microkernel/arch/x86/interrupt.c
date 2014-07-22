@@ -374,10 +374,13 @@ x86_isr_handler (struct x86_stack_frame *frame)
     else if (old_ctx == KERNEL_CONTEXT_INTERRUPT)
     {
       panic ("fatal: microkernel fault while handling fault\n");
-
+      
       kernel_halt ();
     }
-	
+
+    if (task->ts_type == TASK_TYPE_KERNEL_THREAD)
+      x86_regdump (frame);
+    
     switch (frame->int_no)
     {
     case KERNEL_BUGCHECK_INTERRUPT:
@@ -410,7 +413,6 @@ x86_isr_handler (struct x86_stack_frame *frame)
 
     default:
       panic ("int %d, code %d", frame->int_no, frame->priv.error);
-      x86_regdump (frame);
   
       kernel_halt ();
     }

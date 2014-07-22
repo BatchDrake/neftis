@@ -95,7 +95,8 @@ if ((__new = spalloc (sizeof (struct x))) == NULL)            \
   
 void printk (const char *, ...);
 
-void kernel_halt ();
+void kernel_halt (void);
+void kernel_pause (void);
 
 #endif /* _UTIL_H */
 

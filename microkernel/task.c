@@ -104,7 +104,7 @@ get_task (tid_t tid)
     return NULL;
 
   task_list = task_list_table[table_idx];
-  
+
   return task_list[table_entry];
 }
 
@@ -139,6 +139,7 @@ __register_task_with_tid (struct task *task, tid_t tid)
   if (get_task (tid) != NULL)
     return KERNEL_ERROR_VALUE;
 
+  set_task (tid, task);
   
   return KERNEL_SUCCESS_VALUE;
 }
@@ -213,7 +214,9 @@ idle_task (void)
   for (;;)
   {
     if (get_current_state () != TASK_STATE_SOFT_WAIT)
-      FAIL ("idle: awaken! awaken! awaken!\n");
+      FAIL ("idle: awaken! (%d)\n", get_current_state ());
+   
+    kernel_pause (); /* Pause until next timer interrupt */
   }
 }
 
@@ -250,7 +253,7 @@ kernel_task_new (void (*entry) (void))
   }
 
   task->ts_tid   = tid;
-  task->ts_state = TASK_STATE_SOFT_WAIT;
+  task->ts_state = TASK_STATE_NEW;
   task->ts_type  = TASK_TYPE_KERNEL_THREAD;
   task->ts_vm_space = current_kctx->kc_vm_space;
   
@@ -322,7 +325,7 @@ sysproc_load (const void *data, busword_t size)
   }
 
   task->ts_tid   = tid;
-  task->ts_state = TASK_STATE_SOFT_WAIT;
+  task->ts_state = TASK_STATE_NEW;
   task->ts_type  = TASK_TYPE_SYS_PROCESS;
   task->ts_vm_space = space;
   
@@ -351,7 +354,7 @@ init_kernel_threads (void)
   
   MANDATORY (new = __alloc_task ());
     
-  new->ts_state = TASK_STATE_NEW;
+  new->ts_state = TASK_STATE_SOFT_WAIT;
   new->ts_type  = TASK_TYPE_IDLE;
 
   new->ts_vm_space = current_kctx->kc_vm_space;
@@ -359,7 +362,7 @@ init_kernel_threads (void)
   __task_config_start (new, idle_task);
 
   if (__register_task_with_tid (new, KERNEL_THREAD_IDLE) == KERNEL_ERROR_VALUE)
-    FAIL ("Cannot allocate iddle task!\n");
+    FAIL ("Cannot allocate idle task!\n");
 }
 
 DEBUG_FUNC (__find_free_tid);

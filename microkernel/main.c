@@ -48,12 +48,22 @@ kernel_thread_test_slab (void)
   
   int i;
   
-  if ((cache = kmem_cache_create ("my-cache", 16, NULL, NULL)) == NULL)
+  if ((cache = kmem_cache_create ("my-cache", 2049, NULL, NULL)) == NULL)
     FAIL ("Cannot allocate cache\n");
 
-  ptr = kmem_cache_alloc (cache);
+  if ((ptr = kmem_cache_alloc (cache)) == NULL)
+  {
+    printk ("Cannot alloc!\n");
 
-  printk ("Allocated %p from SLAB\n", ptr);
+    if (kmem_cache_grow (cache) == -1)
+      FAIL ("Cannot grow!\n");
+
+    printk ("Grew!\n");
+    
+    if ((ptr = kmem_cache_alloc (cache)) == NULL)
+      FAIL ("Cannot alloc either!\n");
+  }
+
   printk ("Alloc, state: %d\n", cache->state);
   
   kmem_cache_free (cache, ptr);
@@ -64,16 +74,22 @@ kernel_thread_test_slab (void)
 
   printk ("%d allocations, state: %d\n", i, cache->state);
 
-  printk ("Grow cache...\n");
+  if (kmem_cache_grow (cache) == -1)
+    FAIL ("Cannot grow cache!\n");
+
+  for (i = 0; kmem_cache_alloc (cache) != NULL; ++i);
+
+  printk ("%d allocations, state: %d\n", i, cache->state);
+
   
   if (kmem_cache_grow (cache) == -1)
     FAIL ("Cannot grow cache!\n");
 
-  printk ("Allocating again\n");
   
   for (i = 0; kmem_cache_alloc (cache) != NULL; ++i);
 
   printk ("%d allocations, state: %d\n", i, cache->state);
+
   
   for (;;);
 }
@@ -92,16 +108,21 @@ test_kthreads (void)
 DEBUG_FUNC (test_kthreads);
 DEBUG_FUNC (kernel_thread_test_slab);
 
+static char banner[] =
+  "                                                                        \n"
+  "       db                                                88  88         \n"
+  "      d88b        ,d                                     \"\"  88         \n"
+  "     d8'`8b       88                                         88         \n"
+  "    d8'  `8b    MM88MMM  ,adPPYba,   88,dPYba,,adPYba,   88  88   ,d8   \n"
+  "   d8YaaaaY8b     88    a8\"     \"8a  88P'   \"88\"    \"8a  88  88 ,a8\"    \n"
+  "  d8\"\"\"\"\"\"\"\"8b    88    8b       d8  88      88      88  88  8888[      \n"
+  " d8'        `8b   88,   \"8a,   ,a8\"  88      88      88  88  88`\"Yba,   \n"
+"d8'          `8b  \"Y888  `\"YbbdP\"'   88      88      88  88  88   `Y8a  \n";
+
 void
 kernel_banner (void)
 {
-  puts ("    ___   __                  _ __  \n");
-  puts ("   /   | / /_____  ____ ___  (_/ /__\n");
-  puts ("  / /| |/ __/ __ \\/ __ `__ \\/ / //_/\n");
-  puts (" / ___ / /_/ /_/ / / / / / / / ,<   \n");
-  puts ("/_/  |_\\__/\\____/_/ /_/ /_/_/_/|_|   \n");
-  puts ("\n");
-  puts ("Based on Neftis microkernel\n");
+  puts (banner);
 }
 
 void 

@@ -23,7 +23,8 @@
 
 extern struct console *syscon;
 
-void panic (const char *msg, ...)
+void
+panic (const char *msg, ...)
 {
   va_list ap;
   
@@ -34,8 +35,14 @@ void panic (const char *msg, ...)
   console_putchar (syscon, '\n');
 }
 
-void kernel_halt ()
+void
+kernel_halt (void)
 {
   __halt ();
 }
 
+void
+kernel_pause (void)
+{
+  __pause ();
+}

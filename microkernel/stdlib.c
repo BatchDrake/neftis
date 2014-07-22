@@ -199,6 +199,32 @@ strtoul (const char *start, int *err)
 }
 
 void
+ultostr (unsigned long num, char *buf, size_t max)
+{
+  unsigned long cover = 1;
+  int size = 1;
+  int i;
+  
+  while (num / cover >= 10)
+  {
+    cover *= 10;
+    ++size;
+  }
+
+  if (size + 1 > max)
+    size = max - 1;
+
+  if (max)
+    buf[size] = '\0';
+  
+  for (i = size - 1; i >= 0; --i)
+  {
+    buf[i] = (num % 10) + '0';
+    num /= 10;
+  }  
+}
+
+void
 do_nothing (void)
 {
 }

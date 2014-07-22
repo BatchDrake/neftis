@@ -18,7 +18,7 @@
 
 #include <types.h>
 #include <mm/regions.h>
-#include <mm/spalloc.h>
+#include <mm/salloc.h>
 
 #include <task/loader.h>
 
@@ -53,7 +53,7 @@ loader_open_exec (struct vm_space *space, const void *exec_start, busword_t exec
     if (loader_is_usable (loader_list + i))
       if ((opaque = (loader_list[i].open) (exec_start, exec_size)) != KERNEL_INVALID_POINTER)
       {
-        if (PTR_UNLIKELY_TO_FAIL (handle = spalloc (sizeof (loader_handle))))
+        if (PTR_UNLIKELY_TO_FAIL (handle = salloc (sizeof (loader_handle))))
         {
           error ("Not enough memory to allocate loader handle!\n");
 
@@ -92,7 +92,7 @@ loader_close_exec (loader_handle *handle)
 {
   (handle->loader->close) (handle->opaque);
 
-  spfree (handle);
+  sfree (handle);
 }
 
 void elf_init (void);

@@ -39,9 +39,11 @@
 #define OBJECT_ADDR_CACHE(slab, id) ((slab)->data + (slab)->object_size * (id))
 #define OBJECT_ADDR_SLAB(slab, id) ((slab)->data + (slab)->header->object_size * (id))
 #define MM_CACHE_IS_BIG(cachep) (((struct kmem_cache *) (cachep))->object_size > MM_SMALL_SLAB_SIZE_MAX)
+
 struct kmem_cache
 {
   LINKED_LIST;
+  struct kmem_cache *self;
   
   /* TODO: lock with mutexes! */
   union
@@ -90,6 +92,13 @@ struct kmem_cache
   
   void (*constructor) (struct kmem_cache *, void *);
   void (*destructor)  (struct kmem_cache *, void *);
+};
+
+struct generic_slab_header
+{
+  LINKED_LIST;
+  
+  struct kmem_cache *header;
 };
 
 struct big_slab_header

@@ -46,6 +46,98 @@ bitmap_get (const uint8_t *bitmap, memsize_t objno)
   return bitmap[objno >> 3] & (1 << (objno & 7));
 }
 
+void
+kmem_cache_get_usage (const struct kmem_cache *cache, memsize_t *used, memsize_t *usable, memsize_t *total)
+{
+  struct small_slab_header *small;
+  struct big_slab_header *big;
+  memsize_t curr_used = 0;
+  memsize_t curr_usable = 0;
+  memsize_t curr_total = 1;
+  
+  if (MM_CACHE_IS_BIG (cache))
+  {
+    big = cache->next_full.next_big_full;
+
+    while (big != NULL)
+    {
+      curr_used   += cache->object_size;
+      curr_usable += cache->object_size;
+      curr_total  += cache->pages_per_slab;
+
+      big = LIST_NEXT (big);
+    }
+
+    big = cache->next_free.next_big_free;
+
+    while (big != NULL)
+    {
+      curr_usable += cache->object_size;
+      curr_total  += cache->pages_per_slab;
+
+      big = LIST_NEXT (big);
+    }
+  }
+  else
+  {
+    small = cache->next_full.next_small_full;
+
+    while (small != NULL)
+    {
+      curr_used   += cache->object_size * small->object_used; /* All are used */
+      curr_usable += cache->object_size * small->object_count;
+      ++curr_total;
+
+      small = LIST_NEXT (small);
+    }
+
+    small = cache->next_partial.next_small_partial;
+
+    while (small != NULL)
+    {
+      curr_used   += cache->object_size * small->object_used; /* All are used */
+      curr_usable += cache->object_size * small->object_count;
+      ++curr_total;
+
+      small = LIST_NEXT (small);
+    }
+
+    small = cache->next_free.next_small_free;
+
+    while (small != NULL)
+    {
+      curr_usable += cache->object_size * small->object_count;
+      ++curr_total;
+
+      small = LIST_NEXT (small);
+    }
+
+    curr_used   += cache->object_size * cache->object_used;
+    curr_usable += cache->object_size * cache->object_count;
+  }
+
+  *used   = curr_used;
+  *usable = curr_usable;
+  *total  = curr_total * PAGE_SIZE;
+}
+
+void
+kmem_cache_debug (void)
+{
+  struct kmem_cache *caches = kmem_cache_list;
+  memsize_t used, usable, total;
+  
+  while (caches != NULL)
+  {
+    kmem_cache_get_usage (caches, &used, &usable, &total);
+    
+    printk ("%s: %d bytes/obj (%H/%H, memory waste: %H)\n", caches->name, caches->object_size, used, usable, total);
+    
+    caches = LIST_NEXT (caches);
+  }
+
+}
+
 static inline memsize_t
 bitmap_search_free (const uint8_t *bitmap, memsize_t size, memsize_t hint)
 {
@@ -119,13 +211,14 @@ kmem_cache_create (const char *name, busword_t size, void (*constructor) (struct
     return NULL;
 
   strncpy (new->name, name, MM_SLAB_NAME_MAX - 1);
-  
+
   new->name[MM_SLAB_NAME_MAX - 1] = 0;
 
   new->next_full.next_small_full       = NULL;
   new->next_partial.next_small_partial = NULL;
   new->next_free.next_small_free       = NULL;
-  
+
+  new->self           = new;
   new->state          = MM_SLAB_STATE_EMPTY;
   new->alignment      = MM_SLAB_DEFAULT_ALIGN;
   new->object_size    = __ALIGN (size, new->alignment);

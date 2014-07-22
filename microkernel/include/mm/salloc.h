@@ -1,6 +1,6 @@
 /*
- *    Standard string functions
- *    Copyright (C) 2010 Gonzalo J. Carracedo <BatchDrake@gmail.com>
+ *    salloc.c: malloc style functions on top of SLAB allocator
+ *    Copyright (C) 2014  Gonzalo J. Carracedo
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -15,31 +15,13 @@
  *    You should have received a copy of the GNU General Public License
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
-    
-#ifndef _STRING_H
-#define _STRING_H
 
-#include <types.h>
 
-size_t strlen (const char *);
+#ifndef _MM_SALLOC_H
+#define _MM_SALLOC_H
 
-int strcmp (const char *, const char *);
+void *salloc (size_t size);
 
-int strncmp (const char *, const char *, size_t);
+void sfree (void *);
 
-char *strcpy (char *, const char *);
-
-char *strncpy (char *, const char *, size_t);
-
-char *strchr (const char *, int);
-
-int memcmp (const char *, const char *, size_t);
-
-void *memcpy (void *, void *, size_t);
-
-void *memset (void *, int, size_t);
-
-void ultostr (unsigned long, char *, size_t);
-
-#endif /* _STRING_H */
-
+#endif /* _MM_SALLOC_H */

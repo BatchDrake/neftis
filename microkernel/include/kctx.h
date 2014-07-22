@@ -20,7 +20,7 @@
 #define _KCTX_H
 
 #include <mm/regions.h>
-#include <mm/spalloc.h>
+#include <mm/salloc.h>
 #include <mm/vm.h>
 
 #include <task/task.h>

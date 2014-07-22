@@ -22,7 +22,7 @@
 #include <mm/coloring.h>
 #include <mm/vm.h>
 #include <mm/anon.h>
-#include <mm/spalloc.h>
+#include <mm/salloc.h>
 
 #include <misc/list.h>
 #include <task/loader.h>

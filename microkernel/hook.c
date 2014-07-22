@@ -18,7 +18,7 @@
 
 #include <types.h>
  
-#include <mm/spalloc.h>
+#include <mm/salloc.h>
 #include <misc/hook.h>
 
 #include <util.h>
@@ -36,7 +36,7 @@ hook_bucket_new (int hooks)
   }
   
   PTR_RETURN_ON_PTR_FAILURE (
-    new = spalloc (sizeof (struct hook_bucket) + 
+    new = salloc (sizeof (struct hook_bucket) + 
                  sizeof (struct hook_func) * (hooks - 1))
   );
                  
@@ -78,7 +78,7 @@ hook_register (struct hook_bucket *bucket, int code,
   }
   
   
-  RETURN_ON_PTR_FAILURE (cb = spalloc (sizeof (struct hook_func)));
+  RETURN_ON_PTR_FAILURE (cb = salloc (sizeof (struct hook_func)));
     
   cb->hf_func = func;
   cb->hf_data = data;
@@ -105,7 +105,7 @@ hook_func_free (struct hook_bucket *bucket, int code)
   while (func != NULL)
   {
     next = func->hf_next;
-    spfree (func);
+    sfree (func);
     func = next;
   }
 }
@@ -118,7 +118,7 @@ hook_bucket_free (struct hook_bucket *bucket)
   for (i = 0; i < bucket->hb_hook_count; i++)
     hook_func_free (bucket, i);
     
-  spfree (bucket);
+  sfree (bucket);
 }
 
 int

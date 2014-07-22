@@ -25,8 +25,8 @@
 #include <irq/timer.h>
 
 #include <mm/kmalloc.h>
-#include <mm/spalloc.h>
 #include <mm/slab.h>
+#include <mm/salloc.h>
 #include <mm/vm.h>
 
 #include <task/task.h>
@@ -43,55 +43,25 @@ extern struct console *syscon;
 void
 kernel_thread_test_slab (void)
 {
-  struct kmem_cache *cache;
   void *ptr;
+
+  ptr = salloc (1);
+
+  printk ("Ptr: %p\n", ptr);
+
+  ptr = salloc (7);
+  printk ("Ptr: %p\n", ptr);
+
+  ptr = salloc (3);
+  printk ("Ptr: %p\n", ptr);
   
-  int i;
+  ptr = salloc (647534);
+  printk ("Ptr: %p\n", ptr);
+
+  kmem_cache_debug ();
   
-  if ((cache = kmem_cache_create ("my-cache", 2049, NULL, NULL)) == NULL)
-    FAIL ("Cannot allocate cache\n");
-
-  if ((ptr = kmem_cache_alloc (cache)) == NULL)
-  {
-    printk ("Cannot alloc!\n");
-
-    if (kmem_cache_grow (cache) == -1)
-      FAIL ("Cannot grow!\n");
-
-    printk ("Grew!\n");
-    
-    if ((ptr = kmem_cache_alloc (cache)) == NULL)
-      FAIL ("Cannot alloc either!\n");
-  }
-
-  printk ("Alloc, state: %d\n", cache->state);
-  
-  kmem_cache_free (cache, ptr);
-
-  printk ("Freed, state: %d\n", cache->state);
-  
-  for (i = 0; kmem_cache_alloc (cache) != NULL; ++i);
-
-  printk ("%d allocations, state: %d\n", i, cache->state);
-
-  if (kmem_cache_grow (cache) == -1)
-    FAIL ("Cannot grow cache!\n");
-
-  for (i = 0; kmem_cache_alloc (cache) != NULL; ++i);
-
-  printk ("%d allocations, state: %d\n", i, cache->state);
-
-  
-  if (kmem_cache_grow (cache) == -1)
-    FAIL ("Cannot grow cache!\n");
-
-  
-  for (i = 0; kmem_cache_alloc (cache) != NULL; ++i);
-
-  printk ("%d allocations, state: %d\n", i, cache->state);
-
-  
-  for (;;);
+  for (;;)
+    kernel_pause ();
 }
 
 void

@@ -18,8 +18,8 @@
 
 
 #include <types.h>
-#include <mm/spalloc.h>
 
+#include <mm/salloc.h>
 #include <misc/radix_tree.h>
 
 struct radix_tree_node *

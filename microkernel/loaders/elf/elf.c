@@ -19,7 +19,7 @@
 #include <types.h>
 
 #include <mm/regions.h>
-#include <mm/spalloc.h>
+#include <mm/salloc.h>
 #include <mm/vm.h>
 #include <mm/anon.h>
 
@@ -136,7 +136,7 @@ elf32_walkseg (void *opaque, struct vm_space *space, int (*callback) (struct vm_
 void
 elf32_close (void *opaque)
 {
-  spfree (opaque);
+  sfree (opaque);
 }
 
 void

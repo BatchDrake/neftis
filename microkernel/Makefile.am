@@ -36,7 +36,7 @@ neftis_SOURCES=arch/x86/boot.S \
                radix_tree.c    \
                sched.c         \
                slab.c          \
-               spalloc.c       \
+               salloc.c        \
                stdlib.c        \
                task.c          \
                timer.c         \

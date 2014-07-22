@@ -199,7 +199,7 @@ defsched_info_new (void)
 void 
 defsched_info_destroy (struct defsched_info *info)
 {
-  spfree (info);
+  sfree (info);
 }
 
 int
@@ -219,7 +219,7 @@ defsched_init (void)
 void
 defsched_release (void)
 {
-  spfree ((__curr_sched ())->sc_private);
+  sfree ((__curr_sched ())->sc_private);
   (__curr_sched ())->sc_private = NULL;
 }
 

@@ -44,7 +44,7 @@
   while (0);
   
 #define CONSTRUCT_STRUCT(x, __new)                            \
-if ((__new = spalloc (sizeof (struct x))) == NULL)            \
+  if ((__new = salloc (sizeof (struct x))) == NULL)           \
     return NULL;                                              \
                                                               \
   memset (__new, 0, sizeof (struct x));

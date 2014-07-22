@@ -21,7 +21,7 @@
 #include <task/task.h>
 #include <task/waitqueue.h>
 
-#include <mm/spalloc.h>
+#include <mm/salloc.h>
 
 #include <misc/list.h>
 
@@ -43,7 +43,7 @@ wait_queue_destroy (struct wait_queue *wq)
   if (wq->wq_queue != NULL)
     return KERNEL_ERROR_VALUE;
     
-  spfree (wq);
+  sfree (wq);
   
   return KERNEL_SUCCESS_VALUE;
 }
@@ -105,7 +105,7 @@ wait_queue_remove_task (struct wait_queue *wq, struct task *task)
     
   list_remove_element ((void **) &wq->wq_queue, (void *) info);
   
-  spfree (info);
+  sfree (info);
   
   spin_unlock (&wq->wq_lock);
 }
@@ -123,7 +123,7 @@ wait_queue_remove_all (struct wait_queue *wq)
   {
     next = this->next;
     
-    spfree (this);
+    sfree (this);
       
     this = next;
   }

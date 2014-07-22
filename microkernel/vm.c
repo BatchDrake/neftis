@@ -22,7 +22,7 @@
 #include <mm/coloring.h>
 #include <mm/vm.h>
 #include <mm/anon.h>
-#include <mm/spalloc.h>
+#include <mm/salloc.h>
 
 #include <misc/list.h>
 #include <task/loader.h>
@@ -55,7 +55,7 @@ vm_region_destroy (struct vm_region *region, struct task *task)
   if (region->vr_type == VREGION_TYPE_PAGEMAP)
     radix_tree_destroy (region->vr_page_tree);
   
-  spfree (region);
+  sfree (region);
 }
 
 int
@@ -131,7 +131,7 @@ vm_space_destroy (struct vm_space *space)
   
   __vm_free_page_table (space->vs_pagetable);
 
-  spfree (space);
+  sfree (space);
 }
 
 /* Next level */

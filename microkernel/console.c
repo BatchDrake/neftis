@@ -25,15 +25,37 @@
 #include <console/console.h>
 #include <mm/alloc.h>
 
+#include <misc/msgsink.h>
 #include <util.h>
 
 struct console *syscon;
 struct console  syscon_list[SYSCON_NUM];
 
+void
+console_msgsink_putchar (void *opaque, char c)
+{
+  if (syscon)
+    console_putchar (syscon, c);
+}
+
+void
+console_msgsink_puts (void *opaque, const char *s)
+{
+  if (syscon)
+    console_puts (syscon, s);
+}
+
 /* FIXME: protect this with locks */
 void
 console_setup (struct console *con)
 {
+  static struct msgsink console_msgsink =
+  {
+    .opaque  = NULL,
+    .putchar = console_msgsink_putchar,
+    .puts    = console_msgsink_puts
+  };
+  
   con->width = video_get_screen_width ();
   con->height = video_get_screen_height ();
   
@@ -69,6 +91,8 @@ console_setup (struct console *con)
     console_set_param (con, CONSOLE_PARAM_EXPLICIT_CRLF, 0);
     syscon = con;
   }
+
+  msgsink_register (&console_msgsink);
 }
 
 void

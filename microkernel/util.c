@@ -1,6 +1,6 @@
 /*
- *    <one line to give the program's name and a brief idea of what it does.>
- *    Copyright (C) <year>  <name of author>
+ *    util.c: Some misc functions widely used by the whole microkernel.
+ *    Copyright (C) 2014  Gonzalo J. Carracedo
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by

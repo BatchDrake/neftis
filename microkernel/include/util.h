@@ -92,7 +92,7 @@
 
 #define IN_BOUNDS(x, higher)                                  \
   unlikely ((x) < 0 || (x) >= (higher))
-  
+
 void printk (const char *, ...);
 
 void kernel_halt (void);

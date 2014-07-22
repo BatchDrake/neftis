@@ -20,10 +20,13 @@
 #include <string.h>
 #include <stdarg.h>
 
+#include <misc/msgsink.h>
 #include <misc/vkprintf.h>
 #include <console/console.h>
 
 extern struct console *syscon;
+
+static struct msgsink *msgsinks;
 
 static int printk_putchar (struct vkprintf_stream *, char);
 static int printk_puts (struct vkprintf_stream *, const char *);
@@ -37,28 +40,57 @@ static struct vkprintf_stream printk_stream =
 };
 
 void
+msgsink_register (struct msgsink *sink)
+{
+  sink->next = msgsinks;
+  msgsinks = sink;
+}
+
+void
 putchar (char c)
 {
-  if (syscon)
-    console_putchar (syscon, c);
+  struct msgsink *this = msgsinks;
+
+  while (this)
+  {
+    (this->putchar) (this->opaque, c);
+    
+    this = this->next;
+  }
 }
 
 void
 puts (const char* s)
 {
-  if (syscon)
-    console_puts (syscon, s);
+  struct msgsink *this = msgsinks;
+  const char *p;
+  
+  while (this)
+  {
+    if (this->puts != NULL)
+      (this->puts) (this->opaque, s);
+    else
+      for (p = s; *p; ++p)
+        (this->putchar) (this->opaque, *p);
+
+    this = this->next;
+  }
 }
 
 static int
 printk_putchar (struct vkprintf_stream *stream, char c)
 {
   putchar (c);
+
+  return 0;
 }
 
-static int printk_puts (struct vkprintf_stream *stream, const char *s)
+static int
+printk_puts (struct vkprintf_stream *stream, const char *s)
 {
   puts (s);
+
+  return strlen (s);
 }
 
 void

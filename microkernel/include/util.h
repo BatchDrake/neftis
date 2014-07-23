@@ -21,6 +21,7 @@
 
 #include <types.h>
 #include <values.h>
+#include <stdarg.h>
 
 #define _JOIN(x, y) x ## y
 #define JOIN(x, y) _JOIN (x, y)
@@ -95,7 +96,7 @@
   unlikely ((x) < 0 || (x) >= (higher))
 
 void printk (const char *, ...);
-
+void vprintk (const char *, va_list);
 void kernel_halt (void);
 void kernel_pause (void);
 

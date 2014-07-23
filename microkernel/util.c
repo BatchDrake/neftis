@@ -32,7 +32,7 @@ panic (const char *msg, ...)
   va_start (ap, msg);
   
   puts ("\033[0;31mpanic: ");
-  printk (msg, ap);
+  vprintk (msg, ap);
   putchar ('\n');
 }
 

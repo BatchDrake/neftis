@@ -47,6 +47,8 @@ void
 kernel_thread_test_slab (void)
 {
   kmem_cache_debug ();
+
+  sfree (0xa0000000);
   
   for (;;)
     kernel_pause ();
@@ -75,7 +77,7 @@ static char banner[] =
   "   d8YaaaaY8b     88    a8\"     \"8a  88P'   \"88\"    \"8a  88  88 ,a8\"    \n"
   "  d8\"\"\"\"\"\"\"\"8b    88    8b       d8  88      88      88  88  8888[      \n"
   " d8'        `8b   88,   \"8a,   ,a8\"  88      88      88  88  88`\"Yba,   \n"
-"d8'          `8b  \"Y888  `\"YbbdP\"'   88      88      88  88  88   `Y8a  \n";
+"d8'          `8b  \"Y888  `\"YbbdP\"'   88      88      88  88  88   `Y8a  \n\n";
 
 void
 kernel_banner (void)

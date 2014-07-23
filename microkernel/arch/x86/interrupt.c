@@ -380,7 +380,7 @@ x86_isr_handler (struct x86_stack_frame *frame)
 
     if (task->ts_type == TASK_TYPE_KERNEL_THREAD)
       x86_regdump (frame);
-    
+
     switch (frame->int_no)
     {
     case KERNEL_BUGCHECK_INTERRUPT:

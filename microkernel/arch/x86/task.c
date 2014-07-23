@@ -28,31 +28,6 @@
 #include <arch.h>
 #include <kctx.h>
 
-INLINE DWORD
-get_eflags (void)
-{
-  DWORD ret;
-  
-  __asm__ __volatile__ ("pushf");
-  __asm__ __volatile__ ("pop %0" : "=g" (ret)); /* We use this instead of
-   popping directly to %eax to avoid warnings. TODO: do it in assembly */
-   
-   return ret;
-}
-
-INLINE int
-esp_is_sane (struct task *task, DWORD esp)
-{
-  return ((DWORD) task + sizeof (struct task)) > esp &&
-         esp < ((DWORD) task + KERNEL_MODE_STACK_PAGES << __PAGE_BITS);
-}
-
-INLINE struct task_ctx_data *
-get_task_ctx_data (struct task *task)
-{
-  return (struct task_ctx_data *) task->ts_arch_ctx_data;
-}
-
 /* This function is CRITICAL: without it, we can't
    build contexts when switching tasks! */
 INLINE void

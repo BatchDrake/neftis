@@ -62,3 +62,6 @@ sfree (void *ptr)
 
   kmem_cache_free (header->header, ptr);
 }
+
+DEBUG_FUNC (salloc);
+DEBUG_FUNC (sfree);

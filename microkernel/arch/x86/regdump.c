@@ -1,6 +1,6 @@
 /*
- *    <one line to give the program's name and a brief idea of what it does.>
- *    Copyright (C) <year>  <name of author>
+ *    Regdump and stack trace for x86
+ *    Copyright (C) 2014  Gonzalo J. Carracedo
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -17,10 +17,12 @@
  */
  
 #include <types.h>
+#include <task/task.h>
 
 #include <asm/seg.h>
 #include <asm/interrupt.h>
 #include <asm/regs.h>
+#include <asm/task.h>
 
 extern char bootstack[4 * PAGE_SIZE];
 extern char _start;
@@ -73,12 +75,24 @@ void x86_stack_trace (struct x86_stack_frame *frame)
   busword_t eip, ebp;
   busword_t stack_top;
   busword_t stack_bottom;
-  
+  struct task *current;
+  struct task_ctx_data *data;
   struct kernel_symbol *nearest;
 
-  stack_top    = (busword_t) bootstack;
-  stack_bottom = (busword_t) bootstack + 4 * PAGE_SIZE;
 
+  if ((current = get_current_task ()) != NULL)
+  {
+    data = get_task_ctx_data (current);
+    
+    stack_top    = data->stack_info.stack_bottom - KERNEL_MODE_STACK_PAGES * PAGE_SIZE + sizeof (DWORD);
+    stack_bottom = data->stack_info.stack_bottom;
+  }
+  else
+  {
+    stack_top    = (busword_t) bootstack;
+    stack_bottom = (busword_t) bootstack + KERNEL_MODE_STACK_PAGES * PAGE_SIZE;
+  }
+  
   ebp = frame->regs.ebp;
 
   printk ("call trace:\n");

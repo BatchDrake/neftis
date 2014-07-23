@@ -97,12 +97,17 @@ void
 printk (const char *fmt, ...)
 {
   va_list ap;
-  int i;
-  
+
   va_start (ap, fmt);
   
   vkprintf (&printk_stream, fmt, ap);
 
   /* va_end?? */
+}
+
+void
+vprintk (const char *fmt, va_list ap)
+{
+  vkprintf (&printk_stream, fmt, ap);
 }
 

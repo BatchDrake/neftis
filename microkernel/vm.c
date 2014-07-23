@@ -497,7 +497,7 @@ vm_handle_page_fault (struct task *task, busword_t addr, int access)
   if (region == KERNEL_INVALID_POINTER)
   {
     /* Send a signal, or whatever */
-    panic ("Task %d: segment violation (%p)\n", task->ts_tid, addr);
+    panic ("task %d: segment violation (%p)\n", task->ts_tid, addr);
     return -1;
   }
   
@@ -505,19 +505,19 @@ vm_handle_page_fault (struct task *task, busword_t addr, int access)
   {
   case VREGION_ACCESS_READ:
     if (region->vr_ops->read_fault == NULL)
-      panic ("Task %d: region has no read page fault handler registered!\n", task->ts_tid);
+      panic ("task %d: region has no read page fault handler registered!\n", task->ts_tid);
 
     return (region->vr_ops->read_fault) (task, region, addr);
 
   case VREGION_ACCESS_WRITE:
     if (region->vr_ops->write_fault == NULL)
-      panic ("Task %d: region has no write page fault handler registered!\n", task->ts_tid);
+      panic ("task %d: region has no write page fault handler registered!\n", task->ts_tid);
 
     return (region->vr_ops->write_fault) (task, region, addr);
 
   case VREGION_ACCESS_EXEC:
     if (region->vr_ops->exec_fault == NULL)
-      panic ("Task %d: region has no exec page fault handler registered!\n", task->ts_tid);
+      panic ("task %d: region has no exec page fault handler registered!\n", task->ts_tid);
 
     return (region->vr_ops->exec_fault) (task, region, addr);
 

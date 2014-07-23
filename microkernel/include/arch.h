@@ -74,6 +74,9 @@ void hw_timer_enable (void);
 void hw_timer_disable (void);
 int  hook_timer (int (*) (int, void *, void *));
 
+/* Serial port functions */
+void hw_serial_init (void);
+
 # endif /* _IRQ_TIMER_H */
 #endif /* _ARCH_H */
 

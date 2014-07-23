@@ -22,6 +22,7 @@ libx86_a_SOURCES=8259-pic.c    \
                  paging.c      \
                  regdump.c     \
                  seg.S         \
+	         serial.c      \
 		 upperhalf.c   \
                  task.c        \
                  video.c

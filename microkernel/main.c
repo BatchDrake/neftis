@@ -20,7 +20,10 @@
 
 #include <misc/list.h>
 
+#include <dev/serial.h>
+
 #include <console/console.h>
+
 #include <irq/irq.h>
 #include <irq/timer.h>
 
@@ -43,21 +46,6 @@ extern struct console *syscon;
 void
 kernel_thread_test_slab (void)
 {
-  void *ptr;
-
-  ptr = salloc (1);
-
-  printk ("Ptr: %p\n", ptr);
-
-  ptr = salloc (7);
-  printk ("Ptr: %p\n", ptr);
-
-  ptr = salloc (3);
-  printk ("Ptr: %p\n", ptr);
-  
-  ptr = salloc (647534);
-  printk ("Ptr: %p\n", ptr);
-
   kmem_cache_debug ();
   
   for (;;)
@@ -99,9 +87,11 @@ void
 main (void)
 {
   disable_interrupts ();
+
+  serial_init ();
   
   boot_console_init ();
-  
+
   puts (KERNEL_BOOT_STRING);
 
   kernel_banner ();

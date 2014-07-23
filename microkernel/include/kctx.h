@@ -102,10 +102,7 @@ get_current_scheduler (void)
 INLINE void
 set_current_scheduler (struct sched *scheduler)
 {
-  debug ("Set current scheduler...\n");
-  current_kctx->kc_scheduler = scheduler;
-  debug ("Done\n");
-  
+  current_kctx->kc_scheduler = scheduler; 
 }
 
 #endif /* _KCTX_H */

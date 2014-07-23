@@ -23,8 +23,8 @@
 #include <asm/regs.h>
 
 extern char bootstack[4 * PAGE_SIZE];
-extern void _start;
-extern void kernel_base;
+extern char _start;
+extern char kernel_base;
 
 #define DISTANCE(x, y) \
   ((busword_t) (x) < (busword_t) (y) ? \

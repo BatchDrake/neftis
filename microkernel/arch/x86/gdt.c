@@ -115,7 +115,7 @@ gdt_init (void)
   ptr.limit = sizeof (struct gdt_entry) * GDT_MAX_SEGMENTS - 1;
   ptr.base  = gdt;
 
-  gdt_bytes = gdt;
+  gdt_bytes = (BYTE *) gdt;
   
   for (i = 0; i <= ptr.limit; ++i)
     gdt_bytes[i] = 0;

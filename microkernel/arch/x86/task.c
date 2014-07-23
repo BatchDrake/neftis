@@ -177,7 +177,7 @@ __task_config_start (struct task *task, void (*start) ())
   frameptr->priv.eip = (physptr_t) start;
 
   if (task->ts_vm_space != NULL)
-    frameptr->cr3 = (physptr_t) task->ts_vm_space->vs_pagetable;
+    frameptr->cr3 = (busword_t) task->ts_vm_space->vs_pagetable;
   else
   {
     FAIL ("Building task of type %d (entry: %p) with no vm_space!\n",
@@ -204,7 +204,7 @@ void
 __task_switch_from_current (struct task *current, struct task *next)
 {
   struct task_ctx_data *data;
-  extern void __task_restore_point;
+  extern char __task_restore_point[];
 
   data = get_task_ctx_data (current);
   
@@ -214,7 +214,7 @@ __task_switch_from_current (struct task *current, struct task *next)
                         "push $0\n" /* no error code */
                         "push $0\n" /* no interrupt number */
                         SAVE_ALL /* save all registers */
-                        :: "g" (&__task_restore_point));
+                        :: "g" (__task_restore_point));
                         
   /* Update stack information */
   __asm__ __volatile__ ("movl %%esp, %0" : "=g" (data->stack_info.esp));
@@ -241,7 +241,7 @@ __task_switch_from_interrupt (struct task *current, struct task *next)
   {
     data = get_task_ctx_data (current);
   
-    data->stack_info.esp = get_interrupt_frame ();
+    data->stack_info.esp = (busword_t) get_interrupt_frame ();
   }
   
   __task_perform_switch (next);

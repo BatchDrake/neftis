@@ -111,3 +111,11 @@ vprintk (const char *fmt, va_list ap)
   vkprintf (&printk_stream, fmt, ap);
 }
 
+DEBUG_FUNC (msgsink_register);
+DEBUG_FUNC (putchar);
+DEBUG_FUNC (puts);
+DEBUG_FUNC (printk_putchar);
+DEBUG_FUNC (printk_puts);
+DEBUG_FUNC (printk);
+DEBUG_FUNC (vprintk);
+

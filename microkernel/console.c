@@ -328,10 +328,6 @@ __console_inline_putchar (struct console *con, char c)
   {
     if (con->pos_x)
       con->pos_x--;
-      
-    con->buffer[con->pos_y * con->width + con->pos_x] = 
-      (schar) {con->params[CONSOLE_PARAM_CLEAR_CHAR], 
-      con->params[CONSOLE_PARAM_CLEAR_COLOR]};
   }
   else
     __console_inline_putchar_raw (con, c);
@@ -522,3 +518,24 @@ setup_system_consoles ()
   syscon = syscon_list;
 }
 
+DEBUG_FUNC (console_msgsink_putchar);
+DEBUG_FUNC (console_msgsink_puts);
+DEBUG_FUNC (console_setup);
+DEBUG_FUNC (console_set_buffer);
+DEBUG_FUNC (console_get_buffer);
+DEBUG_FUNC (console_get_param);
+DEBUG_FUNC (console_set_param);
+DEBUG_FUNC (console_gotoxy);
+DEBUG_FUNC (console_scroll);
+DEBUG_FUNC (__ecma_to_vga);
+DEBUG_FUNC (__console_parse_escape);
+DEBUG_FUNC (__console_inline_putchar_raw);
+DEBUG_FUNC (__console_inline_putchar);
+DEBUG_FUNC (console_putchar);
+DEBUG_FUNC (console_write);
+DEBUG_FUNC (console_putchar_raw);
+DEBUG_FUNC (console_write_raw);
+DEBUG_FUNC (console_clear);
+DEBUG_FUNC (console_get_current);
+DEBUG_FUNC (console_switch);
+DEBUG_FUNC (setup_system_consoles);

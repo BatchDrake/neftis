@@ -17,6 +17,7 @@
  */
 
 #include <types.h>
+#include <util.h>
 #include <string.h>
 #include <stdarg.h>
 #include <misc/vkprintf.h>
@@ -302,3 +303,13 @@ vkputs (struct vkprintf_stream *stream, const char *s)
   }
 }
 
+DEBUG_FUNC (print_decimal);
+DEBUG_FUNC (print_octal);
+DEBUG_FUNC (print_hex);
+DEBUG_FUNC (print_DWORD);
+DEBUG_FUNC (print_byte);
+DEBUG_FUNC (print_human_readable);
+DEBUG_FUNC (print_eflags);
+DEBUG_FUNC (vkprintf);
+DEBUG_FUNC (vkputchar);
+DEBUG_FUNC (vkputs);

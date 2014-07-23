@@ -46,12 +46,25 @@ extern struct console *syscon;
 void
 kernel_thread_test_slab (void)
 {
+  int i;
+  
+  char *spinner[] = {"oOo...",
+                     ".oOo..",
+                     "..oOo.",
+                     "...oOo",
+                     "o...oO",
+                     "Oo...o"};
+  
   kmem_cache_debug ();
 
-  sfree (0xa0000000);
+  printk ("End of demo :) ");
   
-  for (;;)
+  for (i = 0;; ++i)
+  {
     kernel_pause ();
+
+    printk ("%s\b\b\b\b\b\b", spinner[i % 6]);
+  }
 }
 
 void
@@ -128,5 +141,3 @@ main (void)
 }
 
 DEBUG_FUNC (main);
-
-

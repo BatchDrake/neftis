@@ -229,7 +229,6 @@ do_nothing (void)
 {
 }
 
-DEBUG_FUNC (do_nothing);
 DEBUG_FUNC (strlen);
 DEBUG_FUNC (umax);
 DEBUG_FUNC (max);
@@ -243,5 +242,5 @@ DEBUG_FUNC (memcpy);
 DEBUG_FUNC (memset);
 DEBUG_FUNC (strtoi);
 DEBUG_FUNC (strtoul);
-
-
+DEBUG_FUNC (ultostr);
+DEBUG_FUNC (do_nothing);

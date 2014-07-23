@@ -92,7 +92,8 @@ console_setup (struct console *con)
     syscon = con;
   }
 
-  msgsink_register (&console_msgsink);
+  if (kernel_option_enabled ("console", 1))
+    msgsink_register (&console_msgsink);
 }
 
 void

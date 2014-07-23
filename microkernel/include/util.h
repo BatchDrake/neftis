@@ -19,6 +19,7 @@
 #ifndef _UTIL_H
 #define _UTIL_H
 
+#include <types.h>
 #include <values.h>
 
 #define _JOIN(x, y) x ## y
@@ -99,6 +100,8 @@ void kernel_halt (void);
 void kernel_pause (void);
 
 const char *kernel_command_line (void);
+int kernel_get_param (const char *, char *, size_t);
+int kernel_option_enabled (const char *, int);
 
 #endif /* _UTIL_H */
 

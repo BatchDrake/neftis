@@ -40,6 +40,6 @@ serial_init (void)
   
   hw_serial_init ();
 
-  if (serial_port_count () > 0)
+  if (serial_port_count () > 0 && kernel_option_enabled ("serial", 1))
     msgsink_register (&serial_msgsink);
 }

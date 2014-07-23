@@ -15,7 +15,8 @@
  *    You should have received a copy of the GNU General Public License
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
- 
+
+#include <types.h>
 #include <util.h>
 #include <stdarg.h>
 #include <console/console.h>
@@ -45,4 +46,70 @@ void
 kernel_pause (void)
 {
   __pause ();
+}
+
+int
+kernel_get_param (const char *param, char *buf, size_t maxsize)
+{
+  const char *cmdline = kernel_command_line ();
+  size_t size = strlen (cmdline);
+  size_t paramlen = strlen (param);
+  int i, j;
+
+  for (i = 0; i < size; ++i)
+  {
+    if (strncmp (cmdline + i, param, paramlen) == 0)
+    {
+      if (cmdline[i + paramlen] == ' ' || cmdline[i + paramlen] == '\0')
+      {
+        if (buf != NULL && size > 0)
+          *buf = '\0';
+
+        return 0;
+      }
+      else if (cmdline[i + paramlen] == '=')
+      {
+        ++i;
+        
+        if (buf != NULL && size > 0)
+        {
+          for (j = 0;
+               cmdline[i + paramlen + j] != ' '  &&
+               cmdline[i + paramlen + j] != '\0' &&
+               j < maxsize - 1;
+               ++j)
+            buf[j] = cmdline[i + paramlen + j];
+
+          buf[j] = '\0';
+        }
+
+        return 0;
+      }
+    }
+  }
+
+  return -1;
+}
+
+int
+kernel_option_enabled (const char *param, int def)
+{
+  char buf[6];
+
+  if (kernel_get_param (param, buf, 6) == -1)
+    return def;
+
+  if (!*buf)
+    return 1;
+
+  if (strcmp (buf, "false") == 0 ||
+      strcmp (buf, "no")    == 0 ||
+      strcmp (buf, "off")   == 0)
+    return 0;
+  else if (strcmp (buf, "true") == 0 ||
+           strcmp (buf, "yes")  == 0 ||
+           strcmp (buf, "on")   == 0)
+    return 1;
+  else
+    return def;
 }

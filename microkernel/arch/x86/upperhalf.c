@@ -45,6 +45,7 @@ extern int text_start;
 /* Symbols required by extern files */
 BOOT_SYMBOL (DWORD __free_start);
 BOOT_SYMBOL (char bootstack[4 * PAGE_SIZE]); /* Boot stack, as used by _start */
+BOOT_SYMBOL (char cmdline_copy[128]);
 
 /* Inner state of boot_entry */
 BOOT_SYMBOL (static int cur_x) = 0;
@@ -336,6 +337,30 @@ boot_prepare_paging_early (void)
 }
 
 void
+boot_fix_multiboot (void)
+{
+  int i;
+  char *p;
+  
+  struct multiboot_info *mbi;
+
+  mbi = multiboot_location ();
+
+  if (mbi->flags & (1 << 2))
+  {
+    p = (char *) mbi->cmdline;
+    i = 0;
+    
+    while (*p && i < sizeof (cmdline_copy) - 1)
+      cmdline_copy[i++] = *p++;
+
+    cmdline_copy[i] = '\0';
+
+    mbi->cmdline = (unsigned long) cmdline_copy;
+  }
+}
+
+void
 boot_entry (void)
 {
   DWORD cr0;
@@ -357,6 +382,8 @@ boot_entry (void)
 
   boot_prepare_paging_early ();
 
+  boot_fix_multiboot ();
+  
   boot_puts (string7);
   
   SET_REGISTER ("%cr3", page_dir);
@@ -367,6 +394,7 @@ boot_entry (void)
   
   SET_REGISTER ("%cr0", cr0);
 
+  
   boot_screen_clear (0x07);
   
   main ();

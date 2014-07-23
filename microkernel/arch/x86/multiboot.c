@@ -1,6 +1,6 @@
 /*
- *    <one line to give the program's name and a brief idea of what it does.>
- *    Copyright (C) <year>  <name of author>
+ *    multiboot.c: Multiboot handling functions
+ *    Copyright (C) 2014  Gonzalo J. Carracedo
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,8 @@
  *    You should have received a copy of the GNU General Public License
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
- 
+
+#include <util.h>
 #include <multiboot.h>
 
 BOOT_SYMBOL (static struct multiboot_info *multiboot_info);
@@ -32,4 +33,11 @@ multiboot_location (void)
   return multiboot_info;
 }
 
-
+const char *
+kernel_command_line (void)
+{
+  if (multiboot_info->flags & (1 << 2))
+    return (const char *) multiboot_info->cmdline;
+  else
+    return "";
+}

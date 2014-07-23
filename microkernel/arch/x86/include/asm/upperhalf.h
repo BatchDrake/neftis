@@ -13,5 +13,6 @@ BOOT_FUNCTION (void boot_print_hex (DWORD));
 BOOT_FUNCTION (void boot_print_dec (DWORD));
 
 BOOT_FUNCTION (void boot_entry (void));
+BOOT_FUNCTION (void boot_fix_multiboot (void));
 
 #endif /* _ARCH_X86_ASM_UPPER_HALF_H */

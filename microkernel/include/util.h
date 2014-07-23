@@ -98,5 +98,7 @@ void printk (const char *, ...);
 void kernel_halt (void);
 void kernel_pause (void);
 
+const char *kernel_command_line (void);
+
 #endif /* _UTIL_H */
 

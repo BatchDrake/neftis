@@ -44,6 +44,43 @@ neftis_SOURCES=arch/x86/boot.S \
                util.c          \
                vkprintf.c      \
                vm.c            \
-               waitqueue.c
-               
-               
+               waitqueue.c     \
+               include/ctype.h \
+               include/ansi.h \
+               include/console/console.h \
+               include/console/video.h \
+               include/console/condefs.h \
+               include/kctx.h \
+               include/lock/lock.h \
+               include/backend.h \
+               include/mm/regions.h \
+               include/mm/alloc.h \
+               include/mm/anonmap.h \
+               include/mm/kmalloc.h \
+               include/mm/salloc.h \
+               include/mm/slab.h \
+               include/mm/coloring.h \
+               include/mm/anon.h \
+               include/mm/vm.h \
+               include/irq/timer.h \
+               include/irq/irq.h \
+               include/dev/serial.h \
+               include/string.h \
+               include/config.h \
+               include/defines.h \
+               include/task/waitqueue.h \
+               include/task/task.h \
+               include/task/exception.h \
+               include/task/sched.h \
+               include/task/loader.h \
+               include/stdarg.h \
+               include/util.h \
+               include/misc/msgsink.h \
+               include/misc/vkprintf.h \
+               include/misc/list.h \
+               include/misc/radix_tree.h \
+               include/misc/hook.h \
+               include/arch.h \
+               include/debug.h \
+               include/values.h \
+               include/types.h 

@@ -25,4 +25,19 @@ libx86_a_SOURCES=8259-pic.c    \
 	         serial.c      \
 		 upperhalf.c   \
                  task.c        \
-                 video.c
+                 video.c       \
+                 include/multiboot.h \
+                 include/vga/crtc.h \
+                 include/asm/cpuid.h \
+                 include/asm/8259-pic.h \
+                 include/asm/timer.h \
+                 include/asm/seg.h \
+                 include/asm/com.h \
+                 include/asm/regs.h \
+                 include/asm/io.h \
+                 include/asm/task.h \
+                 include/asm/ports.h \
+                 include/asm/pagedir.h \
+                 include/asm/interrupt.h \
+                 include/asm/upperhalf.h \
+                 include/asm/irq.h

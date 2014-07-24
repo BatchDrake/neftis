@@ -274,7 +274,7 @@ int
 defsched_remove_from_runqueue (struct task *task)
 {
   circular_list_remove_element ((void *) &CURRENT_INFO->runqueue, task);
-  
+
   return 0;
 }
 
@@ -292,13 +292,12 @@ defsched_wake_up (struct task *task, int op, int reason)
     case TASK_STATE_RUNNING:
       if (defsched_put_in_runqueue (task) == -1)
         FAIL ("failed to put process in runqueue\n");
-      
+
       task->ts_state = op;
+      task->ts_wakeup_reason = reason;
       
-      if (reason == WAKEUP_INTERRUPT ||
-          reason == WAKEUP_MUTEX ||
-          reason == WAKEUP_IPC)
-        switch_to (task);
+      switch_to (task);
+      
       break;
       
   case TASK_STATE_EXITED:
@@ -311,8 +310,10 @@ defsched_wake_up (struct task *task, int op, int reason)
     
   default:
     if (task->ts_state == TASK_STATE_RUNNING)
+    {
       if (defsched_remove_from_runqueue (task) == -1)
         FAIL ("not in runqueue but running. how?\n");
+    }
     
     task->ts_state = op;
     
@@ -321,8 +322,6 @@ defsched_wake_up (struct task *task, int op, int reason)
   
   return 0;
 }
-
-int sched_pending;
 
 int
 defsched_pause (void)
@@ -343,18 +342,22 @@ void
 defsched_sched (void)
 {
   struct task *new;
-  
-  CURRENT_INFO->sched_pending = 0;
-  
-  circular_list_scroll_next ((void **) &CURRENT_INFO->runqueue);
-    
-  new = circular_list_get_head ((void **) &CURRENT_INFO->runqueue);
-  
-  if (new == NULL)
-    new = CURRENT_INFO->idle;
 
-  if (get_current_context () == KERNEL_CONTEXT_INTERRUPT)
+  if (CURRENT_INFO->enabled)
+  {
+    CURRENT_INFO->sched_pending = 0;
+  
+    circular_list_scroll_next ((void **) &CURRENT_INFO->runqueue);
+    
+    new = circular_list_get_head ((void **) &CURRENT_INFO->runqueue);
+  
+    if (new == NULL)
+      new = CURRENT_INFO->idle;
+    
     switch_to (new);
+  }
+  else
+    CURRENT_INFO->sched_pending = 1;
 }
 
 void

@@ -180,7 +180,7 @@ switch_to (struct task *task)
       
       if (old == task)
         break;
-    
+
       set_current_task (task);
     
       __task_switch_from_current (old, task);
@@ -194,7 +194,7 @@ switch_to (struct task *task)
         
       set_current_context (KERNEL_CONTEXT_TASK);
       set_current_task (task);
-      
+
       __task_switch_from_interrupt (old, task);
       
       break;

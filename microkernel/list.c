@@ -368,7 +368,7 @@ circular_list_remove_element (void **list, void *element)
   prev = CIRCULAR_LIST_HEAD (CIRCULAR_LIST_HEAD (element)->head.prev);
   next = CIRCULAR_LIST_HEAD (CIRCULAR_LIST_HEAD (element)->head.next);
   
-  if (prev == next)
+  if (prev == element && element == next)
   {
     *list = NULL;
     return;

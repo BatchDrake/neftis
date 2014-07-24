@@ -44,5 +44,8 @@ struct waiting_task_info *
 wait_queue_lookup_task (struct wait_queue *, struct task *);
 void wait_queue_remove_task (struct wait_queue *, struct task *);
 void wait_queue_remove_all (struct wait_queue *);
+void signal (struct wait_queue *, int);
+int  sleep (struct wait_queue *);
+
 #endif /* _TASK_WAITQUEUE_H */
 

@@ -53,14 +53,21 @@
 #define EFLAGS_IDENTIFY  (1 << 21)
 
 # ifndef ASM
-#  define SAVE_ALL              \
-   "pusha\n"                    \
-   "push %%ss\n"                \
-   "push %%fs\n"                \
-   "push %%gs\n"                \
-   "push %%es\n"                \
-   "push %%ds\n"                \
-   "push %%cs\n"                \
+#  define SAVE_ALL                \
+  ".extern kernel_pagedir\n"      \
+  "pusha\n"                       \
+  "movl %%cr3, %%eax\n"           \
+  "pushl %%eax\n"                 \
+  "movl %%cr0, %%eax\n"           \
+  "pushl %%eax\n"                 \
+  "movl kernel_pagedir, %%eax\n"  \
+  "movl %%eax, %%cr3\n"           \
+  "push %%ss\n"                   \
+  "push %%fs\n"                   \
+  "push %%gs\n"                   \
+  "push %%es\n"                   \
+  "push %%ds\n"                   \
+  "push %%cs\n"                   \
    
 # else
 

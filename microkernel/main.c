@@ -42,44 +42,67 @@
 #include <kctx.h>
 
 extern struct console *syscon;
+struct wait_queue *queue;
+
+struct task *task1;
+struct task *task2;
 
 void
-kernel_thread_test_slab (void)
+sleeping_thread (void)
+{
+  int reason;
+
+  wake_up (task2, TASK_STATE_RUNNING, WAKEUP_EXPLICIT);
+    
+  for (;;)
+  {
+    printk ("\033[1;34mSleeper  (%p): back to sleep.\033[0m\n", get_current_task ());
+    
+    reason = sleep (queue);
+
+    printk ("\033[1;34mSleeper  (%p): awaken because of reason %d!\033[0m\n", get_current_task (), reason);
+  }
+  
+}
+
+void
+signaling_thread (void)
 {
   int i;
+  int n = 0;
   
-  char *spinner[] = {"oOo...",
-                     ".oOo..",
-                     "..oOo.",
-                     "...oOo",
-                     "o...oO",
-                     "Oo...o"};
-  
-  kmem_cache_debug ();
-
-  printk ("End of demo :) ");
-  
-  for (i = 0;; ++i)
+  for (;;)
   {
-    kernel_pause ();
+    printk ("Signaler (%p): Waiting 1 sec before signaling object\n", get_current_task ());
+        
+    for (i = 0; i < 100; ++i)
+      kernel_pause ();
 
-    printk ("%s\b\b\b\b\b\b", spinner[i % 6]);
+    printk ("Signaler (%p): Let's go!\n", get_current_task ());
+    
+    signal (queue, n++);
   }
 }
 
 void
 test_kthreads (void)
 {
-  struct task *task1;
 
-  if ((task1 = kernel_task_new (kernel_thread_test_slab)) == NULL)
+  if ((queue = wait_queue_new ()) == NULL)
+    FAIL ("Cannot allocate waitqueue!\n");
+  
+  if ((task1 = kernel_task_new (sleeping_thread)) == NULL)
+    FAIL ("Cannot allocate task!\n");
+
+  if ((task2 = kernel_task_new (signaling_thread)) == NULL)
     FAIL ("Cannot allocate task!\n");
   
   wake_up (task1, TASK_STATE_RUNNING, WAKEUP_EXPLICIT);
 }
 
 DEBUG_FUNC (test_kthreads);
-DEBUG_FUNC (kernel_thread_test_slab);
+DEBUG_FUNC (sleeping_thread);
+DEBUG_FUNC (signaling_thread);
 
 static char banner[] =
   "                                                                        \n"

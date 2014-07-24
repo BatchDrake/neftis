@@ -52,6 +52,8 @@ int
 wait_queue_put_task (struct wait_queue *wq, struct task *task)
 {
   struct waiting_task_info *info;
+
+  ASSERT (task);
   
   spin_lock (&wq->wq_lock);
   
@@ -110,6 +112,47 @@ wait_queue_remove_task (struct wait_queue *wq, struct task *task)
   spin_unlock (&wq->wq_lock);
 }
 
+
+struct task *
+wait_queue_pop_task (struct wait_queue *wq)
+{
+  struct waiting_task_info *task;
+
+  spin_lock (&wq->wq_lock);
+  
+  if ((task = (struct waiting_task_info *) LIST_HEAD (wq->wq_queue)) != NULL)
+    list_remove_element ((void **) &wq->wq_queue, task);
+
+  spin_unlock (&wq->wq_lock);
+  
+  return task ? task->wt_task : NULL;
+}
+
+void
+signal (struct wait_queue *wq, int reason)
+{
+  struct task *task;
+
+  if ((task = wait_queue_pop_task (wq)) != NULL)
+    wake_up (task, TASK_STATE_RUNNING, reason);
+}
+
+int
+sleep (struct wait_queue *wq)
+{
+  pause ();
+
+  wait_queue_put_task (wq, get_current_task ());
+
+  wake_up (get_current_task (), TASK_STATE_SOFT_WAIT, 0);
+
+  schedule (); /* Won't resched until resume () */
+  
+  resume ();
+
+  return (get_current_task ())->ts_wakeup_reason;
+}
+
 void
 wait_queue_remove_all (struct wait_queue *wq)
 {
@@ -132,3 +175,13 @@ wait_queue_remove_all (struct wait_queue *wq)
 }
 
 
+DEBUG_FUNC (wait_queue_new);
+DEBUG_FUNC (waiting_task_info_new);
+DEBUG_FUNC (wait_queue_destroy);
+DEBUG_FUNC (wait_queue_put_task);
+DEBUG_FUNC (wait_queue_lookup_task);
+DEBUG_FUNC (wait_queue_remove_task);
+DEBUG_FUNC (wait_queue_pop_task);
+DEBUG_FUNC (signal);
+DEBUG_FUNC (sleep);
+DEBUG_FUNC (wait_queue_remove_all);

@@ -79,7 +79,8 @@ struct task
   tid_t               ts_tid;
   int                 ts_state;
   int                 ts_type;
-
+  int                 ts_wakeup_reason;
+  
   /* These are kernel-mode exception handlers to be executed
      directly in interrupt context. These exception handlers
      may be used to build a usedspace stack frame to call

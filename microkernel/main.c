@@ -35,6 +35,7 @@
 #include <task/task.h>
 #include <task/sched.h>
 #include <task/loader.h>
+#include <lock/event.h>
 
 #include <misc/radix_tree.h>
 
@@ -42,7 +43,7 @@
 #include <kctx.h>
 
 extern struct console *syscon;
-struct wait_queue *queue;
+DECLARE_AUTO_RESET_EVENT (myev);
 
 struct task *task1;
 struct task *task2;
@@ -50,17 +51,15 @@ struct task *task2;
 void
 sleeping_thread (void)
 {
-  int reason;
-
   wake_up (task2, TASK_STATE_RUNNING, WAKEUP_EXPLICIT);
     
   for (;;)
   {
     printk ("\033[1;34mSleeper  (%p): back to sleep.\033[0m\n", get_current_task ());
     
-    reason = sleep (queue);
+    event_wait (&myev);
 
-    printk ("\033[1;34mSleeper  (%p): awaken because of reason %d!\033[0m\n", get_current_task (), reason);
+    printk ("\033[1;34mSleeper  (%p): awaken because of event\033[0m\n", get_current_task ());
   }
   
 }
@@ -69,7 +68,6 @@ void
 signaling_thread (void)
 {
   int i;
-  int n = 0;
   
   for (;;)
   {
@@ -80,17 +78,13 @@ signaling_thread (void)
 
     printk ("Signaler (%p): Let's go!\n", get_current_task ());
     
-    signal (queue, n++);
+    event_signal (&myev);
   }
 }
 
 void
 test_kthreads (void)
 {
-
-  if ((queue = wait_queue_new ()) == NULL)
-    FAIL ("Cannot allocate waitqueue!\n");
-  
   if ((task1 = kernel_task_new (sleeping_thread)) == NULL)
     FAIL ("Cannot allocate task!\n");
 

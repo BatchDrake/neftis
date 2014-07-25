@@ -1,11 +1,11 @@
 # Makefile para neftis kernel
 AUTOMAKE_OPTIONS = subdir-objects
-SUBDIRS=arch/x86 loaders/elf
+SUBDIRS=arch/x86 loaders/elf scheds/default
 noinst_PROGRAMS=neftis
 
 OBJCOPYFLAGS=-R .note -R .note.gnu.build-id -R .comment
 
-neftis_LDADD=arch/x86/libx86.a loaders/elf/libelf.a
+neftis_LDADD=arch/x86/libx86.a loaders/elf/libelf.a scheds/default/libdefsched.a
             
 neftis_LDFLAGS=-Wl,-Tarch/x86/kernel.lds 
 
@@ -22,6 +22,7 @@ neftis_SOURCES=arch/x86/boot.S \
                anonmap.c       \
                buddy.c         \
                console.c       \
+               event.c         \
                exception.c     \
                hook.c          \
                irq.c           \
@@ -51,6 +52,7 @@ neftis_SOURCES=arch/x86/boot.S \
                include/console/video.h \
                include/console/condefs.h \
                include/kctx.h \
+	       include/lock/event.h \
                include/lock/lock.h \
                include/backend.h \
                include/mm/regions.h \

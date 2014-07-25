@@ -137,16 +137,44 @@ signal (struct wait_queue *wq, int reason)
     wake_up (task, TASK_STATE_RUNNING, reason);
 }
 
-int
-sleep (struct wait_queue *wq)
+void
+__signal_all (struct wait_queue *wq, int reason)
+{
+  struct task *task;
+  
+  while ((task = wait_queue_pop_task (wq)) != NULL)
+    wake_up (task, WAKEUP_DELAYED | TASK_STATE_RUNNING, reason);
+
+  if (task != NULL)
+    schedule ();
+}
+
+void
+signal_all (struct wait_queue *wq, int reason)
 {
   pause ();
+  
+  __signal_all (wq, reason);
+  
+  resume ();
+}
 
+void
+__sleep (struct wait_queue *wq)
+{
   wait_queue_put_task (wq, get_current_task ());
 
   wake_up (get_current_task (), TASK_STATE_SOFT_WAIT, 0);
 
   schedule (); /* Won't resched until resume () */
+}
+
+int
+sleep (struct wait_queue *wq)
+{
+  pause ();
+
+  __sleep (wq);
   
   resume ();
 
@@ -183,5 +211,8 @@ DEBUG_FUNC (wait_queue_lookup_task);
 DEBUG_FUNC (wait_queue_remove_task);
 DEBUG_FUNC (wait_queue_pop_task);
 DEBUG_FUNC (signal);
+DEBUG_FUNC (signal_all);
+DEBUG_FUNC (__signal_all);
 DEBUG_FUNC (sleep);
+DEBUG_FUNC (__sleep);
 DEBUG_FUNC (wait_queue_remove_all);

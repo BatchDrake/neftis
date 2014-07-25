@@ -24,6 +24,10 @@
 #include <task/task.h>
 #include <task/waitqueue.h>
 
+#include <kctx.h>
+
+#define CURRENT_INFO ((struct defsched_info *) (get_current_scheduler ())->sc_private)
+
 #define  WAKEUP_EXPLICIT  0 /* Process is awaken from another task */
 #define  WAKEUP_INTERRUPT 1 /* Process is awaken from interrupt */
 #define  WAKEUP_MUTEX     2 /* Process is awaken on mutex release */

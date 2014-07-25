@@ -60,6 +60,7 @@ fi
 
 AC_CONFIG_FILES([Makefile
                  microkernel/loaders/elf/Makefile
+                 microkernel/scheds/default/Makefile
                  microkernel/arch/x86/Makefile
                  microkernel/Makefile
 ])

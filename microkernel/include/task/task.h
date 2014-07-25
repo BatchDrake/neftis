@@ -29,6 +29,9 @@
 #define TASK_SYS_STACK_PAGES    16
 #define TASK_USR_STACK_PAGES    16
 
+#define WAKEUP_DELAYED          4096
+
+#define TASK_STATE_MASK         0xff
 #define TASK_STATE_NEW          0
 #define TASK_STATE_READY        1
 #define TASK_STATE_RUNNING      2

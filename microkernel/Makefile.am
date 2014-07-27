@@ -30,7 +30,6 @@ neftis_SOURCES=arch/x86/boot.S \
                kmalloc.c       \
                list.c          \
                loader.c        \
-               lock.c          \
                main.c          \
                mutex.c         \
                printk.c        \

@@ -63,33 +63,33 @@ ISR_NOERRCODE 31
 
 /* Rutinas para el control de IRQs. */
 
-ISR_NOERRCODE 32
-ISR_NOERRCODE 33
-ISR_NOERRCODE 34
-ISR_NOERRCODE 35
-ISR_NOERRCODE 36
-ISR_NOERRCODE 37
-ISR_NOERRCODE 38
-ISR_NOERRCODE 39
-ISR_NOERRCODE 40
-ISR_NOERRCODE 41
-ISR_NOERRCODE 42
-ISR_NOERRCODE 43
-ISR_NOERRCODE 44
-ISR_NOERRCODE 45
-ISR_NOERRCODE 46
-ISR_NOERRCODE 47
+ISR_IRQ 32
+ISR_IRQ 33
+ISR_IRQ 34
+ISR_IRQ 35
+ISR_IRQ 36
+ISR_IRQ 37
+ISR_IRQ 38
+ISR_IRQ 39
+ISR_IRQ 40
+ISR_IRQ 41
+ISR_IRQ 42
+ISR_IRQ 43
+ISR_IRQ 44
+ISR_IRQ 45
+ISR_IRQ 46
+ISR_IRQ 47
 
 /* IOAPIC interrupts */
 
-ISR_NOERRCODE 48
-ISR_NOERRCODE 49
-ISR_NOERRCODE 50
-ISR_NOERRCODE 51
-ISR_NOERRCODE 52
-ISR_NOERRCODE 53
-ISR_NOERRCODE 54
-ISR_NOERRCODE 55
+ISR_IRQ 48
+ISR_IRQ 49
+ISR_IRQ 50
+ISR_IRQ 51
+ISR_IRQ 52
+ISR_IRQ 53
+ISR_IRQ 54
+ISR_IRQ 55
 
 ISR_NOERRCODE 113
 ISR_NOERRCODE 114
@@ -102,7 +102,14 @@ ISR_NOERRCODE 119
 ISR_NOERRCODE 255
 
 .extern x86_isr_handler
-  
+.extern get_task_ctx_data
+.extern switch_section
+        
+.globl __intr_common
+.globl __restore_context
+.globl __task_restore_point
+.globl __task_switch_from_current_asm
+        
 x86_idt_flush:
     movl 4(%esp), %eax
     lidt (%eax)
@@ -123,13 +130,6 @@ __intr_common:
   
   addl $4, %esp
   
-  /* pop %eax
-  mov %eax, %cs 
-  
-  How do we change CS? 
-  
-  Maybe it's not possible to do such a thing. */
-  
 __restore_context:
   RESTORE_ALL
   
@@ -137,3 +137,64 @@ __restore_context:
   
   iret
 
+/* __task_switch_from_current (struct task *, struct task *) */
+
+        /*
+        * SECOND_ARG
+        * FIRST_ARG
+        * RET
+        */
+.extern get_task_ctx_data
+        
+__task_switch_from_current_asm:
+        pushl %eax
+
+        /* Check task.c:switch_lock ()
+
+        switch_lock has saved CPU flags
+        and entered in a critical section.
+
+        We get the flags prior to the
+        call to CRITICAL_ENTER and use it
+        to build the stack frame that will
+        restore the previos state. Note
+        that a call to sti() is not necessary,
+        it's automatically enabled (if required)
+        with iret
+        */
+        
+        movl $switch_section, %eax
+        movl 4(%eax), %eax
+        
+        pushl %eax
+        pushl %cs
+        pushl $__task_restore_point
+        pushl $0
+        pushl $0
+
+        SAVE_ALL
+
+        /*
+           0x54(%esp): ret
+           0x58(%esp): first arg
+           0x5c(%esp): second arg
+        */
+
+        movl 0x5c(%esp), %eax
+        pushl %eax
+        call get_task_ctx_data
+        addl $4, %esp
+
+        /* Save ESP in struct task_ctx_data */
+        movl %esp, 4(%eax)
+
+        movl 0x60(%esp), %eax
+        pushl %eax
+        call __task_perform_switch
+        /* This part will never be reached */
+
+__task_restore_point:
+        /* Here stack is already unwinded */
+        addl $4, %esp
+        ret
+        

@@ -18,8 +18,6 @@
  
 #include <lock/lock.h>
 
-/* WUT?? WTF DOES THIS DO HERE? */
-
 /* Proberen */
 void spin_lock (spin_t *lock);
 
@@ -52,7 +50,8 @@ spin_lock (spin_t *lock)
 
 
 /* Verhogen. Esto ni siquiera es crítico. */
-void spin_unlock (spin_t *lock)
+void
+spin_unlock (spin_t *lock)
 {
   char oldval = 1;
   
@@ -61,3 +60,36 @@ void spin_unlock (spin_t *lock)
   #endif
 }
 
+/* This must be a per-CPU variable. */
+void
+critical_enter (spin_t *lock, busword_t *flags)
+{
+#if NR_MAXCPUS > 1
+#error Multi-CPU configuration not supported (yet)
+#else
+  /* Save processor state */
+  __asm__ __volatile__ ("pushf\n"
+                        "popl %0" : "=g" (*flags));
+
+  __asm__ __volatile__ ("cli");
+
+  spin_lock (lock);
+  
+
+#endif
+}
+
+void
+critical_leave (spin_t *lock, busword_t flags)
+{
+#if NR_MAXCPUS > 1
+#error Multi-CPU configuration not supported (yet)
+#else
+  spin_lock (lock);
+
+  /* Restore processor state */
+  __asm__ __volatile__ ("pushl %0\n"
+                        "popf" :: "g" (flags));
+
+#endif  
+}

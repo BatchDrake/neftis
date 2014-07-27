@@ -98,6 +98,14 @@ defsched_task_in_runqueue (struct task *task)
 /* TODO: use backpointers to store about the actual scheding info */
 
 int
+defsched_put_in_runqueue_hiprio (struct task *task)
+{
+  circular_list_insert_head ((void *) &CURRENT_INFO->runqueue, task);
+  
+  return 0;
+}
+
+int
 defsched_put_in_runqueue (struct task *task)
 {
   circular_list_insert_tail ((void *) &CURRENT_INFO->runqueue, task);
@@ -129,14 +137,22 @@ defsched_wake_up (struct task *task, int op, int reason)
   switch (op)
   {
     case TASK_STATE_RUNNING:
-      if (defsched_put_in_runqueue (task) == -1)
-        FAIL ("failed to put process in runqueue\n");
-
+      if (reason > 0)
+      {
+        if (defsched_put_in_runqueue_hiprio (task) == -1)
+          FAIL ("failed to put process in runqueue\n");
+      }
+      else
+      {
+        if (defsched_put_in_runqueue (task) == -1)
+          FAIL ("failed to put process in runqueue\n");
+      }
+      
       task->ts_state = op;
       task->ts_wakeup_reason = reason;
 
       if (!delayed)
-        switch_to (task);
+        schedule ();
       
       break;
       
@@ -163,36 +179,43 @@ defsched_wake_up (struct task *task, int op, int reason)
   return 0;
 }
 
-int
-defsched_pause (void)
+
+void
+defsched_set_state (int state)
 {
-  CURRENT_INFO->enabled = 0;
+  CURRENT_INFO->enabled = state;
+
+  if (state && CURRENT_INFO->sched_pending)
+    schedule ();
 }
 
 int
-defsched_resume (void)
+defsched_get_state (void)
 {
-  CURRENT_INFO->enabled = 1;
-  
-  if (CURRENT_INFO->sched_pending)
-    schedule ();
+  return CURRENT_INFO->enabled;
 }
 
 void
 defsched_sched (void)
 {
+  DECLARE_CRITICAL_SECTION (section);
+  
   struct task *new;
 
   if (CURRENT_INFO->enabled)
   {
-    CURRENT_INFO->sched_pending = 0;
-  
+    TASK_ATOMIC_ENTER (section);
+    
     circular_list_scroll_next ((void **) &CURRENT_INFO->runqueue);
     
     new = circular_list_get_head ((void **) &CURRENT_INFO->runqueue);
   
     if (new == NULL)
       new = CURRENT_INFO->idle;
+
+    CURRENT_INFO->sched_pending = 0;
+
+    TASK_ATOMIC_LEAVE (section);
     
     switch_to (new);
   }
@@ -223,8 +246,8 @@ static struct sched defsched_info =
   .sc_name = "default",
   FIELD (setprio),
   FIELD (getprio),
-  FIELD (pause),
-  FIELD (resume),
+  FIELD (set_state),
+  FIELD (get_state),
   FIELD (wake_up),
   FIELD (sched),
   FIELD (find_task),
@@ -253,8 +276,8 @@ DEBUG_FUNC (defsched_getprio);
 DEBUG_FUNC (defsched_put_in_runqueue);
 DEBUG_FUNC (defsched_remove_from_runqueue);
 DEBUG_FUNC (defsched_wake_up);
-DEBUG_FUNC (defsched_pause);
-DEBUG_FUNC (defsched_resume);
+DEBUG_FUNC (defsched_set_state);
+DEBUG_FUNC (defsched_get_state);
 DEBUG_FUNC (defsched_sched);
 DEBUG_FUNC (defsched_sys_timer);
 DEBUG_FUNC (defsched_find_task);

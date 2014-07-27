@@ -344,7 +344,7 @@ x86_isr_handler (struct x86_stack_frame *frame)
   void *old_frame;
   struct task *task;
   DWORD cr2;
-  
+
   old_ctx   = get_current_context ();
   old_frame = get_interrupt_frame ();
   task      = get_current_task ();
@@ -352,12 +352,16 @@ x86_isr_handler (struct x86_stack_frame *frame)
   set_current_context (KERNEL_CONTEXT_INTERRUPT);
   set_interrupt_frame (frame);
 
-   __asm__ __volatile__ ("movl %%cr2, %0" : "=g" (cr2));
-      
+  __asm__ __volatile__ ("movl %%cr2, %0" : "=g" (cr2));
+
+  if (task->ts_state == TASK_STATE_RUNNING && frame->segs.ds == 0x20 && frame->segs.es == 0)
+    FAIL ("detected!\n");
+  
   if (frame->int_no >= 32 && frame->int_no < 56)
   {
+    /* No problem: under IRQ, interrupts are disabled */
     
-    outportb (0x20, 0x20); /* PIC_EOI, end of interrupt */
+    outportb (0x20, 0x20); /* PIC_EOI, end of interrupt, interrupts will arrive later */
     
     /* We don't care about interrupts beyond this point. Still in
        interrupt context, no interrupts enabled meanwhile */

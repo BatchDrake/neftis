@@ -18,6 +18,7 @@ libx86_a_SOURCES=8259-pic.c    \
                  interrupt.c   \
                  intr.S        \
                  irq.c         \
+		 lock.c        \
                  multiboot.c   \
                  paging.c      \
                  regdump.c     \

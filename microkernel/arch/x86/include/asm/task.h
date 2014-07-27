@@ -55,11 +55,5 @@ esp_is_sane (struct task *task, DWORD esp)
          esp < ((DWORD) task + KERNEL_MODE_STACK_PAGES << __PAGE_BITS);
 }
 
-INLINE struct task_ctx_data *
-get_task_ctx_data (struct task *task)
-{
-  return (struct task_ctx_data *) task->ts_arch_ctx_data;
-}
-
 #endif /* _ASM_TASK_H */
 

@@ -49,8 +49,8 @@ struct sched
   int  (*sc_setprio)   (struct task *, prio_t *);
   int  (*sc_getprio)   (struct task *, prio_t *);
   
-  int  (*sc_pause)     (void);
-  int  (*sc_resume)    (void);
+  int  (*sc_get_state) (void);
+  void (*sc_set_state) (int);
   
   int  (*sc_wake_up)   (struct task *, int, int);
   
@@ -78,6 +78,9 @@ int  getprio (struct task *, prio_t *);
 
 int  pause (void);
 int  resume (void);
+
+void sched_save    (int *);
+void sched_restore (int);
 
 int  wake_up (struct task *, int, int);
 

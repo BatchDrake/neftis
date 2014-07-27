@@ -24,9 +24,16 @@
 #include <asm/task.h>
 #include <asm/regs.h>
 #include <asm/seg.h>
+#include <asm/io.h>
 
 #include <arch.h>
 #include <kctx.h>
+
+struct task_ctx_data *
+get_task_ctx_data (struct task *task)
+{
+  return (struct task_ctx_data *) task->ts_arch_ctx_data;
+}
 
 /* This function is CRITICAL: without it, we can't
    build contexts when switching tasks! */
@@ -165,62 +172,42 @@ void
 __task_perform_switch (struct task *task)
 {
   struct task_ctx_data *data;
+  int i;
   
   data = get_task_ctx_data (task);
-  
+
   __asm__ __volatile__ (".extern __restore_context\n"
                         "movl %0, %%esp           \n"
                         "jmp __restore_context    \n"
                         :: "g" (data->stack_info.esp));
 }
 
+void __task_switch_from_current_asm (struct task *current, struct task *next);
 
 void
 __task_switch_from_current (struct task *current, struct task *next)
 {
-  struct task_ctx_data *data;
-  extern char __task_restore_point[];
-
-  data = get_task_ctx_data (current);
-  
-  __asm__ __volatile__ ("pushf\n"
-                        "push %%cs\n"
-                        "push %0\n"
-                        "push $0\n" /* no error code */
-                        "push $0\n" /* no interrupt number */
-                        SAVE_ALL /* save all registers */
-                        :: "g" (__task_restore_point));
-                        
-  /* Update stack information */
-  __asm__ __volatile__ ("movl %%esp, %0" : "=g" (data->stack_info.esp));
-  
-  
-  /* That's where __task_perform_switch will look for esp */
-  
-  __task_perform_switch (next); /* Go, go, go */
-  
-  __asm__ __volatile__ (".globl __task_restore_point\n"
-                        "__task_restore_point:\n");
-                      
-  /* Stack cleanup instructions are here */
+  __task_switch_from_current_asm (current, next);
 }
-
 
 void
 __task_switch_from_interrupt (struct task *current, struct task *next)
 {
   struct task_ctx_data *data;
-  
+
   /* TODO: use something like unlikely or shit */
   if (current != NULL)
   {
     data = get_task_ctx_data (current);
-  
+
     data->stack_info.esp = (busword_t) get_interrupt_frame ();
   }
-  
+
   __task_perform_switch (next);
 }
+
+void __intr_common (void);
+void __restore_context (void);
 
 DEBUG_FUNC (get_eflags);
 DEBUG_FUNC (esp_is_sane);
@@ -231,4 +218,7 @@ DEBUG_FUNC (__task_find_stack_bottom);
 DEBUG_FUNC (__task_config_start);
 DEBUG_FUNC (__task_perform_switch);
 DEBUG_FUNC (__task_switch_from_current);
+DEBUG_FUNC (__task_switch_from_current_asm);
 DEBUG_FUNC (__task_switch_from_interrupt);
+DEBUG_FUNC (__intr_common);
+DEBUG_FUNC (__restore_context);

@@ -58,8 +58,10 @@ event_destroy (event_t *ev)
 void
 event_wait (event_t *ev)
 {
-  pause ();
+  DECLARE_CRITICAL_SECTION (section);
 
+  TASK_ATOMIC_ENTER (section);
+  
   spin_lock (&ev->lock);
 
   if (!ev->signaled)
@@ -67,15 +69,16 @@ event_wait (event_t *ev)
   
   spin_unlock (&ev->lock);
 
-  /* Actual wait will happen here */
-  resume ();
+  TASK_ATOMIC_LEAVE (section);   /* Actual wait will happen here */
 }
 
 void
 event_signal (event_t *ev)
 {
-  pause ();
+  DECLARE_CRITICAL_SECTION (section);
 
+  TASK_ATOMIC_ENTER (section);
+  
   spin_lock (&ev->lock);
   
   if (!ev->auto_reset)
@@ -83,21 +86,23 @@ event_signal (event_t *ev)
     if (!ev->signaled)
     {
       ev->signaled = 1;
-      __signal_all (&ev->wq, 0);
+      __signal_all (&ev->wq, WAKEUP_REASON_EVENT);
     }
   }
   else
-    __signal_all (&ev->wq, 0);
+    __signal_all (&ev->wq, WAKEUP_REASON_EVENT);
 
   spin_unlock (&ev->lock);
 
-  resume ();
+  TASK_ATOMIC_LEAVE (section);
 }
 
 void
 event_clear (event_t *ev)
 {
-  pause ();
+  DECLARE_CRITICAL_SECTION (section);
+
+  TASK_ATOMIC_ENTER (section);
 
   spin_lock (&ev->lock);
   
@@ -105,13 +110,15 @@ event_clear (event_t *ev)
   
   spin_unlock (&ev->lock);
 
-  resume ();
+  TASK_ATOMIC_LEAVE (section);
 }
 
 void
 event_set_auto_reset (event_t *ev, int flag)
 {
-  pause ();
+  DECLARE_CRITICAL_SECTION (section);
+
+  TASK_ATOMIC_ENTER (section);
 
   spin_lock (&ev->lock);
   
@@ -119,6 +126,6 @@ event_set_auto_reset (event_t *ev, int flag)
   
   spin_unlock (&ev->lock);
 
-  resume ();
+  TASK_ATOMIC_LEAVE (section);
 }
 

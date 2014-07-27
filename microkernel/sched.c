@@ -79,8 +79,8 @@ sched_register (struct sched *sched)
   SCHED_TEST_FIELD (name);
   SCHED_TEST_FIELD (setprio);
   SCHED_TEST_FIELD (getprio);
-  SCHED_TEST_FIELD (pause);
-  SCHED_TEST_FIELD (resume);
+  SCHED_TEST_FIELD (get_state);
+  SCHED_TEST_FIELD (set_state);
   SCHED_TEST_FIELD (wake_up);
   SCHED_TEST_FIELD (sched);
   SCHED_TEST_FIELD (find_task);
@@ -115,22 +115,32 @@ getprio (struct task *task, prio_t *prio)
   return (get_current_scheduler ())->sc_getprio (task, prio);
 }
 
-  
+void
+sched_save (int *state)
+{
+  *state = (get_current_scheduler ())->sc_get_state ();
+}
+
+void
+sched_restore (int state)
+{
+  (get_current_scheduler ())->sc_set_state (state);
+}
+
 int
 pause (void)
 {
   SCHEDULER_CHECK ();
   
-  return (get_current_scheduler ())->sc_pause ();
+  (get_current_scheduler ())->sc_set_state (0);
 }
 
-  
 int
 resume (void)
 {
   SCHEDULER_CHECK ();
-  
-  return (get_current_scheduler ())->sc_resume ();
+
+  (get_current_scheduler ())->sc_set_state (1);
 }
 
 int

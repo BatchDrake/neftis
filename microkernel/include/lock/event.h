@@ -29,6 +29,10 @@
 #define DECLARE_EVENT(name) event_t name = EMPTY_EVENT
 #define DECLARE_AUTO_RESET_EVENT(name) event_t name = AUTO_RESET_EVENT
 
+/* Reasons will become priorities */
+
+#define WAKEUP_REASON_EVENT 20
+
 typedef struct event
 {
   spin_t lock;

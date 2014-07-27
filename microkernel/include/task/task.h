@@ -52,7 +52,7 @@
 #define KERNEL_THREAD_IDLE      0
 #define KERNEL_THREAD_DFRIRQD   1
 
-#define SCHED_BUFFER_PTRS 16
+#define SCHED_BUFFER_PTRS       16
 
 typedef busword_t               tid_t;
 
@@ -83,6 +83,7 @@ struct task
   int                 ts_state;
   int                 ts_type;
   int                 ts_wakeup_reason;
+  int                 ts_switch_count;
   
   /* These are kernel-mode exception handlers to be executed
      directly in interrupt context. These exception handlers

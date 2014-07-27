@@ -162,6 +162,29 @@ get_userspace_task (tid_t pid)
   return get_task (pid - MAX_KERNEL_THREADS);
 }
 
+/* There can only be one switch at a time */
+
+DECLARE_CRITICAL_SECTION (switch_section);
+
+/* Some interesting facts about context switches:
+   A context switch cannot happen during a context switch.
+
+   captainobvious.gif
+
+   For correctly doing this, we need to save the CPU state and
+   enter in a critical section. Then we use the CPU flags
+   stored in switch_section to build a stack (if switching
+   from TASK like in the case of schedule()) or the flags
+   obtained from the interrupt frame (if switching from
+   interrupt context) */
+
+void
+switch_lock (void)
+{
+  CRITICAL_ENTER (switch_section);
+}
+
+/* Note there's no critical leave. It's directly performed in assembly level */
 void
 switch_to (struct task *task)
 {
@@ -170,8 +193,13 @@ switch_to (struct task *task)
   switch (get_current_context ())
   {
     case KERNEL_CONTEXT_BOOT_TIME:
+      switch_lock ();
+
+      /* Now, context switch becomes atomic */
       set_current_task (task);
       set_current_context (KERNEL_CONTEXT_TASK);
+
+      ++task->ts_switch_count;
       __task_perform_switch (task);
       break; /* Not necessary, but nice. */
       
@@ -181,8 +209,11 @@ switch_to (struct task *task)
       if (old == task)
         break;
 
+      switch_lock ();
+      
       set_current_task (task);
-    
+
+      ++task->ts_switch_count;
       __task_switch_from_current (old, task);
       break;
     
@@ -191,10 +222,13 @@ switch_to (struct task *task)
       
       if (old == task)
         break;
-        
+
+      switch_lock ();
+      
       set_current_context (KERNEL_CONTEXT_TASK);
       set_current_task (task);
 
+      ++task->ts_switch_count;
       __task_switch_from_interrupt (old, task);
       
       break;

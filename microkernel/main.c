@@ -72,13 +72,15 @@ signaling_thread (void)
   for (;;)
   {
     printk ("Signaler (%p): Waiting 1 sec before signaling object\n", get_current_task ());
-        
-    for (i = 0; i < 100; ++i)
-      kernel_pause ();
 
+    /*for (i = 0; i < 100; ++i)
+      kernel_pause ();*/
     printk ("Signaler (%p): Let's go!\n", get_current_task ());
     
     event_signal (&myev);
+
+    /* This is not required but helps. */
+    schedule ();
   }
 }
 

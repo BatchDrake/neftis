@@ -141,22 +141,28 @@ void
 __signal_all (struct wait_queue *wq, int reason)
 {
   struct task *task;
+  int count = 0;
   
   while ((task = wait_queue_pop_task (wq)) != NULL)
+  {
     wake_up (task, WAKEUP_DELAYED | TASK_STATE_RUNNING, reason);
+    ++count;
+  }
 
-  if (task != NULL)
+  if (count)
     schedule ();
 }
 
 void
 signal_all (struct wait_queue *wq, int reason)
 {
-  pause ();
+  DECLARE_CRITICAL_SECTION (section);
+  
+  TASK_ATOMIC_ENTER (section);
   
   __signal_all (wq, reason);
   
-  resume ();
+  TASK_ATOMIC_LEAVE (section);
 }
 
 void
@@ -172,11 +178,13 @@ __sleep (struct wait_queue *wq)
 int
 sleep (struct wait_queue *wq)
 {
-  pause ();
-
+  DECLARE_CRITICAL_SECTION (section);
+  
+  TASK_ATOMIC_ENTER (section);
+  
   __sleep (wq);
   
-  resume ();
+  TASK_ATOMIC_LEAVE (section);
 
   return (get_current_task ())->ts_wakeup_reason;
 }

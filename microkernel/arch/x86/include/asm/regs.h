@@ -89,7 +89,17 @@
     pushl $\num
     jmp __intr_common
   .endm
-  
+
+  .macro ISR_IRQ num
+     .global isr\num
+     .align   4
+  isr\num:
+    cli
+    pushl $0
+    pushl $\num
+    jmp __intr_common
+  .endm
+    
   .macro SAVE_ALL
     .extern kernel_pagedir
     pusha

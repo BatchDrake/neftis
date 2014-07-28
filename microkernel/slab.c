@@ -24,7 +24,8 @@
 #include <mm/regions.h>
 #include <mm/slab.h>
 
-/* TODO: lock! */
+#include <lock/lock.h>
+
 struct kmem_cache *kmem_cache_list;
 
 static inline void
@@ -160,17 +161,23 @@ bitmap_search_free (const uint8_t *bitmap, memsize_t size, memsize_t hint)
 struct kmem_cache *
 kmem_cache_lookup (const char *name)
 {
+  DECLARE_CRITICAL_SECTION (lookup);
+  
   struct kmem_cache *caches = kmem_cache_list;
 
+  CRITICAL_ENTER (lookup);
+  
   while (caches != NULL)
   {
     if (strcmp (caches->name, name) == 0)
-      return caches;
+      break;
 
     caches = LIST_NEXT (caches);
   }
 
-  return NULL;
+  CRITICAL_LEAVE (lookup);
+  
+  return caches;
 }
 
 static void
@@ -195,6 +202,8 @@ kmem_cache_create (const char *name, busword_t size, void (*constructor) (struct
   struct kmem_cache *new;
   struct big_slab_header *big;
   
+  DECLARE_CRITICAL_SECTION (create_section);
+
   int is_big;
   int bitmap_size = 0;
   int data_offset = 0;
@@ -265,8 +274,13 @@ kmem_cache_create (const char *name, busword_t size, void (*constructor) (struct
       kmem_construct (new, new->data + i * new->object_size);
   }
 
+  /* Use mutexes */
+  CRITICAL_ENTER (create_section);
+  
   /* Save cache to list */
   list_insert_tail ((void *) &kmem_cache_list, new);
+
+  CRITICAL_LEAVE (create_section);
   
   return new;
 }

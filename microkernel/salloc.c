@@ -25,8 +25,14 @@
 #include <mm/slab.h>
 #include <mm/salloc.h>
 
+#include <task/waitqueue.h>
+#include <lock/mutex.h>
+#include <kctx.h>
+
+DECLARE_MUTEX (salloc_mutex);
+
 void *
-salloc (size_t size)
+__salloc (size_t size)
 {
   char name[MM_SLAB_NAME_MAX] = "pool-";
   memsize_t storage = MM_SLAB_DEFAULT_ALIGN;
@@ -54,7 +60,7 @@ salloc (size_t size)
 }
 
 void
-sfree (void *ptr)
+__sfree (void *ptr)
 {
   ASSERT (ptr);
   
@@ -63,5 +69,85 @@ sfree (void *ptr)
   kmem_cache_free (header->header, ptr);
 }
 
+void *
+salloc_irq (size_t size)
+{
+  DECLARE_CRITICAL_SECTION (salloc_section);
+  
+  void *result;
+
+  CRITICAL_ENTER (salloc_section);
+
+  result = __salloc (size);
+
+  CRITICAL_LEAVE (salloc_section);
+
+  return result;
+}
+
+void
+sfree_irq (void *ptr)
+{
+  DECLARE_CRITICAL_SECTION (sfree_section);
+
+  CRITICAL_ENTER (sfree_section);
+  
+  __sfree (ptr);
+
+  CRITICAL_LEAVE (sfree_section);
+}
+
+void *
+salloc_task (size_t size)
+{
+  void *result;
+
+  down (&salloc_mutex);
+
+  result = __salloc (size);
+
+  up (&salloc_mutex);
+
+  return result;
+}
+
+void
+sfree_task (void *ptr)
+{
+  down (&salloc_mutex);
+
+  __sfree (ptr);
+
+  up (&salloc_mutex);
+}
+
+void *
+salloc (size_t size)
+{
+  if (get_current_context () == KERNEL_CONTEXT_TASK)
+    return salloc_task (size);
+  else
+    return salloc_irq (size);
+}
+
+void
+sfree (void *ptr)
+{
+  if (get_current_context () == KERNEL_CONTEXT_TASK)
+    sfree_task (ptr);
+  else
+    sfree_irq (ptr);
+}
+
+DEBUG_FUNC (__salloc);
+DEBUG_FUNC (__sfree);
+
+DEBUG_FUNC (salloc_task);
+DEBUG_FUNC (sfree_task);
+
+DEBUG_FUNC (salloc_irq);
+DEBUG_FUNC (sfree_irq);
+
 DEBUG_FUNC (salloc);
 DEBUG_FUNC (sfree);
+

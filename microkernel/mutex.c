@@ -41,6 +41,8 @@ up (mutex_t *mutex)
 {
   DECLARE_CRITICAL_SECTION (mutex_up);
 
+  ASSERT (get_current_context () == KERNEL_CONTEXT_TASK);
+  
   TASK_ATOMIC_ENTER (mutex_up);
   
   if (mutex->value == MUTEX_LOCKED)
@@ -64,7 +66,9 @@ void
 down (mutex_t *mutex)
 {
   int locked = 0;
-  
+
+  ASSERT (get_current_context () == KERNEL_CONTEXT_TASK);
+          
   DECLARE_CRITICAL_SECTION (mutex_down);
 
   while (!locked)
@@ -89,7 +93,9 @@ int
 try_down (mutex_t *mutex)
 {
   int result = -1;
-    
+
+  ASSERT (get_current_context () == KERNEL_CONTEXT_TASK);
+  
   DECLARE_CRITICAL_SECTION (mutex_down);
 
   TASK_ATOMIC_ENTER (mutex_down);

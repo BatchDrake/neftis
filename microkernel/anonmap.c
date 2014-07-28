@@ -74,8 +74,6 @@ __alloc_colored (struct mm_region *from, struct vm_region *region, busword_t pag
   busword_t page;
   void *ptr;
   
-  spin_lock (&from->mr_lock);
-  
   for (i = 0; i < pages; ++i)
   {
     virt = region->vr_virt_start + (i << __PAGE_BITS);
@@ -89,8 +87,6 @@ __alloc_colored (struct mm_region *from, struct vm_region *region, busword_t pag
       goto fail;
   }
 
-  spin_unlock (&from->mr_lock);
-  
   return KERNEL_SUCCESS_VALUE;
   
 fail:
@@ -114,6 +110,8 @@ vm_region_anonmap (busword_t virt, busword_t pages, DWORD perms)
   struct mm_region *region;
   
   extern struct mm_region *mm_regions;
+
+  DECLARE_CRITICAL_SECTION (alloc_anon);
   
   /* TODO: do this NUMA-friendly */
 
@@ -121,6 +119,9 @@ vm_region_anonmap (busword_t virt, busword_t pages, DWORD perms)
 
   new->vr_access = perms;
   new->vr_type   = VREGION_TYPE_PAGEMAP;
+
+  /* TODO: use mutexes, this can wait */
+  CRITICAL_ENTER (alloc_anon);
   
   region = mm_regions;
 
@@ -131,6 +132,8 @@ vm_region_anonmap (busword_t virt, busword_t pages, DWORD perms)
       
     region = region->mr_next;
   }
+
+  CRITICAL_LEAVE (alloc_anon);
   
   if (PTR_UNLIKELY_TO_FAIL (region))
   { 

@@ -334,22 +334,25 @@ page_alloc (memsize_t pages)
 {
   struct mm_region *this_region;
   busword_t page;
-
+  physptr_t result = NULL;
+  
+  DECLARE_CRITICAL_SECTION (alloc_section);
+  
+  CRITICAL_ENTER (alloc_section);
+  
   this_region = mm_regions;
   
   if (this_region != NULL)
-  {
-    spin_lock (&this_region->mr_lock);
-    
+  {  
     page = mm_region_alloc_pages (this_region, pages);
-    
-    spin_unlock (&this_region->mr_lock);
-
+   
     if (page != (busword_t) KERNEL_ERROR_VALUE)
-      return (physptr_t) page;
+      result = (physptr_t) page;
   }
+
+  CRITICAL_LEAVE (alloc_section);
   
-  return NULL;
+  return result;
 }
 
 int
@@ -357,6 +360,9 @@ page_free (void *page, memsize_t pages)
 {
   struct mm_region *this_region;
   busword_t relpg;
+  int result = 0;
+  
+  DECLARE_CRITICAL_SECTION (free_section);
   
   if (PAGE_OFFSET (page) != 0)
   {
@@ -364,6 +370,8 @@ page_free (void *page, memsize_t pages)
     
     return -1;
   }
+
+  CRITICAL_ENTER (free_section);
   
   this_region = mm_regions;
   
@@ -371,22 +379,25 @@ page_free (void *page, memsize_t pages)
   {
     if (MMR_OWNS_ADDR (this_region, page))
     {
-      spin_lock (&this_region->mr_lock);
-      
       mm_region_free_pages (this_region, page, pages);
       
-      spin_unlock (&this_region->mr_lock);
-      
-      return 0;
+      break;
     }
     
     this_region = this_region->mr_next;
   }
-  
-  warning ("invalid range passed: %p (up to %d pages)\n",
-    page, pages);
+
+  if (this_region == NULL)
+  {
+    warning ("invalid range passed: %p (up to %d pages)\n",
+             page, pages);
     
-  return KERNEL_ERROR_VALUE;
+    result = KERNEL_ERROR_VALUE;
+  }
+
+  CRITICAL_LEAVE (free_section);
+
+  return result;
 }
 
 DEBUG_FUNC (mm_region_ceil_order);

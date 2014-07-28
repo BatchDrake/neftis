@@ -144,6 +144,45 @@ __register_task_with_tid (struct task *task, tid_t tid)
   return KERNEL_SUCCESS_VALUE;
 }
 
+int
+register_task (struct task *task)
+{
+  int errcode = 0;
+  tid_t tid;
+  
+  DECLARE_CRITICAL_SECTION (task_register);
+
+  CRITICAL_ENTER (task_register);
+
+  if ((tid = __find_free_tid ()) == KERNEL_ERROR_VALUE)
+  {
+    errcode = -1;
+    goto leave;
+  }
+
+  if (__ensure_tid (tid) == KERNEL_ERROR_VALUE)
+  {
+    errcode = -1;
+    goto leave;
+  }
+  
+  if ((task = __alloc_task ()) == NULL)
+  {
+    errcode = -1;
+    goto leave;
+  }
+
+  task->ts_tid = tid;
+  
+  if (set_task (tid, task) == KERNEL_ERROR_VALUE)
+    errcode = -1;
+  
+leave:
+  CRITICAL_LEAVE (task_register);
+
+  return errcode;
+}
+
 struct task *
 get_kernel_thread (tid_t tid)
 {
@@ -264,34 +303,25 @@ task_destroy (struct task *task)
   __free_task (task);
 }
 
-/* This should lock */
 struct task *
 kernel_task_new (void (*entry) (void))
 {
   struct task *task;
-  tid_t tid;
-  
-  if ((tid = __find_free_tid ()) == KERNEL_ERROR_VALUE)
-    return NULL;
-
-  if (__ensure_tid (tid) == KERNEL_ERROR_VALUE)
-    return NULL;
   
   if ((task = __alloc_task ()) == NULL)
     return NULL;
 
-  if (set_task (tid, task) == KERNEL_ERROR_VALUE)
-  {
-    task_destroy (task);
-    return NULL;
-  }
-
-  task->ts_tid   = tid;
   task->ts_state = TASK_STATE_NEW;
   task->ts_type  = TASK_TYPE_KERNEL_THREAD;
   task->ts_vm_space = current_kctx->kc_vm_space;
   
   __task_config_start (task, entry);
+
+  if (register_task (task) == -1)
+  {
+    task_destroy (task);
+    return NULL;
+  }
   
   return task;
 }
@@ -331,33 +361,10 @@ sysproc_load (const void *data, busword_t size)
 
     return KERNEL_INVALID_POINTER;
   }
+
+  /* I use CRITICAL_ENTER because I know there are no futher calls
+     to scheduler functions */
   
-  if ((tid = __find_free_tid ()) == KERNEL_ERROR_VALUE)
-  {
-    vm_space_destroy (space);
-
-    return KERNEL_INVALID_POINTER;
-  }
-
-  if (__ensure_tid (tid) == KERNEL_ERROR_VALUE)
-  {
-    vm_space_destroy (space);
-    return KERNEL_INVALID_POINTER;
-  }
-  
-  if ((task = __alloc_task ()) == NULL)
-  {
-    vm_space_destroy (space);
-    return KERNEL_INVALID_POINTER;
-  }
-
-  if (set_task (tid, task) == KERNEL_ERROR_VALUE)
-  {
-    vm_space_destroy (space);
-    task_destroy (task);
-    return KERNEL_INVALID_POINTER;
-  }
-
   task->ts_tid   = tid;
   task->ts_state = TASK_STATE_NEW;
   task->ts_type  = TASK_TYPE_SYS_PROCESS;
@@ -365,9 +372,17 @@ sysproc_load (const void *data, busword_t size)
   
   __task_config_start (task, entry);
 
+  if (register_task (task) == -1)
+  {
+    task_destroy (task);
+    return NULL;
+  }
+  
   return task;
 }
 
+/* We don't need to make critical sections in this functions,
+   they are run at boot time */
 void
 init_task_list_table (void)
 {

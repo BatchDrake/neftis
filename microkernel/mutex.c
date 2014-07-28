@@ -23,81 +23,87 @@
 #include <task/waitqueue.h>
 
 #include <lock/lock.h>
+#include <lock/mutex.h>
 
 #include <kctx.h>
 
-int init_mutex (mutex_t *);
-void free_mutex (mutex_t *);
-
-void acquire_mutex (mutex_t *);
-void release_mutex (mutex_t *);
-int  try_mutex (mutex_t *);
-
-
 void
-mutex_wake_up_all (mutex_t *mutex)
+init_mutex (mutex_t *mutex, int val)
 {
-  struct waiting_task_info *this, *next;
-  struct wait_queue *wq;
-  
-  wq = mutex->wq;
-  
-  if ((this = (struct waiting_task_info *)
-    LIST_HEAD (*((void **) &wq->wq_queue))) == NULL)
-    return;
-  
-  while (this)
-  {
-    next = (struct waiting_task_info *) LIST_NEXT (this);
-    wake_up (this->wt_task, TASK_STATE_RUNNING, WAKEUP_MUTEX);
-    wait_queue_remove_task (wq, this->wt_task);
-    this = next;
-  }
+  mutex->wq.wq_lock  = SPINLOCK_UNLOCKED;
+  mutex->wq.wq_queue = NULL;
+  mutex->value       = val;
+  mutex->owner       = get_current_task ();
 }
 
+void
+up (mutex_t *mutex)
+{
+  DECLARE_CRITICAL_SECTION (mutex_up);
+
+  TASK_ATOMIC_ENTER (mutex_up);
+  
+  if (mutex->value == MUTEX_LOCKED)
+  {
+    if (mutex->owner != get_current_task ())
+      FAIL ("Mutex not ours (owner: %d, me: %d)\n",
+            mutex->owner->ts_tid, gettid ());
+    
+    mutex->value = MUTEX_UNLOCKED;
+
+    /* We signal only one, as only one can actually acquire it */
+    signal (&mutex->wq, WAKEUP_REASON_MUTEX);
+  }
+  else
+    FAIL ("Releasing already-released mutex\n");
+  
+  TASK_ATOMIC_LEAVE (mutex_up);
+}
+
+void
+down (mutex_t *mutex)
+{
+  int locked = 0;
+  
+  DECLARE_CRITICAL_SECTION (mutex_down);
+
+  while (!locked)
+  {
+    TASK_ATOMIC_ENTER (mutex_down);
+
+    if (mutex->value == MUTEX_UNLOCKED)
+    {
+      mutex->value = MUTEX_LOCKED;
+      mutex->owner = get_current_task ();
+
+      ++locked;
+    }
+    else
+      __sleep (&mutex->wq); /* Let's wait until it's free */
+
+    TASK_ATOMIC_LEAVE (mutex_down);
+  }
+}
 
 int
-init_mutex (mutex_t *mutex)
+try_down (mutex_t *mutex)
 {
-  RETURN_ON_PTR_FAILURE (mutex->wq = wait_queue_new ());
-  
-  mutex->lock  = SPINLOCK_UNLOCKED;
-  mutex->value = 1;
-  
-  return KERNEL_SUCCESS_VALUE;
-}
-
-void
-acquire_mutex (mutex_t *mutex)
-{
-  if (!scheduler_present ())
-    return;
+  int result = -1;
     
-  spin_lock (&mutex->lock);
-  
-  while (!mutex->value)
+  DECLARE_CRITICAL_SECTION (mutex_down);
+
+  TASK_ATOMIC_ENTER (mutex_down);
+
+  if (mutex->value == MUTEX_UNLOCKED)
   {
-    if (UNLIKELY_TO_FAIL (wait_queue_put_task (mutex->wq,
-                          get_current_task ())))
-      FAIL ("oh noes\n");
-    spin_unlock (&mutex->lock);
-    set_current_state (TASK_STATE_SOFT_WAIT);
-    schedule ();
-    spin_lock (&mutex->lock);
+    mutex->value = MUTEX_LOCKED;
+    mutex->owner = get_current_task ();
+    
+    result = 0;
   }
   
-  mutex->value--;
-  spin_unlock (&mutex->lock);
-}
+  TASK_ATOMIC_LEAVE (mutex_down);
 
-void
-release_mutex (mutex_t *mutex)
-{
-  if (!scheduler_present ())
-    return;
-    
-  mutex->value = 1;
-  mutex_wake_up_all (mutex);
+  return result;
 }
-
 

@@ -147,7 +147,7 @@ int
 wake_up (struct task *task, int state, int why)
 {
   SCHEDULER_CHECK ();
-  
+
   return (get_current_scheduler ())->sc_wake_up (task, state, why);
 }
 

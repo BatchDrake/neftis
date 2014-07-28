@@ -75,6 +75,12 @@ get_current_task (void)
   return current_kctx->kc_current;
 }
 
+INLINE tid_t
+gettid (void)
+{
+  return (get_current_task ())->ts_tid;
+}
+
 INLINE void
 set_current_task (struct task* task)
 {
@@ -103,6 +109,22 @@ INLINE void
 set_current_scheduler (struct sched *scheduler)
 {
   current_kctx->kc_scheduler = scheduler; 
+}
+
+INLINE int
+get_current_state (void)
+{
+  ASSERT (get_current_context () == KERNEL_CONTEXT_TASK);
+  
+  return current_kctx->kc_current->ts_state;
+}
+
+INLINE void
+set_current_state (int state)
+{
+  ASSERT (get_current_context () == KERNEL_CONTEXT_TASK);
+  
+  current_kctx->kc_current->ts_state = state;
 }
 
 #endif /* _KCTX_H */

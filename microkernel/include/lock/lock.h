@@ -24,6 +24,7 @@
 #define SPINLOCK_UNLOCKED 1
 #define SPINLOCK_LOCKED   0
 
+
 #define DECLARE_CRITICAL_SECTION(name) critsect_t name = {SPINLOCK_UNLOCKED, 0}
 
 #define CRITICAL_ENTER(name) critical_enter (&name.lock, &name.flags)
@@ -76,14 +77,6 @@ typedef volatile int spin_t;
 
 typedef struct
 {
-  spin_t             lock;
-  volatile busword_t value;
-  struct wait_queue *wq;
-}
-mutex_t;
-
-typedef struct
-{
   spin_t    lock;
   busword_t flags;
   int       sched_state;
@@ -92,13 +85,6 @@ critsect_t;
 
 void spin_lock (spin_t *lock);
 void spin_unlock (spin_t *lock);
-
-int  init_mutex (mutex_t *);
-void free_mutex (mutex_t *);
-
-void acquire_mutex (mutex_t *);
-void release_mutex (mutex_t *);
-int  try_mutex (mutex_t *);
 
 void critical_enter (spin_t *, busword_t *);
 void critical_leave (spin_t *, busword_t);

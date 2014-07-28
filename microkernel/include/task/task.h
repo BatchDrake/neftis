@@ -24,7 +24,7 @@
 #include <task/exception.h>
 
 #include <arch.h>
-#include <kctx.h>
+
 
 #define TASK_SYS_STACK_PAGES    16
 #define TASK_USR_STACK_PAGES    16
@@ -95,29 +95,11 @@ struct task
   char                ts_arch_ctx_data[1];
 };
 
-# ifdef KERNEL_CONTEXT_TASK
-INLINE int
-get_current_state (void)
-{
-  ASSERT (get_current_context () == KERNEL_CONTEXT_TASK);
-  
-  return current_kctx->kc_current->ts_state;
-}
-
-INLINE void
-set_current_state (int state)
-{
-  ASSERT (get_current_context () == KERNEL_CONTEXT_TASK);
-  
-  current_kctx->kc_current->ts_state = state;
-}
-
 INLINE struct vm_space *
 task_get_vm_space (struct task *task)
 {
   return task->ts_vm_space;
 }
-# endif /* KERNEL_CONTEXT_TASK */
 
 void switch_to (struct task *task);
 struct task *get_kernel_thread (tid_t);

@@ -36,6 +36,7 @@
 #include <task/sched.h>
 #include <task/loader.h>
 #include <lock/event.h>
+#include <lock/mutex.h>
 
 #include <misc/radix_tree.h>
 
@@ -43,62 +44,68 @@
 #include <kctx.h>
 
 extern struct console *syscon;
-DECLARE_AUTO_RESET_EVENT (myev);
+
+DECLARE_MUTEX (mutex);
 
 struct task *task1;
 struct task *task2;
 
+int count = 0;
+
 void
-sleeping_thread (void)
+consumer_1 (void)
 {
   wake_up (task2, TASK_STATE_RUNNING, WAKEUP_EXPLICIT);
     
   for (;;)
   {
-    printk ("\033[1;34mSleeper  (%p): back to sleep.\033[0m\n", get_current_task ());
-    
-    event_wait (&myev);
+    down (&mutex);
 
-    printk ("\033[1;34mSleeper  (%p): awaken because of event\033[0m\n", get_current_task ());
+    --count;
+
+    printk ("- (%d) Value of count: %d\n", gettid (), count);
+    
+    up (&mutex);
+
+    schedule (); /* The problem of default scheduler is it sucks. This is not necessary but helps */
   }
   
 }
 
 void
-signaling_thread (void)
+consumer_2 (void)
 {
   int i;
   
   for (;;)
   {
-    printk ("Signaler (%p): Waiting 1 sec before signaling object\n", get_current_task ());
+    down (&mutex);
 
-    /*for (i = 0; i < 100; ++i)
-      kernel_pause ();*/
-    printk ("Signaler (%p): Let's go!\n", get_current_task ());
+    ++count;
+
+    printk ("+ (%d) Value of count: %d\n", gettid (), count);
     
-    event_signal (&myev);
+    up (&mutex);
 
-    /* This is not required but helps. */
-    schedule ();
+    schedule (); /* See above */
   }
 }
 
 void
 test_kthreads (void)
 {
-  if ((task1 = kernel_task_new (sleeping_thread)) == NULL)
+  if ((task1 = kernel_task_new (consumer_1)) == NULL)
     FAIL ("Cannot allocate task!\n");
 
-  if ((task2 = kernel_task_new (signaling_thread)) == NULL)
+  if ((task2 = kernel_task_new (consumer_2)) == NULL)
     FAIL ("Cannot allocate task!\n");
   
   wake_up (task1, TASK_STATE_RUNNING, WAKEUP_EXPLICIT);
 }
 
 DEBUG_FUNC (test_kthreads);
-DEBUG_FUNC (sleeping_thread);
-DEBUG_FUNC (signaling_thread);
+DEBUG_FUNC (consumer_1);
+DEBUG_FUNC (consumer_2);
 
 static char banner[] =
   "                                                                        \n"

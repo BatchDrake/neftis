@@ -24,6 +24,8 @@
 #include <asm/regs.h>
 #include <asm/task.h>
 
+#include <kctx.h>
+
 extern char bootstack[4 * PAGE_SIZE];
 extern char _start;
 extern char kernel_base;

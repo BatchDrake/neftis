@@ -25,6 +25,8 @@
 
 #include <misc/list.h>
 
+#include <kctx.h>
+
 struct wait_queue *
 wait_queue_new (void)
 {

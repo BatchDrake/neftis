@@ -166,12 +166,6 @@ register_task (struct task *task)
     goto leave;
   }
   
-  if ((task = __alloc_task ()) == NULL)
-  {
-    errcode = -1;
-    goto leave;
-  }
-
   task->ts_tid = tid;
   
   if (set_task (tid, task) == KERNEL_ERROR_VALUE)
@@ -263,7 +257,7 @@ switch_to (struct task *task)
         break;
 
       switch_lock ();
-      
+
       set_current_context (KERNEL_CONTEXT_TASK);
       set_current_task (task);
 

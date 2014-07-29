@@ -25,6 +25,9 @@
 #include <mm/slab.h>
 
 #include <lock/lock.h>
+#include <lock/mutex.h>
+
+#include <kctx.h>
 
 struct kmem_cache *kmem_cache_list;
 
@@ -227,6 +230,8 @@ kmem_cache_create (const char *name, busword_t size, void (*constructor) (struct
   new->next_partial.next_small_partial = NULL;
   new->next_free.next_small_free       = NULL;
 
+  init_mutex (&new->lock, MUTEX_UNLOCKED);
+  
   new->self           = new;
   new->state          = MM_SLAB_STATE_EMPTY;
   new->alignment      = MM_SLAB_DEFAULT_ALIGN;
@@ -448,7 +453,7 @@ __big_kmem_cache_alloc (struct kmem_cache *cache)
 }
 
 void *
-kmem_cache_alloc (struct kmem_cache *cache)
+__kmem_cache_alloc (struct kmem_cache *cache)
 {
   int hint = 0;
   memsize_t block;
@@ -487,6 +492,47 @@ kmem_cache_alloc (struct kmem_cache *cache)
   else
     return __big_kmem_cache_alloc (cache);
   
+}
+
+void *
+kmem_cache_alloc_irq (struct kmem_cache *cache)
+{
+  void *result;
+  
+  DECLARE_CRITICAL_SECTION (alloc);
+
+  /* Constructors can call sleep functions and we don't want that to happen */
+  
+  TASK_ATOMIC_ENTER (alloc);
+
+  result = __kmem_cache_alloc (cache);
+
+  TASK_ATOMIC_LEAVE (alloc);
+
+  return result;
+}
+
+void *
+kmem_cache_alloc_task (struct kmem_cache *cache)
+{
+  void *result;
+  
+  down (&cache->lock);
+
+  result = __kmem_cache_alloc (cache);
+
+  up (&cache->lock);
+
+  return result;
+}
+
+void *
+kmem_cache_alloc (struct kmem_cache *cache)
+{
+  if (get_current_context () == KERNEL_CONTEXT_TASK)
+    return kmem_cache_alloc_task (cache);
+  else
+    return kmem_cache_alloc_irq (cache);
 }
 
 static void
@@ -545,7 +591,7 @@ __small_kmem_cache_free (struct kmem_cache *cache, void *ptr)
 }
 
 void
-kmem_cache_free (struct kmem_cache *cache, void *ptr)
+__kmem_cache_free (struct kmem_cache *cache, void *ptr)
 {
   struct small_slab_header *small_slab;
   int block;
@@ -579,7 +625,36 @@ kmem_cache_free (struct kmem_cache *cache, void *ptr)
   
 }
 
+void
+kmem_cache_free_irq (struct kmem_cache *cache, void *ptr)
+{
+  DECLARE_CRITICAL_SECTION (free_section);
 
+  TASK_ATOMIC_ENTER (free_section);
+
+  __kmem_cache_free (cache, ptr);
+  
+  TASK_ATOMIC_LEAVE (free_section);
+}
+
+void
+kmem_cache_free_task (struct kmem_cache *cache, void *ptr)
+{
+  down (&cache->lock);
+
+  __kmem_cache_free (cache, ptr);
+  
+  up (&cache->lock);
+}
+
+void
+kmem_cache_free (struct kmem_cache *cache, void *ptr)
+{
+  if (get_current_context () == KERNEL_CONTEXT_TASK)
+    kmem_cache_free_task (cache, ptr);
+  else
+    kmem_cache_free_irq (cache, ptr);
+}
 
 static int
 __small_kmem_cache_grow (struct kmem_cache *cache)
@@ -621,12 +696,51 @@ __big_kmem_cache_grow (struct kmem_cache *cache)
 
 /* Grow cache */
 int
-kmem_cache_grow (struct kmem_cache *cache)
+__kmem_cache_grow (struct kmem_cache *cache)
 {
   if (MM_CACHE_IS_BIG (cache))
     return __big_kmem_cache_grow (cache);
   else
     return __small_kmem_cache_grow (cache);
+}
+
+int
+kmem_cache_grow_irq (struct kmem_cache *cache)
+{
+  int result;
+  
+  DECLARE_CRITICAL_SECTION (grow);
+
+  TASK_ATOMIC_ENTER (grow);
+
+  result = __kmem_cache_grow (cache);
+  
+  TASK_ATOMIC_LEAVE (grow);
+
+  return result;
+}
+
+int
+kmem_cache_grow_task (struct kmem_cache *cache)
+{
+  int result;
+  
+  down (&cache->lock);
+  
+  result = __kmem_cache_grow (cache);
+  
+  up (&cache->lock);
+
+  return result;
+}
+
+int
+kmem_cache_grow (struct kmem_cache *cache)
+{
+  if (get_current_context () == KERNEL_CONTEXT_TASK)
+    return kmem_cache_grow_task (cache);
+  else
+    return kmem_cache_grow_irq (cache);
 }
 
 /* Deliver some unused pages to the kernel */
@@ -653,6 +767,8 @@ kmem_cache_destroy (struct kmem_cache *cache)
 DEBUG_FUNC (bitmap_mark);
 DEBUG_FUNC (bitmap_unmark);
 DEBUG_FUNC (bitmap_get);
+DEBUG_FUNC (kmem_cache_get_usage);
+DEBUG_FUNC (kmem_cache_debug);
 DEBUG_FUNC (bitmap_search_free);
 DEBUG_FUNC (kmem_cache_lookup);
 DEBUG_FUNC (kmem_construct);
@@ -664,12 +780,21 @@ DEBUG_FUNC (kmem_cache_alloc_big);
 DEBUG_FUNC (kmem_cache_alloc_small);
 DEBUG_FUNC (__small_kmem_cache_alloc);
 DEBUG_FUNC (__big_kmem_cache_alloc);
+DEBUG_FUNC (__kmem_cache_alloc);
+DEBUG_FUNC (kmem_cache_alloc_irq);
+DEBUG_FUNC (kmem_cache_alloc_task);
 DEBUG_FUNC (kmem_cache_alloc);
 DEBUG_FUNC (__big_kmem_cache_free);
 DEBUG_FUNC (__small_kmem_cache_free);
+DEBUG_FUNC (__kmem_cache_free);
+DEBUG_FUNC (kmem_cache_free_irq);
+DEBUG_FUNC (kmem_cache_free_task);
 DEBUG_FUNC (kmem_cache_free);
 DEBUG_FUNC (__small_kmem_cache_grow);
 DEBUG_FUNC (__big_kmem_cache_grow);
+DEBUG_FUNC (__kmem_cache_grow);
+DEBUG_FUNC (kmem_cache_grow_irq);
+DEBUG_FUNC (kmem_cache_grow_task);
 DEBUG_FUNC (kmem_cache_grow);
 DEBUG_FUNC (kmem_cache_shrink);
 DEBUG_FUNC (kmem_cache_reap);

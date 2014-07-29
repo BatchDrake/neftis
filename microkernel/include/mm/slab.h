@@ -23,6 +23,9 @@
 #include <defines.h>
 #include <misc/list.h>
 
+#include <task/waitqueue.h>
+#include <lock/mutex.h>
+
 #define MM_SMALL_SLAB_PAGES    1
 
 #define MM_SMALL_SLAB_SIZE_MAX 2048
@@ -66,7 +69,8 @@ struct kmem_cache
     struct big_slab_header   *next_big_partial;
   }
   next_partial;
-  
+
+  mutex_t    lock;
   int        state;
   char       name[MM_SLAB_NAME_MAX];
 
@@ -136,9 +140,21 @@ struct kmem_cache *kmem_cache_create (const char *, busword_t, void (*) (struct 
 struct kmem_cache *kmem_cache_lookup (const char *);
 void  kmem_cache_set_opaque (struct kmem_cache *, void *);
 void *kmem_cache_get_opaque (struct kmem_cache *);
+void *__kmem_cache_alloc (struct kmem_cache *);
+void *kmem_cache_alloc_irq (struct kmem_cache *);
+void *kmem_cache_alloc_task (struct kmem_cache *);
 void *kmem_cache_alloc (struct kmem_cache *);
+
+void  __kmem_cache_free (struct kmem_cache *, void *);
+void  kmem_cache_free_irq (struct kmem_cache *, void *);
+void  kmem_cache_free_task (struct kmem_cache *, void *);
 void  kmem_cache_free (struct kmem_cache *, void *);
+
+int   __kmem_cache_grow (struct kmem_cache *);
+int   kmem_cache_grow_irq (struct kmem_cache *);
+int   kmem_cache_grow_task (struct kmem_cache *);
 int   kmem_cache_grow (struct kmem_cache *);
+
 int   kmem_cache_shrink (struct kmem_cache *);
 int   kmem_cache_reap (struct kmem_cache *);
 int   kmem_cache_destroy (struct kmem_cache *);

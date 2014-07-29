@@ -29,15 +29,21 @@
 #include <lock/mutex.h>
 #include <kctx.h>
 
+/* TODO: declare different pools */
+/* __salloc (size_t size, const char *pool_prefix) */
+
 DECLARE_MUTEX (salloc_mutex);
 
 void *
-__salloc (size_t size)
+__salloc (size_t size, const char *pfx)
 {
-  char name[MM_SLAB_NAME_MAX] = "pool-";
+  char name[MM_SLAB_NAME_MAX];
   memsize_t storage = MM_SLAB_DEFAULT_ALIGN;
   struct kmem_cache *cache;
   void *ptr;
+
+  
+  strncpy (name, pfx, MM_SLAB_NAME_MAX - 10);
   
   while (storage < size)
     storage <<= 1;
@@ -48,12 +54,15 @@ __salloc (size_t size)
     if ((cache = kmem_cache_create (name, storage, NULL, NULL)) == NULL)
       return NULL;
 
-  if ((ptr = kmem_cache_alloc (cache)) == NULL)
+  /* These alloc/grow are already protected by salloc_mutex, and
+     page allocation operations are atomic. */
+  
+  if ((ptr = __kmem_cache_alloc (cache)) == NULL)
   {
-    if (kmem_cache_grow (cache) == -1)
+    if (__kmem_cache_grow (cache) == -1)
       return NULL;
 
-    ptr = kmem_cache_alloc (cache);
+    ptr = __kmem_cache_alloc (cache);
   }
   
   return ptr;
@@ -78,7 +87,7 @@ salloc_irq (size_t size)
 
   CRITICAL_ENTER (salloc_section);
 
-  result = __salloc (size);
+  result = __salloc (size, "irqpool-");
 
   CRITICAL_LEAVE (salloc_section);
 
@@ -104,7 +113,7 @@ salloc_task (size_t size)
 
   down (&salloc_mutex);
 
-  result = __salloc (size);
+  result = __salloc (size, "taskpool-");
 
   up (&salloc_mutex);
 

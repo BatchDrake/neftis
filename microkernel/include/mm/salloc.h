@@ -20,16 +20,16 @@
 #ifndef _MM_SALLOC_H
 #define _MM_SALLOC_H
 
-void *__salloc (size_t size);
+void *__salloc (size_t, const char *);
 void __sfree (void *);
 
-void *salloc_task (size_t size);
+void *salloc_task (size_t);
 void sfree_task (void *);
 
-void *salloc_irq (size_t size);
+void *salloc_irq (size_t);
 void sfree_irq (void *);
 
-void *salloc (size_t size);
+void *salloc (size_t);
 void sfree (void *);
 
 #endif /* _MM_SALLOC_H */

@@ -60,7 +60,7 @@
 
 #define MANDATORY(x)                                          \
   if (unlikely (!(x)))                                        \
-    FAIL ("mandaroty action failed: \n   "                    \
+    FAIL ("mandatory action failed: \n   "                    \
       STRINGIFY (x) "\n")                                     \
 
 #define LIKELY_TO_FAIL(x)      likely   (FAILED (x))

@@ -1,6 +1,6 @@
 /*
- *    <one line to give the program's name and a brief idea of what it does.>
- *    Copyright (C) <year>  <name of author>
+ *    Debug macros and declarations.
+ *    Copyright (C) 2014  Gonzalo J. Carracedo
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -69,7 +69,7 @@ struct kernel_symbol
 # else
 #    define debug(fmt, arg...)
 #    define warning(fmt, arg...)
-#    define errpr(fmt, arg...)
+#    define error(fmt, arg...)
 #    define ASSERT(cond)
 # endif /* NDEBUG */
 

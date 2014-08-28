@@ -50,6 +50,10 @@
 #define IDT_PRIV(r)                          ((r) << 5)
 #define IDT_PRESENT                          0x80
 
+#define KERNEL_SYSCALL_MICROKERNEL           0xa0
+#define KERNEL_SYSCALL_IPC                   0xa1
+#define KERNEL_SYSCALL_VMO                   0xa2
+
 #define KERNEL_BUGCHECK_INTERRUPT            0xff
 
 #define RAISE_INTERRUPT(x) __asm__ __volatile__ ("int $" STRINGIFY (x));

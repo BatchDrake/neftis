@@ -63,8 +63,9 @@ x86_prepare_page_table (DWORD *pagedir, DWORD addr)
   RETURN_ON_PTR_FAILURE (tableptr = page_alloc (1));
     
   memset (tableptr, 0, PAGE_SIZE);
-  
-  pagedir[PAGE_TABLE (addr)] = (DWORD) tableptr | PAGE_TABLE_DFL_FLAGS;
+
+  /* REMOVE PAGE_FLAG_USERLAND AS SOON AS POSSIBLE */
+  pagedir[PAGE_TABLE (addr)] = (DWORD) tableptr | PAGE_TABLE_DFL_FLAGS | PAGE_FLAG_USERLAND;
   
   return KERNEL_SUCCESS_VALUE;
 }
@@ -93,8 +94,9 @@ x86_pagedir_map_range (DWORD *pagedir, DWORD virt, DWORD phys, DWORD pages,
         
       pagetable = x86_get_page_table (pagedir, this_virt);
     }
-    
-    pagetable[PAGE_ENTRY (this_virt)] = this_phys | flags;
+
+    /* REMOVE PAGE_FLAG_USERLAND AS SOON AS POSSIBLE */
+    pagetable[PAGE_ENTRY (this_virt)] = this_phys | flags | PAGE_FLAG_USERLAND;
   }
   
   return KERNEL_SUCCESS_VALUE;

@@ -24,6 +24,7 @@ libx86_a_SOURCES=8259-pic.c    \
                  regdump.c     \
                  seg.S         \
 	         serial.c      \
+		 syscall.c     \
 		 upperhalf.c   \
                  task.c        \
                  video.c       \
@@ -40,5 +41,6 @@ libx86_a_SOURCES=8259-pic.c    \
                  include/asm/ports.h \
                  include/asm/pagedir.h \
                  include/asm/interrupt.h \
+                 include/asm/syscall.h \
                  include/asm/upperhalf.h \
                  include/asm/irq.h

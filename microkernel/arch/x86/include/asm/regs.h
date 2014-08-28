@@ -94,7 +94,6 @@
      .global isr\num
      .align   4
   isr\num:
-    cli
     pushl $0
     pushl $\num
     jmp __intr_common

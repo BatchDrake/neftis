@@ -293,13 +293,28 @@ kmem_cache_create (const char *name, busword_t size, void (*constructor) (struct
 void
 kmem_cache_set_opaque (struct kmem_cache *cache, void *opaque)
 {
+  DECLARE_CRITICAL_SECTION (set_opaque);
+
+  CRITICAL_ENTER (set_opaque);
+  
   cache->opaque = opaque;
+
+  CRITICAL_LEAVE (set_opaque);
 }
 
 void *
 kmem_cache_get_opaque (struct kmem_cache *cache)
 {
-  return cache->opaque;
+  DECLARE_CRITICAL_SECTION (get_opaque);
+  void *result;
+
+  CRITICAL_ENTER (get_opaque);
+  
+  result = cache->opaque;
+
+  CRITICAL_LEAVE (get_opaque);
+
+  return result;
 }
 
 static struct big_slab_header *

@@ -48,64 +48,38 @@ extern struct console *syscon;
 DECLARE_MUTEX (mutex);
 
 struct task *task1;
-struct task *task2;
-
-int count = 0;
 
 void
-consumer_1 (void)
+user_task (void)
 {
-  wake_up (task2, TASK_STATE_RUNNING, WAKEUP_EXPLICIT);
-    
-  for (;;)
-  {
-    down (&mutex);
-
-    --count;
-
-    printk ("- (%d) Value of count: %d\n", gettid (), count);
-    
-    up (&mutex);
-
-    schedule (); /* The problem of default scheduler is it sucks. This is not necessary but helps */
-  }
+  printk ("Look, I'm about to enter in userland...\n");
   
-}
+  x86_enter_user ();
 
-void
-consumer_2 (void)
-{
-  int i;
+  printk ("Done. Gonna check some system calls...\n");
+
+  __asm__ __volatile__ ("int $0xa0" :: "a" (1));
+  __asm__ __volatile__ ("int $0xa1" :: "a" (2));
+  __asm__ __volatile__ ("int $0xa2" :: "a" (3));
   
-  for (;;)
-  {
-    down (&mutex);
+  printk ("Did it! Gonna spawn a privileged interrupt to crash everything...\n");
 
-    ++count;
-
-    printk ("+ (%d) Value of count: %d\n", gettid (), count);
-    
-    up (&mutex);
-
-    schedule (); /* See above */
-  }
+  __asm__ __volatile__ ("int $0xff");
+  
+  for (;;);
 }
 
 void
 test_kthreads (void)
 {
-  if ((task1 = kernel_task_new (consumer_1)) == NULL)
-    FAIL ("Cannot allocate task!\n");
-
-  if ((task2 = kernel_task_new (consumer_2)) == NULL)
+  if ((task1 = kernel_task_new (user_task)) == NULL)
     FAIL ("Cannot allocate task!\n");
   
   wake_up (task1, TASK_STATE_RUNNING, WAKEUP_EXPLICIT);
 }
 
 DEBUG_FUNC (test_kthreads);
-DEBUG_FUNC (consumer_1);
-DEBUG_FUNC (consumer_2);
+DEBUG_FUNC (user_task);
 
 static char banner[] =
   "                                                                        \n"

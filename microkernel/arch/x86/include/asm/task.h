@@ -33,7 +33,6 @@ struct task_ctx_stack_info
 struct task_ctx_data
 {
   struct task_ctx_stack_info stack_info;
-  struct tss                 tss;
 };
 
 INLINE DWORD

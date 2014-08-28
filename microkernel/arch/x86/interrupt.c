@@ -1,6 +1,6 @@
 /*
- *    <one line to give the program's name and a brief idea of what it does.>
- *    Copyright (C) <year>  <name of author>
+ *    High-level interrupt handling
+ *    Copyright (C) 2014  Gonzalo J. Carracedo
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include <asm/regs.h>
 #include <asm/seg.h>
 #include <asm/io.h>
+#include <asm/syscall.h>
 
 #include <kctx.h>
 
@@ -96,6 +97,18 @@ extern void isr53 (void);
 extern void isr54 (void); 
 extern void isr55 (void); 
 
+/* Microkernel services */
+extern void isr160 (void);
+
+/* IPC (mutexes, messages and so on) */
+extern void isr161 (void);
+
+/* VMO subsystem - yet to be implemented */
+extern void isr162 (void);
+
+
+
+/* Bugcheck interrupt */
 extern void isr255 (void); 
 
 /* x86_enable_interrupts: Activa las interrupciones (SeT Interrupt bit) */
@@ -122,13 +135,6 @@ x86_io_wait (void)
   __asm__ __volatile__ ("1:");
 }
 
-/*
-void
-x86_idt_flush (struct idt_ptr *ptr)
-{
-  __asm__ __volatile__ ("lidt %0" :: "g" (ptr));
-}
-*/
 void
 x86_idt_set_gate  (BYTE num, physptr_t base, WORD sel, BYTE flags)
 {
@@ -244,9 +250,7 @@ x86_init_all_gates (void)
   x86_idt_set_gate  (31, isr31, GDT_SEGMENT_KERNEL_CODE,
     IDT_PRESENT | I386_INTERRUPT_GATE);
 
-
-
-  /* SOY RETRASADO MENTAL */
+  /* IRQ mapping */
   x86_idt_set_gate  (32, isr32, GDT_SEGMENT_KERNEL_CODE,
     IDT_PRESENT | I386_INTERRUPT_GATE);
 
@@ -320,7 +324,18 @@ x86_init_all_gates (void)
 
   x86_idt_set_gate  (55, isr55, GDT_SEGMENT_KERNEL_CODE,
     IDT_PRESENT | I386_INTERRUPT_GATE);
-  
+
+  /* System calls. These are trap gates as they don't need to disable interrupts. */
+  x86_idt_set_gate  (160, isr160, GDT_SEGMENT_KERNEL_CODE,
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (161, isr161, GDT_SEGMENT_KERNEL_CODE,
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (162, isr162, GDT_SEGMENT_KERNEL_CODE,
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  /* Bugcheck */
   x86_idt_set_gate  (255, isr255, GDT_SEGMENT_KERNEL_CODE,
     IDT_PRESENT | I386_INTERRUPT_GATE);
     
@@ -382,11 +397,20 @@ x86_isr_handler (struct x86_stack_frame *frame)
       kernel_halt ();
     }
 
-    if (task->ts_type == TASK_TYPE_KERNEL_THREAD)
-      x86_regdump (frame);
-
     switch (frame->int_no)
     {
+    case KERNEL_SYSCALL_MICROKERNEL:
+      x86_sys_microkernel (frame);
+      break;
+
+    case KERNEL_SYSCALL_IPC:
+      x86_sys_ipc (frame);
+      break;
+
+    case KERNEL_SYSCALL_VMO:
+      x86_sys_vmo (frame);
+      break;
+    
     case KERNEL_BUGCHECK_INTERRUPT:
       panic ("microkernel bugcheck");
       kernel_halt ();
@@ -410,6 +434,9 @@ x86_isr_handler (struct x86_stack_frame *frame)
     case X86_INT_GENERAL_PROTECTION_FAULT:
     case X86_INT_DOUBLE_FAULT:
     case X86_INT_PAGE_FAULT:
+      if (task->ts_type == TASK_TYPE_KERNEL_THREAD)
+        x86_regdump (frame);
+    
       if (vm_handle_page_fault (task, cr2, VREGION_ACCESS_READ) == -1)
 	task_trigger_exception (task, EX_SEGMENT_VIOLATION, (busword_t) frame->priv.eip, cr2, 0);
       

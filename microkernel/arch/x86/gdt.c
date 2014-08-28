@@ -22,6 +22,8 @@
 
 struct gdt_entry gdt[GDT_MAX_SEGMENTS];
 
+BOOT_SYMBOL (struct tss tss);
+
 INLINE void
 gdt_entry_setup (struct gdt_entry *dest,
                   DWORD base, DWORD page_limit, BYTE access)
@@ -44,17 +46,20 @@ gdt_entry_setup (struct gdt_entry *dest,
 INLINE void
 gdt_entry_setup_tss (struct gdt_entry *dest)
 {
-  DWORD limit;
+  uint32_t tss_base  = (uint32_t) &tss;
+  uint32_t tss_limit = tss_base + sizeof (struct tss);
+
+  /* Kernel stack is in kernel data segment */
   
-  limit = sizeof (struct tss);
+  tss.ss0          = GDT_SEGMENT_KERNEL_DATA;
   
-  dest->limit_low  = limit & 0xffff;
-  dest->base_low   = 0;
-  dest->base_mid   = 0;
-  dest->base_high  = 0;
-  dest->limit_high = (limit >> 16) & 0xf;
-  dest->access     = 
-    GDT_ACCESS_PRESENT | GDT_ACCESS_EXECUTABLE | GDT_ACCESS_ACCESED;
+  dest->limit_low  = tss_limit         & 0xffff;
+  dest->base_low   = tss_base          & 0xffff;
+  dest->base_mid   = (tss_base  >> 16) & 0xff;
+  dest->base_high  = (tss_base  >> 24) & 0xff;
+  dest->limit_high = (tss_limit >> 16) & 0xf;
+  
+  dest->access     = GDT_ACCESS_PRESENT | GDT_ACCESS_EXECUTABLE | GDT_ACCESS_ACCESED | GDT_ACCESS_RING (3);
   dest->flags      = GDT_SELECTOR_32_BIT;
 }
 
@@ -137,6 +142,22 @@ gdt_init (void)
   gdt_entry_setup_tss (GDT_ENTRY (GDT_SEGMENT_TSS));
  
   x86_flush_gdt (&ptr);
+  
+  x86_flush_tss ();
+  
   x86_get_current_gdt (&ptr2);
 }
 
+void
+x86_set_kernel_stack (uint32_t addr)
+{
+  tss.esp0 = addr;
+}
+
+DEBUG_FUNC (gdt_entry_setup);
+DEBUG_FUNC (gdt_entry_setup_tss);
+DEBUG_FUNC (debug_access);
+DEBUG_FUNC (debug_gdt);
+DEBUG_FUNC (gdt_init);
+DEBUG_FUNC (x86_set_kernel_stack);
+DEBUG_FUNC (x86_enter_user);

@@ -99,9 +99,13 @@ struct gdt_ptr
 } PACKED;
 
 void gdt_init (void);
+
 void x86_get_current_gdt (struct gdt_ptr *);
 void x86_flush_gdt (struct gdt_ptr *);
 void x86_refresh_segments (void);
+void x86_flush_tss (void);
+void x86_set_kernel_stack (uint32_t);
+void x86_enter_user (void);
 
 #endif /* !ASM */
 

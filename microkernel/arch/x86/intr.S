@@ -99,8 +99,15 @@ ISR_NOERRCODE 117
 ISR_NOERRCODE 118
 ISR_NOERRCODE 119
 
-ISR_NOERRCODE 255
+/* Microkernel system calls */
+        
+ISR_NOERRCODE 160 /* Microkernel */
+ISR_NOERRCODE 161 /* IPC */
+ISR_NOERRCODE 162 /* VMO */
 
+/* Bugcheck interrupt */
+ISR_NOERRCODE 255
+        
 .extern x86_isr_handler
 .extern get_task_ctx_data
 .extern switch_section

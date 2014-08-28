@@ -173,9 +173,13 @@ __task_perform_switch (struct task *task)
 {
   struct task_ctx_data *data;
   int i;
-  
+
   data = get_task_ctx_data (task);
 
+  /* Just telling the CPU where to come back from user mode */
+  
+  x86_set_kernel_stack (data->stack_info.stack_bottom);
+  
   __asm__ __volatile__ (".extern __restore_context\n"
                         "movl %0, %%esp           \n"
                         "jmp __restore_context    \n"
@@ -187,6 +191,12 @@ void __task_switch_from_current_asm (struct task *current, struct task *next);
 void
 __task_switch_from_current (struct task *current, struct task *next)
 {
+  struct task_ctx_data *data;
+
+  data = get_task_ctx_data (next);
+
+  x86_set_kernel_stack (data->stack_info.stack_bottom);
+  
   __task_switch_from_current_asm (current, next);
 }
 

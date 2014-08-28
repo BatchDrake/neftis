@@ -22,8 +22,15 @@
 .globl x86_get_current_gdt
 .globl x86_flush_gdt
 .globl x86_refresh_segments
-
+.globl x86_flush_tss
+.globl x86_enter_user
+        
 #include <asm/seg.h>
+
+x86_flush_tss:
+        movw $0x2b, %ax
+        ltr %ax
+        ret
         
 x86_get_current_gdt:
     movl 4(%esp), %eax
@@ -53,6 +60,21 @@ x86_refresh_segments:
   
   ret
   
-  
-  
+x86_enter_user:
+  movw $0x23, %ax
+  movw %ax, %ds
+  movw %ax, %es
+  movw %ax, %fs
+  movw %ax, %gs
+  movl %esp, %eax
+  pushl $0x23
+  pushl %eax
+  pushf
+  pushl $0x1b
+  pushl $.user_entry
+  iret
+        
+.user_entry:
+  ret
+        
   

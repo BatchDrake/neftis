@@ -16,16 +16,27 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
 
+#include <types.h>
+
 #include <asm/interrupt.h>
 #include <asm/regs.h>
 #include <asm/seg.h>
 #include <asm/syscall.h>
 
+#include <kctx.h>
 
 void
 x86_sys_microkernel (struct x86_stack_frame *frame)
 {
-  printk ("Microkernel system call, function %d\n", frame->regs.eax);
+  printk ("Microkernel system call (called from userland address %p), function %d\n", frame->priv.eip, frame->regs.eax);
+
+  printk ("Task about to be destroyed\n");
+
+  (void) wake_up (get_current_task (), TASK_STATE_EXITED, 0);
+
+  task_destroy (get_current_task ());
+  
+  schedule ();
 }
 
 void
@@ -40,3 +51,6 @@ x86_sys_vmo (struct x86_stack_frame *frame)
   printk ("VMO subsystem call, function %d\n", frame->regs.eax);
 }
 
+DEBUG_FUNC (x86_sys_microkernel);
+DEBUG_FUNC (x86_sys_ipc);
+DEBUG_FUNC (x86_sys_vmo);

@@ -30,7 +30,8 @@
 #include <arch.h>
 #include <kctx.h>
 
-static int anonmap_pagefault (struct task *task, struct vm_region *region, busword_t failed_addr)
+static int
+anonmap_pagefault (struct task *task, struct vm_region *region, busword_t failed_addr)
 {
   if (task == NULL)
     error ("anonmap pagefault while in kernel mode: %p\n", failed_addr);
@@ -40,7 +41,8 @@ static int anonmap_pagefault (struct task *task, struct vm_region *region, buswo
   return -1;
 }
 
-static int kmap_pagefault (struct task *task, struct vm_region *region, busword_t failed_addr)
+static int
+kmap_pagefault (struct task *task, struct vm_region *region, busword_t failed_addr)
 {
   error ("Kernel region fault: %p\n", failed_addr);
  
@@ -144,7 +146,6 @@ vm_region_anonmap (busword_t virt, busword_t pages, DWORD perms)
   return new;
 }
 
-
 struct vm_region *
 vm_region_remap (busword_t virt, busword_t phys, busword_t pages, DWORD perms)
 {
@@ -190,34 +191,14 @@ vm_region_stack (busword_t stack_bottom, busword_t pages)
   busword_t top_page = stack_bottom - (pages << __PAGE_BITS);
   struct vm_region *new;
 
-  PTR_RETURN_ON_PTR_FAILURE (new = vm_region_anonmap (top_page, pages, VREGION_ACCESS_READ | VREGION_ACCESS_WRITE));
+  PTR_RETURN_ON_PTR_FAILURE (new = vm_region_anonmap (top_page, pages, VREGION_ACCESS_READ | VREGION_ACCESS_WRITE | VREGION_ACCESS_USER));
 
   new->vr_role   = VREGION_ROLE_STACK;
 
   return new;
 }
 
-/* System processes require a 1:1 stack mapping to make
-   context switchings easier */
-struct vm_region *
-vm_region_kernel_stack (busword_t pages)
-{
-  struct vm_region *region;
-  void *start;
-  
-  PTR_RETURN_ON_PTR_FAILURE (start = page_alloc (pages));
-  
-  if (PTR_UNLIKELY_TO_FAIL (region = vm_region_physmap ((busword_t) start, pages, VREGION_ACCESS_READ | VREGION_ACCESS_WRITE | VM_PAGE_KERNEL)))
-  {
-    page_free (start, pages);
-    return KERNEL_INVALID_POINTER;
-  }
 
-  region->vr_role = VREGION_ROLE_STACK;
-  
-  return region;
-}
-  
 /* TODO: design macros to generalize dynamic allocation */
 struct vm_region *
 vm_region_iomap (busword_t virt, busword_t phys, busword_t pages)
@@ -225,9 +206,11 @@ vm_region_iomap (busword_t virt, busword_t phys, busword_t pages)
   return vm_region_remap (virt, phys, pages, VREGION_ACCESS_READ | VREGION_ACCESS_WRITE | VM_PAGE_KERNEL);
 }
 
-
-
+DEBUG_FUNC (anonmap_pagefault);
+DEBUG_FUNC (kmap_pagefault);
 DEBUG_FUNC (__alloc_colored);
 DEBUG_FUNC (vm_region_anonmap);
 DEBUG_FUNC (vm_region_remap);
 DEBUG_FUNC (vm_region_physmap);
+DEBUG_FUNC (vm_region_stack);
+DEBUG_FUNC (vm_region_iomap);

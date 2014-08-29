@@ -369,9 +369,6 @@ x86_isr_handler (struct x86_stack_frame *frame)
 
   __asm__ __volatile__ ("movl %%cr2, %0" : "=g" (cr2));
 
-  if (task->ts_state == TASK_STATE_RUNNING && frame->segs.ds == 0x20 && frame->segs.es == 0)
-    FAIL ("detected!\n");
-  
   if (frame->int_no >= 32 && frame->int_no < 56)
   {
     /* No problem: under IRQ, interrupts are disabled */
@@ -388,6 +385,9 @@ x86_isr_handler (struct x86_stack_frame *frame)
     if (old_ctx == KERNEL_CONTEXT_BOOT_TIME)
     {
       panic ("microkernel interrupt %d while booting!\n", frame->int_no);
+
+      x86_regdump (frame);
+      
       kernel_halt ();
     }
     else if (old_ctx == KERNEL_CONTEXT_INTERRUPT)
@@ -459,6 +459,5 @@ DEBUG_FUNC (x86_io_wait);
 DEBUG_FUNC (x86_idt_flush);
 DEBUG_FUNC (x86_init_all_gates);
 DEBUG_FUNC (x86_isr_handler);
-
 DEBUG_FUNC (do_irq_from_interrupt);
-
+DEBUG_FUNC (interrupt_is_fatal);

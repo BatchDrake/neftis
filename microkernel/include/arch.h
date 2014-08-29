@@ -46,12 +46,12 @@ busword_t vm_get_prefered_stack_bottom (void);
 # endif /* _MM_VM_H */
 
 /* Low-level functions to manipulate page tables */
-int   __vm_map_to (void *, busword_t, busword_t, busword_t, BYTE);
-int   __vm_set_flags (void *, busword_t, busword_t, BYTE);
-int   __vm_unset_flags (void *, busword_t, busword_t, BYTE);
+int   __vm_map_to (void *, busword_t, busword_t, busword_t, DWORD);
+int   __vm_set_flags (void *, busword_t, busword_t, DWORD);
+int   __vm_unset_flags (void *, busword_t, busword_t, DWORD);
 void *__vm_alloc_page_table (void);
 void  __vm_free_page_table (void *);
-int   __vm_flush_pages (busword_t virt, busword_t pages);
+int   __vm_flush_pages (busword_t, busword_t);
 
 /* Task management functions */
 # ifdef _TASK_TASK_H
@@ -63,6 +63,9 @@ void __task_config_start (struct task *, void (*) ());
 void __task_perform_switch (struct task *);
 void __task_switch_from_current (struct task *, struct task *);
 void __task_switch_from_interrupt (struct task *, struct task *);
+busword_t __task_get_user_stack_bottom (const struct task *);
+busword_t __task_get_kernel_stack_top (const struct task *);
+busword_t __task_get_kernel_stack_size (const struct task *);
 
 # endif /* _TASK_TASK_H */
 

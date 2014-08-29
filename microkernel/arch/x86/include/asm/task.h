@@ -27,7 +27,6 @@ struct task_ctx_stack_info
 {
   DWORD stack_bottom;
   DWORD esp;
-  DWORD useresp;
 };
 
 struct task_ctx_data

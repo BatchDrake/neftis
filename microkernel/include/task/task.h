@@ -44,8 +44,7 @@
 
 #define TASK_TYPE_IDLE          0
 #define TASK_TYPE_KERNEL_THREAD 1
-#define TASK_TYPE_SYS_PROCESS   2
-#define TASK_TYPE_USR_PROCESS   3
+#define TASK_TYPE_USER_THREAD   2
 
 #define MAX_KERNEL_THREADS      16
 
@@ -113,8 +112,7 @@ int   __ensure_tid (tid_t);
 void init_kernel_threads (void);
 int set_task (tid_t, struct task *);
 struct task *kernel_task_new (void (*) (void));
-
-struct task *sysproc_load (const void *data, busword_t size);
+struct task *user_task_new_from_exec (const void *, busword_t);
 
 void task_destroy (struct task *);
 

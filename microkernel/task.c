@@ -307,6 +307,7 @@ kernel_task_new (void (*entry) (void))
 
   task->ts_state = TASK_STATE_NEW;
   task->ts_type  = TASK_TYPE_KERNEL_THREAD;
+  
   task->ts_vm_space = current_kctx->kc_vm_space;
   
   __task_config_start (task, entry);
@@ -321,24 +322,33 @@ kernel_task_new (void (*entry) (void))
 }
 
 struct task *
-sysproc_load (const void *data, busword_t size)
+user_task_new_from_exec (const void *data, busword_t size)
 {
   struct task *task;
-  struct vm_region *stack;
+  struct vm_region *stack, *kstack;
   struct vm_space *space;
   loader_handle *handler;
   void (*entry) (void);
   tid_t tid;
 
+  if ((task = __alloc_task ()) == NULL)
+    return NULL;
+  
   PTR_RETURN_ON_PTR_FAILURE (space = vm_space_load_from_exec (data, size, (busword_t *) &entry));
 
-  debug ("Entry point: %p\n", entry);
-  debug ("Pagedir: %p\n", space->vs_pagetable);
-
-  /* Use space data to look for free space */
-  if (PTR_UNLIKELY_TO_FAIL (stack = vm_region_kernel_stack (TASK_SYS_STACK_PAGES)))
+  if (PTR_UNLIKELY_TO_FAIL (kstack = vm_region_physmap (__task_get_kernel_stack_top (task), __task_get_kernel_stack_size (task), VREGION_ACCESS_READ | VREGION_ACCESS_WRITE)))
   {
     error ("couldn't allocate kernel stack!\n");
+
+    vm_space_destroy (space);
+
+    return KERNEL_INVALID_POINTER;
+  }
+  
+  /* Use space data to look for free space */
+  if (PTR_UNLIKELY_TO_FAIL (stack = vm_region_stack (__task_get_user_stack_bottom (task), TASK_USR_STACK_PAGES)))
+  {
+    error ("couldn't allocate userspace stack!\n");
 
     vm_space_destroy (space);
 
@@ -347,9 +357,21 @@ sysproc_load (const void *data, busword_t size)
 
   if (UNLIKELY_TO_FAIL (vm_space_add_region (space, stack)))
   {
-    error ("couldn't add stack to new space (bottom = %p)\n", stack->vr_virt_start);
+    error ("couldn't add stack to new space (bottom = %p)\n", stack->vr_virt_end);
 
     vm_region_destroy (stack, NULL);
+
+    vm_space_destroy (space);
+
+    return KERNEL_INVALID_POINTER;
+  }
+
+  
+  if (UNLIKELY_TO_FAIL (vm_space_add_region (space, kstack)))
+  {
+    error ("couldn't add kernel stack to new space (bottom = %p)\n", kstack->vr_virt_end);
+
+    vm_region_destroy (kstack, NULL);
 
     vm_space_destroy (space);
 
@@ -361,7 +383,8 @@ sysproc_load (const void *data, busword_t size)
   
   task->ts_tid   = tid;
   task->ts_state = TASK_STATE_NEW;
-  task->ts_type  = TASK_TYPE_SYS_PROCESS;
+  task->ts_type  = TASK_TYPE_USER_THREAD;
+  
   task->ts_vm_space = space;
   
   __task_config_start (task, entry);
@@ -409,10 +432,18 @@ init_kernel_threads (void)
 }
 
 DEBUG_FUNC (__find_free_tid);
-DEBUG_FUNC (__register_task_with_tid);
+DEBUG_FUNC (__ensure_tid);
 DEBUG_FUNC (get_task);
-DEBUG_FUNC (get_userspace_task);
+DEBUG_FUNC (set_task);
+DEBUG_FUNC (__register_task_with_tid);
+DEBUG_FUNC (register_task);
 DEBUG_FUNC (get_kernel_thread);
+DEBUG_FUNC (get_userspace_task);
+DEBUG_FUNC (switch_lock);
 DEBUG_FUNC (switch_to);
 DEBUG_FUNC (idle_task);
+DEBUG_FUNC (task_destroy);
+DEBUG_FUNC (kernel_task_new);
+DEBUG_FUNC (user_task_new_from_exec);
+DEBUG_FUNC (init_task_list_table);
 DEBUG_FUNC (init_kernel_threads);

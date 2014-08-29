@@ -96,7 +96,7 @@ x86_pagedir_map_range (DWORD *pagedir, DWORD virt, DWORD phys, DWORD pages,
     }
 
     /* REMOVE PAGE_FLAG_USERLAND AS SOON AS POSSIBLE */
-    pagetable[PAGE_ENTRY (this_virt)] = this_phys | flags | PAGE_FLAG_USERLAND;
+    pagetable[PAGE_ENTRY (this_virt)] = this_phys | flags;
   }
   
   return KERNEL_SUCCESS_VALUE;
@@ -256,3 +256,14 @@ x86_paging_init (void)
 {
 }
 
+DEBUG_FUNC (x86_page_table_present);
+DEBUG_FUNC (x86_get_page_table);
+DEBUG_FUNC (x86_alloc_new_pagedir);
+DEBUG_FUNC (x86_prepare_page_table);
+DEBUG_FUNC (x86_pagedir_map_range);
+DEBUG_FUNC (x86_pagedir_set_flags);
+DEBUG_FUNC (x86_pagedir_unset_flags);
+DEBUG_FUNC (x86_debug_pagedir);
+DEBUG_FUNC (x86_free_pagedir);
+DEBUG_FUNC (x86_page_test);
+DEBUG_FUNC (x86_paging_init);

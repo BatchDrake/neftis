@@ -241,10 +241,10 @@ vm_kernel_space_map_io (struct vm_space *space)
 }
 
 INLINE DWORD
-__vm_flags_to_x86_flags (BYTE flags)
+__vm_flags_to_x86_flags (DWORD flags)
 {
   DWORD x86_flags = 0;
-  
+
   if ((flags & VM_PAGE_PRESENT) || (flags & VM_PAGE_READABLE))
     x86_flags |= PAGE_FLAG_PRESENT;
     
@@ -265,6 +265,9 @@ __vm_flags_to_x86_flags (BYTE flags)
   if (flags & VM_PAGE_KERNEL)
     x86_flags |= PAGE_FLAG_GLOBAL;
 
+  if (flags & VM_PAGE_USER)
+    x86_flags |= PAGE_FLAG_USERLAND;
+
   return x86_flags;
 }
 
@@ -279,21 +282,21 @@ __vm_flush_pages (busword_t virt, busword_t pages)
 
 int
 __vm_map_to (void *pagedir, busword_t virt, busword_t phys, busword_t pages,
-  BYTE flags)
+  DWORD flags)
 {
   return x86_pagedir_map_range (pagedir, virt, phys, pages, 
     __vm_flags_to_x86_flags (flags));
 }
 
 int
-__vm_set_flags (void *pagedir, busword_t virt, busword_t pages, BYTE flags)
+__vm_set_flags (void *pagedir, busword_t virt, busword_t pages, DWORD flags)
 {
   return x86_pagedir_set_flags (pagedir, virt, pages, 
     __vm_flags_to_x86_flags (flags));
 }
 
 int
-__vm_unset_flags (void *pagedir, busword_t virt, busword_t pages, BYTE flags)
+__vm_unset_flags (void *pagedir, busword_t virt, busword_t pages, DWORD flags)
 {
   return x86_pagedir_unset_flags (pagedir, virt, pages, 
     __vm_flags_to_x86_flags (flags));
@@ -424,20 +427,22 @@ DEBUG_FUNC (hw_early_irq_init);
 DEBUG_FUNC (enable_interrupts);
 DEBUG_FUNC (disable_interrupts);
 DEBUG_FUNC (hw_memory_init);
+DEBUG_FUNC (vm_get_prefered_stack_bottom);
 DEBUG_FUNC (vm_kernel_space_map_image);
 DEBUG_FUNC (vm_kernel_space_map_io);
 DEBUG_FUNC (__vm_flags_to_x86_flags);
+DEBUG_FUNC (__vm_flush_pages);
 DEBUG_FUNC (__vm_map_to);
 DEBUG_FUNC (__vm_set_flags);
 DEBUG_FUNC (__vm_unset_flags);
 DEBUG_FUNC (__vm_alloc_page_table);
 DEBUG_FUNC (__vm_free_page_table);
+DEBUG_FUNC (__pause);
+DEBUG_FUNC (__halt);
 DEBUG_FUNC (hw_vm_init);
 DEBUG_FUNC (hw_set_timer_interrupt_freq);
 DEBUG_FUNC (hw_timer_enable);
 DEBUG_FUNC (hw_timer_disable);
 DEBUG_FUNC (hook_timer);
 DEBUG_FUNC (bugcheck);
-
-
-
+DEBUG_FUNC (debug_ascii_table);

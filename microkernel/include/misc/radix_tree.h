@@ -15,7 +15,7 @@
 #define RADIX_TREE_NODE_TYPE_TREE 1
 
 typedef uint64_t radixkey_t;
-typedef uint8_t  radixtag_t;
+typedef uint16_t  radixtag_t;
 
 #define RADIX_TREE_KEYBITS_MAX (sizeof (radixkey_t) << 3)
 
@@ -46,6 +46,6 @@ int radix_tree_walk (struct radix_tree_node *, int (*) (radixkey_t, void **, rad
 int radix_tree_insert (struct radix_tree_node *, radixkey_t, void *);
 int radix_tree_set (struct radix_tree_node **, radixkey_t, void *);
 void radix_tree_debug (struct radix_tree_node *, unsigned int);
-void radix_tree_destroy (struct radix_tree_node *);
+void radix_tree_destroy (struct radix_tree_node *, void (*) (radixkey_t, void **, radixtag_t *));
 
 #endif /* _RADIX_TREE_H */

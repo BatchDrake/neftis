@@ -331,13 +331,6 @@ radix_tree_set (struct radix_tree_node **root, radixkey_t key, void *data)
     return radix_tree_insert (*root, key, data);
 }
 
-void
-radix_tree_destroy (struct radix_tree_node *tree)
-{
-  warning ("unimplemented!\n");
-}
-
-
 INLINE int
 __radix_tree_walk (struct radix_tree_node *node, int (*callback) (radixkey_t, void **, radixtag_t *, void *), void *data, unsigned int offset)
 {
@@ -365,12 +358,53 @@ __radix_tree_walk (struct radix_tree_node *node, int (*callback) (radixkey_t, vo
         else
           RETURN_ON_FAILURE (__radix_tree_walk (node->leaves[i], callback, data, acclen));
       }
+
+  return 0;
 }
 
 int
 radix_tree_walk (struct radix_tree_node *node, int (*callback) (radixkey_t, void **, radixtag_t *, void *), void *data)
 {
   return __radix_tree_walk (node, callback, data, 0);
+}
+
+INLINE int
+__radix_tree_destroy (struct radix_tree_node *node, void (*destructor) (radixkey_t, void **, radixtag_t *), unsigned int offset)
+{
+  unsigned int acclen;
+  int i;
+  radixkey_t slotkey;
+
+  if (node == NULL)
+    return 0;
+  
+  acclen = offset + node->keylen;
+
+  if (acclen == RADIX_TREE_KEYLEN_MAX)
+    (destructor) (node->key, &node->slots[0], &node->tags[0]);
+  else
+    for (i = 0; i < RADIX_TREE_SLOTS; ++i)
+      if (node->slots[i] != NULL)
+      {
+        if (acclen == RADIX_TREE_KEYLEN_MAX - 1)
+        {
+          slotkey = radix_key (node->key, acclen) | i;
+          
+          (destructor) (slotkey, &node->slots[i], &node->tags[i]);
+        }
+        else
+          __radix_tree_destroy (node->leaves[i], destructor, acclen);
+        
+      }
+
+  /* After each subtree is freed, we free the whole node */
+  sfree (node);
+}
+
+void
+radix_tree_destroy (struct radix_tree_node *node, void (*destructor) (radixkey_t, void **, radixtag_t *))
+{
+  __radix_tree_destroy (node, destructor, 0);
 }
 
 void
@@ -417,7 +451,6 @@ radix_tree_debug (struct radix_tree_node *node, unsigned int offset)
   printk ("}\n");
 }
 
-
 DEBUG_FUNC (radix_tree_node_new);
 DEBUG_FUNC (radix_tree_node_dup);
 DEBUG_FUNC (radix_tree_get_shift);
@@ -436,7 +469,8 @@ DEBUG_FUNC (__radix_tree_break);
 DEBUG_FUNC (__radix_tree_node_insert);
 DEBUG_FUNC (radix_tree_insert);
 DEBUG_FUNC (radix_tree_set);
-DEBUG_FUNC (radix_tree_destroy);
 DEBUG_FUNC (__radix_tree_walk);
 DEBUG_FUNC (radix_tree_walk);
+DEBUG_FUNC (__radix_tree_destroy);
+DEBUG_FUNC (radix_tree_destroy);
 DEBUG_FUNC (radix_tree_debug);

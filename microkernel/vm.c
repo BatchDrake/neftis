@@ -46,6 +46,12 @@ vm_region_new (busword_t start, busword_t end, struct vm_region_ops *ops, void *
   return new;
 }
 
+static void
+__vm_pagemap_page_free (radixkey_t key, void **slot, radixtag_t *tag)
+{
+  page_free (*slot, 1);
+}
+
 void
 vm_region_destroy (struct vm_region *region, struct task *task)
 {
@@ -53,7 +59,7 @@ vm_region_destroy (struct vm_region *region, struct task *task)
     (region->vr_ops->destroy) (task, region);
 
   if (region->vr_type == VREGION_TYPE_PAGEMAP)
-    radix_tree_destroy (region->vr_page_tree);
+    radix_tree_destroy (region->vr_page_tree, __vm_pagemap_page_free);
   
   sfree (region);
 }
@@ -425,7 +431,8 @@ __load_segment_cb (struct vm_space *space, int type, int flags, busword_t virt, 
     return -1;
   }
 
-  if ((region = vm_region_anonmap (start_page, actual_page_count, flags)) == KERNEL_INVALID_POINTER)
+  /* Pages mapped by an executable must be userland pages */
+  if ((region = vm_region_anonmap (start_page, actual_page_count, flags | VREGION_ACCESS_USER)) == KERNEL_INVALID_POINTER)
     return -1;
 
   if (vm_space_add_region (space, region) != KERNEL_SUCCESS_VALUE)
@@ -541,8 +548,8 @@ vm_init (void)
   hw_vm_init ();
 }
 
-DEBUG_FUNC (vm_handle_page_fault);
 DEBUG_FUNC (vm_region_new);
+DEBUG_FUNC (__vm_pagemap_page_free);
 DEBUG_FUNC (vm_region_destroy);
 DEBUG_FUNC (vm_region_map_page);
 DEBUG_FUNC (vm_region_translate_page);
@@ -553,9 +560,7 @@ DEBUG_FUNC (__invalidate_pages);
 DEBUG_FUNC (vm_region_invalidate);
 DEBUG_FUNC (vm_space_add_region);
 DEBUG_FUNC (vm_space_overlap_region);
-DEBUG_FUNC (vm_region_stack);
-DEBUG_FUNC (vm_region_kernel_stack);
-DEBUG_FUNC (vm_region_iomap);
+DEBUG_FUNC (vm_space_find_region);
 DEBUG_FUNC (virt2phys);
 DEBUG_FUNC (copy2virt);
 DEBUG_FUNC (__map_pages);
@@ -566,4 +571,6 @@ DEBUG_FUNC (vm_bare_sysproc_space);
 DEBUG_FUNC (__load_segment_cb);
 DEBUG_FUNC (vm_space_load_from_exec);
 DEBUG_FUNC (vm_space_debug);
+DEBUG_FUNC (vm_handle_page_fault);
 DEBUG_FUNC (vm_init);
+

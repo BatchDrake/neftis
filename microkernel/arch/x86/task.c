@@ -29,6 +29,14 @@
 #include <arch.h>
 #include <kctx.h>
 
+extern int text_start;
+
+busword_t
+__task_get_user_stack_bottom (const struct task *task)
+{
+  return (busword_t) &text_start;
+}
+
 struct task_ctx_data *
 get_task_ctx_data (struct task *task)
 {
@@ -38,7 +46,7 @@ get_task_ctx_data (struct task *task)
 /* This function is CRITICAL: without it, we can't
    build contexts when switching tasks! */
 INLINE void
-x86_init_stack_frame (struct x86_stack_frame *frame)
+x86_init_stack_frame_kernel (struct x86_stack_frame *frame)
 {
   memset (frame, 0, sizeof (struct x86_stack_frame));
   
@@ -54,8 +62,42 @@ x86_init_stack_frame (struct x86_stack_frame *frame)
   frame->priv.cs = GDT_SEGMENT_KERNEL_CODE;
   frame->priv.eflags = EFLAGS_INTERRUPT;
 
-  GET_REGISTER ("%cr0", frame->cr0); /* You gave me a headache */
-  GET_REGISTER ("%cr3", frame->cr3); /* You too motherfucker */
+  GET_REGISTER ("%cr0", frame->cr0); 
+  GET_REGISTER ("%cr3", frame->cr3);
+}
+
+INLINE void
+x86_init_stack_frame_user (struct x86_stack_frame *frame)
+{
+  memset (frame, 0, sizeof (struct x86_stack_frame));
+  
+  frame->segs.cs = GDT_SEGMENT_USER_CODE | 3;
+  frame->segs.ds = GDT_SEGMENT_USER_DATA | 3;
+  frame->segs.es = GDT_SEGMENT_USER_DATA | 3;
+  frame->segs.gs = GDT_SEGMENT_USER_DATA | 3;
+  frame->segs.fs = GDT_SEGMENT_USER_DATA | 3;
+  frame->segs.ss = GDT_SEGMENT_USER_DATA | 3;
+
+  frame->regs.esp = (DWORD) frame; /* Unnecesary, but cool */
+  
+  frame->unpriv.cs     = GDT_SEGMENT_USER_CODE | 3;
+  frame->unpriv.eflags = EFLAGS_INTERRUPT;
+  frame->unpriv.old_ss = GDT_SEGMENT_USER_DATA | 3;
+
+  GET_REGISTER ("%cr0", frame->cr0);
+  GET_REGISTER ("%cr3", frame->cr3);
+}
+
+busword_t
+__task_get_kernel_stack_top (const struct task *task)
+{
+  return (busword_t) task;
+}
+
+busword_t
+__task_get_kernel_stack_size (const struct task *task)
+{
+  return KERNEL_MODE_STACK_PAGES;
 }
 
 struct task *
@@ -76,7 +118,6 @@ __alloc_task (void)
     (KERNEL_MODE_STACK_PAGES << (__PAGE_BITS)) - sizeof (DWORD);
     
   data->stack_info.esp     = data->stack_info.stack_bottom;
-  data->stack_info.useresp = 0; /* Define later. */
   
   return new_task;
 }
@@ -117,45 +158,28 @@ __task_config_start (struct task *task, void (*start) ())
   data = get_task_ctx_data (task);
 
   /* Kernel threads (and the idle process) run at kernel stack */
-  /* Sys processes are exactly like usermode processes but with
-     with a higher level of privileges (kernel mode, to be precise).
-
-     The problem arrives when handling interrupts. As there is no
-     privilege switch, virtual space stays the same and the stack
-     should be shared with the kernel space. The only possible
-     solution here is to allocate stack with 1:1 mapping. Which, by the way,
-     is difficult its address space is big as collisions can occur.
-
-     We can switch the ESP to physycal at context switch, but that's
-     slow has hell.
-
-     TODO: think about it.
+  /* Forget about system processes. They don't make sense. For
+     now, we have idle threads, kernel threads and userland threads.
     */
+
+  /* Kernel stack is the same for all task types */
+  data->stack_info.esp -= sizeof (struct x86_stack_frame);
+  frameptr = (struct x86_stack_frame *) data->stack_info.esp;
   
-  if (task->ts_type == TASK_TYPE_KERNEL_THREAD ||
-      task->ts_type == TASK_TYPE_IDLE)
+  if (task->ts_type == TASK_TYPE_KERNEL_THREAD || task->ts_type == TASK_TYPE_IDLE)
+    x86_init_stack_frame_kernel (frameptr);
+  else if (task->ts_type == TASK_TYPE_USER_THREAD)
   {
-    /* Fix this, this should be an absolute assignation */
-    data->stack_info.esp -= sizeof (struct x86_stack_frame);
-    frameptr = (struct x86_stack_frame *) data->stack_info.esp;
-  }
-  else if (task->ts_type == TASK_TYPE_SYS_PROCESS)
-  {
-    if ((data->stack_info.esp = __task_find_stack_bottom (task)) == KERNEL_ERROR_VALUE)
-      FAIL ("Something weird happened: cannot find stack bottom in a SYS_PROCESS task!\n");
-
-    data->stack_info.esp -= sizeof (struct x86_stack_frame);
-
-    if ((frameptr = (struct x86_stack_frame *) virt2phys (task->ts_vm_space, data->stack_info.esp)) == NULL)
-      FAIL ("Cannot convert virtual address %p to physycal address\n", data->stack_info.esp);
+    x86_init_stack_frame_user (frameptr);
+    
+    if ((frameptr->unpriv.old_esp = __task_find_stack_bottom (task)) == KERNEL_ERROR_VALUE)
+      FAIL ("Cannot find userspace stack\n");
   }
   else
     FAIL ("Don't know how to build start frame for this type of task!\n");
 
-  x86_init_stack_frame (frameptr);
-  
   /* Return address goes where? */
-  
+
   frameptr->priv.eip = (physptr_t) start;
 
   if (task->ts_vm_space != NULL)
@@ -166,7 +190,6 @@ __task_config_start (struct task *task, void (*start) ())
 	  task->ts_type, start);
   }
 }
-
 
 void
 __task_perform_switch (struct task *task)
@@ -179,7 +202,7 @@ __task_perform_switch (struct task *task)
   /* Just telling the CPU where to come back from user mode */
   
   x86_set_kernel_stack (data->stack_info.stack_bottom);
-  
+
   __asm__ __volatile__ (".extern __restore_context\n"
                         "movl %0, %%esp           \n"
                         "jmp __restore_context    \n"
@@ -212,23 +235,25 @@ __task_switch_from_interrupt (struct task *current, struct task *next)
 
     data->stack_info.esp = (busword_t) get_interrupt_frame ();
   }
-
+  
   __task_perform_switch (next);
 }
 
 void __intr_common (void);
 void __restore_context (void);
 
-DEBUG_FUNC (get_eflags);
-DEBUG_FUNC (esp_is_sane);
+DEBUG_FUNC (__task_get_user_stack_bottom);
 DEBUG_FUNC (get_task_ctx_data);
-DEBUG_FUNC (x86_init_stack_frame);
+DEBUG_FUNC (x86_init_stack_frame_kernel);
+DEBUG_FUNC (x86_init_stack_frame_user);
+DEBUG_FUNC (__task_get_kernel_stack_top);
+DEBUG_FUNC (__task_get_kernel_stack_size);
 DEBUG_FUNC (__alloc_task);
+DEBUG_FUNC (__free_task);
 DEBUG_FUNC (__task_find_stack_bottom);
 DEBUG_FUNC (__task_config_start);
 DEBUG_FUNC (__task_perform_switch);
 DEBUG_FUNC (__task_switch_from_current);
-DEBUG_FUNC (__task_switch_from_current_asm);
 DEBUG_FUNC (__task_switch_from_interrupt);
 DEBUG_FUNC (__intr_common);
 DEBUG_FUNC (__restore_context);

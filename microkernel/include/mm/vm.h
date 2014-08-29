@@ -35,6 +35,8 @@
 #define VREGION_ACCESS_WRITE     (1 << 2)
 #define VREGION_ACCESS_EXEC      (1 << 3)
 
+#define VREGION_ACCESS_USER      (1 << 8)
+
 #define VM_PAGE_PRESENT          1
 #define VM_PAGE_READABLE         VREGION_ACCESS_READ
 #define VM_PAGE_WRITABLE         VREGION_ACCESS_WRITE
@@ -43,8 +45,8 @@
 #define VM_PAGE_DIRTY            32
 #define VM_PAGE_KERNEL           64  /* Keep always in TLB */
 #define VM_PAGE_IOMAP            128 /* Don't cache this */
-
-#define VM_PAGE_ALLFLAGS         255
+#define VM_PAGE_USER             VREGION_ACCESS_USER /* Usermode page */
+#define VM_PAGE_ALLFLAGS         513
 
 /* Please NOTE: this new approach for managing virtual memory
    regions knows NOTHING about the structures used to store

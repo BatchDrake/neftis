@@ -123,7 +123,8 @@
     pop %es
     pop %gs
     pop %fs
-    pop %ss
+      
+    addl $4, %esp /* %ss can't be updated here */
       
     popl %eax
     movl %eax, %cr0

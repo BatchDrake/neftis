@@ -159,8 +159,8 @@ x86_regdump (struct x86_stack_frame *frame)
   printk ("kernel mode: cr0=%y cr2=%y cr3=%y cr4=%y\n", cr0, cr2, cr3, cr4);
   printk ("prev mode:   cr0=%y cr3=%y esp=%y  ss=%p\n", frame->cr0, frame->cr3, frame->unpriv.old_esp, frame->unpriv.old_ss);
 
-  printk ("eip=%y efl=%y (%C)\n",
-    frame->priv.eip, frame->priv.eflags, frame->priv.eflags);
+  printk ("eip=%y cs=%p efl=%y (%C)\n",
+    frame->priv.eip, frame->priv.cs, frame->priv.eflags, frame->priv.eflags);
   
   printk ("cs=%p ds=%p es=%p fs=%p gs=%p ss=%p\n",
     frame->segs.cs, frame->segs.ds, frame->segs.es, frame->segs.fs,

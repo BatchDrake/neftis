@@ -142,8 +142,9 @@ vm_space_destroy (struct vm_space *space)
 
 /* Next level */
 
-INLINE int
-vm_test_range (struct vm_space *space, busword_t start, busword_t pages)
+/* TODO: improve this using information in radix trees */
+struct vm_region *
+vm_space_find_first_in_range (struct vm_space *space, busword_t start, busword_t pages)
 {
   struct vm_region *region_prev, *region_next;
   
@@ -152,17 +153,22 @@ vm_test_range (struct vm_space *space, busword_t start, busword_t pages)
     
   region_next = 
     sorted_list_get_next ((void **) &space->vs_regions, start);
-    
+  
   if (region_prev != NULL)
     if (region_prev->vr_virt_end >= start)
-      return 0;
-    
+      return region_prev;
+  
   if (region_next != NULL)
     if (region_next->vr_virt_start < (start + pages * PAGE_SIZE - 1))
-      return 0;
-    
+      return region_next;
   
-  return 1;
+  return NULL;
+}
+
+INLINE int
+vm_test_range (struct vm_space *space, busword_t start, busword_t pages)
+{
+  return vm_space_find_first_in_range (space, start, pages) == NULL;
 }
 
 static int

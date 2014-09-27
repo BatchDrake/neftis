@@ -135,6 +135,7 @@ void vm_region_destroy (struct vm_region *, struct task *);
 
 /* Space operations */
 struct vm_space *vm_space_new (void);
+struct vm_region *vm_space_find_first_in_range (struct vm_space *, busword_t, busword_t);
 int vm_space_add_region (struct vm_space *, struct vm_region *);
 int vm_space_overlap_region (struct vm_space *, struct vm_region *);
 int vm_update_region (struct vm_space *, struct vm_region *);

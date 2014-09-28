@@ -552,10 +552,13 @@ vm_space_debug (struct vm_space *space)
   
   while (this)
   {
-    printk ("%y-%y: %s %H\n", this->vr_virt_start,
-      this->vr_virt_end,
-      this->vr_ops->name,
-      this->vr_virt_end - this->vr_virt_start + 1);
+    printk ("%y-%y: %s %H [0x%x]\n",
+            this->vr_virt_start,
+            this->vr_virt_end,
+            this->vr_ops->name,
+            this->vr_virt_end - this->vr_virt_start + 1,
+            this->vr_access
+      );
       
     this = (struct vm_region *) LIST_NEXT (this);
   }

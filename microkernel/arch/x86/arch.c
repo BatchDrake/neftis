@@ -232,9 +232,8 @@ vm_kernel_space_map_io (struct vm_space *space)
                             VIDEO_PAGES))
   )
     FAIL ("can't map video memory\n");
-                            
-  region->vr_access = VREGION_ACCESS_READ | VREGION_ACCESS_WRITE;
-         
+  
+  
   MANDATORY (SUCCESS (vm_space_add_region (space, region)));
   
   return KERNEL_SUCCESS_VALUE;

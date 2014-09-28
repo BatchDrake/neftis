@@ -245,7 +245,7 @@ __vm_flags_to_x86_flags (DWORD flags)
 {
   DWORD x86_flags = 0;
 
-  if ((flags & VM_PAGE_PRESENT) || (flags & VM_PAGE_READABLE))
+  if (flags & VM_PAGE_PRESENT)
     x86_flags |= PAGE_FLAG_PRESENT;
     
   if (flags & VM_PAGE_WRITABLE)

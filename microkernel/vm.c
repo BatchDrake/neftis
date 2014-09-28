@@ -65,6 +65,22 @@ vm_region_destroy (struct vm_region *region, struct task *task)
 }
 
 int
+vm_region_unmap_page (struct vm_region *region, busword_t virt)
+{
+  radixtag_t *tag;
+
+  if (region->vr_type == VREGION_TYPE_RANGEMAP)
+    return KERNEL_ERROR_VALUE;
+
+  if ((tag = radix_tree_lookup_tag (region->vr_page_tree, virt)) == NULL)
+    return KERNEL_ERROR_VALUE;
+
+  *tag &= ~VM_PAGE_PRESENT;
+
+  return 0;
+}
+
+int
 vm_region_map_page (struct vm_region *region, busword_t virt, busword_t phys, DWORD flags)
 {
   void **slot;
@@ -76,7 +92,7 @@ vm_region_map_page (struct vm_region *region, busword_t virt, busword_t phys, DW
   if (radix_tree_set (&region->vr_page_tree, virt, (void *) phys) == KERNEL_ERROR_VALUE)
     return KERNEL_ERROR_VALUE;
 
-  if (radix_tree_set_tag (region->vr_page_tree, virt, flags) == -1)
+  if (radix_tree_set_tag (region->vr_page_tree, virt, flags | VM_PAGE_PRESENT) == -1)
     FAIL ("Cannot set tag on existing mapped page?\n");
 
   return KERNEL_SUCCESS_VALUE;
@@ -101,13 +117,16 @@ vm_region_translate_page (struct vm_region *region, busword_t virt, DWORD *flags
     if ((addr = radix_tree_lookup_slot (region->vr_page_tree, virt)) == NULL)
       return (busword_t) KERNEL_ERROR_VALUE;
 
-    if (flags != NULL)
-    {
-      if ((tag = radix_tree_lookup_tag (region->vr_page_tree, virt)) == NULL)
-	return (busword_t) KERNEL_ERROR_VALUE;
+    if ((tag = radix_tree_lookup_tag (region->vr_page_tree, virt)) == NULL)
+      return (busword_t) KERNEL_ERROR_VALUE;
 
+    /* This page doesn't exist */
+    if (!(*tag & VM_PAGE_PRESENT))
+      return (busword_t) KERNEL_ERROR_VALUE;
+    
+    if (flags != NULL)
       *flags = *tag;
-    }
+
   }
   
   return (busword_t) *addr;
@@ -300,7 +319,7 @@ static int
 __map_pages (radixkey_t virt, void **phys, radixtag_t *perms, void *data)
 {
   struct vm_space *space = data;
-  
+
   return __vm_map_to (space->vs_pagetable, (busword_t) virt, (busword_t) *phys, 1, *perms);
 }
 
@@ -554,6 +573,46 @@ vm_init (void)
   hw_vm_init ();
 }
 
+int
+__alloc_colored (struct mm_region *from, struct vm_region *region, busword_t start, busword_t pages, DWORD perms)
+{
+  unsigned int i;
+  int curr_color;
+  busword_t cache_size = mm_get_cache_size ();
+  busword_t virt;
+  busword_t page;
+  void *ptr;
+  
+  for (i = 0; i < pages; ++i)
+  {
+    virt = start + (i << __PAGE_BITS);
+    
+    curr_color = ADDR_COLOR (cache_size, virt);
+
+    if ((page = mm_region_alloc_colored_page (from, curr_color)) == (busword_t) KERNEL_ERROR_VALUE)
+      goto fail;
+
+    if (vm_region_map_page (region, virt, page, VM_PAGE_PRESENT | perms) == KERNEL_ERROR_VALUE)
+      goto fail;
+  }
+
+  return KERNEL_SUCCESS_VALUE;
+  
+fail:
+  for (--i; i >= 0; --i)
+  {
+    virt = start + (i << __PAGE_BITS);
+    
+    if ((page = vm_region_translate_page (region, virt, NULL)) != (busword_t) KERNEL_ERROR_VALUE)                            
+      page_free ((physptr_t) virt, 1);
+  }
+  
+  spin_unlock (&from->mr_lock);
+
+  return KERNEL_ERROR_VALUE;
+}
+
+DEBUG_FUNC (__alloc_colored);
 DEBUG_FUNC (vm_region_new);
 DEBUG_FUNC (__vm_pagemap_page_free);
 DEBUG_FUNC (vm_region_destroy);

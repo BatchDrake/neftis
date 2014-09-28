@@ -128,6 +128,7 @@ struct vm_space
 /* Region operations */
 struct vm_region *vm_region_new (busword_t, busword_t, struct vm_region_ops *, void *);
 int vm_region_map_page (struct vm_region *, busword_t, busword_t, DWORD);
+int vm_region_unmap_page (struct vm_region *region, busword_t virt);
 busword_t vm_region_translate_page (struct vm_region *, busword_t, DWORD *);
 
 void vm_region_invalidate (struct vm_region *);
@@ -153,6 +154,8 @@ busword_t virt2phys (const struct vm_space *space, busword_t virt);
 int copy2virt (const struct vm_space *, busword_t, const void *, busword_t);
 int vm_handle_page_fault (struct task *, busword_t, int);
 void vm_init (void);
+
+int __alloc_colored (struct mm_region *, struct vm_region *, busword_t, busword_t, DWORD);
 
 #endif /* _MM_VM_H */
 

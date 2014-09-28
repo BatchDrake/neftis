@@ -32,6 +32,8 @@
 #define LIST_NEXT(x) ((void *) ((struct list_head *) (x))->next)
 #define LIST_PREV(x) ((void *) ((struct list_head *) (x))->prev)
 
+#define FOR_EACH(iter, list) for (iter = list; iter != NULL; iter = LIST_NEXT (iter))
+
 struct list_head
 {
   struct list_head *next;
@@ -49,6 +51,8 @@ struct circular_list_head
   struct list_head head;
 };
 
+#define QWORD_MAX 0xffffffffffffffffull
+
 void *list_get_tail (void **);
 void *list_get_head (void **);
 void  list_join (void **, void **);
@@ -63,8 +67,16 @@ void *sorted_list_get_head (void **);
 void  sorted_list_remove_element (void **, void *);
 void *sorted_list_search (void **, QWORD);
 void *sorted_list_get_next (void **, QWORD);
-void *sorted_list_get_previous (void **l, QWORD);
+void *sorted_list_get_previous (void **, QWORD);
 void  sorted_list_insert (void **, void *, QWORD);
+
+#define rsorted_list_get_tail(l) sorted_list_get_tail (l)
+#define rsorted_list_get_head(l) sorted_list_get_head (l)
+#define rsorted_list_remove_element(l, e) sorted_list_remove_element (l, e)
+#define rsorted_list_search(l, i) sorted_list_search (l, QWORD_MAX - (i))
+#define rsorted_list_get_next(l, i) sorted_list_get_next (l, QWORD_MAX - (i))
+#define rsorted_list_get_previous(l, i) sorted_list_get_previous (l, QWORD_MAX - (i))
+#define rsorted_list_insert(l, e, i) sorted_list_insert (l, e, QWORD_MAX - (i))
 
 int   circular_list_is_empty (void **);
 int   circular_list_is_head (void **, void *);

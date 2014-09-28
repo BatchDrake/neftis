@@ -65,46 +65,6 @@ struct vm_region_ops kmap_region_ops =
   .exec_fault  = kmap_pagefault
 };
 
-
-static int
-__alloc_colored (struct mm_region *from, struct vm_region *region, busword_t pages, DWORD perms)
-{
-  unsigned int i;
-  int curr_color;
-  busword_t cache_size = mm_get_cache_size ();
-  busword_t virt;
-  busword_t page;
-  void *ptr;
-  
-  for (i = 0; i < pages; ++i)
-  {
-    virt = region->vr_virt_start + (i << __PAGE_BITS);
-    
-    curr_color = ADDR_COLOR (cache_size, virt);
-
-    if ((page = mm_region_alloc_colored_page (from, curr_color)) == (busword_t) KERNEL_ERROR_VALUE)
-      goto fail;
-
-    if (vm_region_map_page (region, virt, page, VM_PAGE_PRESENT | perms) == KERNEL_ERROR_VALUE)
-      goto fail;
-  }
-
-  return KERNEL_SUCCESS_VALUE;
-  
-fail:
-  for (--i; i >= 0; --i)
-  {
-    virt = region->vr_virt_start + (i << __PAGE_BITS);
-    
-    if ((page = vm_region_translate_page (region, virt, NULL)) != (busword_t) KERNEL_ERROR_VALUE)                            
-      page_free ((physptr_t) virt, 1);
-  }
-  
-  spin_unlock (&from->mr_lock);
-
-  return KERNEL_ERROR_VALUE;
-}
-
 struct vm_region *
 vm_region_anonmap (busword_t virt, busword_t pages, DWORD perms)
 {
@@ -129,7 +89,7 @@ vm_region_anonmap (busword_t virt, busword_t pages, DWORD perms)
 
   while (region != NULL)
   {
-    if (__alloc_colored (region, new, pages, perms) == KERNEL_SUCCESS_VALUE)
+    if (__alloc_colored (region, new, virt, pages, perms) == KERNEL_SUCCESS_VALUE)
       break;
       
     region = region->mr_next;
@@ -157,7 +117,7 @@ vm_region_remap (busword_t virt, busword_t phys, busword_t pages, DWORD perms)
   PTR_RETURN_ON_PTR_FAILURE (new = vm_region_new (virt, virt + (pages << __PAGE_BITS) - 1, &kmap_region_ops, NULL));
 
   new->vr_type   = VREGION_TYPE_RANGEMAP;
-  new->vr_access = perms;
+  new->vr_access = perms | VM_PAGE_PRESENT;
   new->vr_phys_start = phys;
   
   return new;
@@ -208,7 +168,6 @@ vm_region_iomap (busword_t virt, busword_t phys, busword_t pages)
 
 DEBUG_FUNC (anonmap_pagefault);
 DEBUG_FUNC (kmap_pagefault);
-DEBUG_FUNC (__alloc_colored);
 DEBUG_FUNC (vm_region_anonmap);
 DEBUG_FUNC (vm_region_remap);
 DEBUG_FUNC (vm_region_physmap);

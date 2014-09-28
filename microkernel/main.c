@@ -31,6 +31,7 @@
 #include <mm/slab.h>
 #include <mm/salloc.h>
 #include <mm/vm.h>
+#include <mm/vremap.h>
 
 #include <task/task.h>
 #include <task/sched.h>
@@ -133,7 +134,7 @@ main (void)
   hw_memory_init ();
   
   vm_init ();
-  
+
   setup_system_consoles ();
   
   hw_interrupt_init ();
@@ -150,6 +151,8 @@ main (void)
 
   early_timers_init ();
 
+  vremap_init ();
+  
   test_kthreads ();
   
   enable_interrupts ();

@@ -43,6 +43,7 @@ neftis_SOURCES=arch/x86/boot.S \
                timer.c         \
                util.c          \
                vkprintf.c      \
+               vremap.c        \
                vm.c            \
                waitqueue.c     \
                include/ctype.h \
@@ -63,6 +64,7 @@ neftis_SOURCES=arch/x86/boot.S \
                include/mm/coloring.h \
                include/mm/anon.h \
                include/mm/vm.h \
+               include/mm/vremap.h \
                include/irq/timer.h \
                include/irq/irq.h \
                include/dev/serial.h \

@@ -57,7 +57,7 @@ x86_init_stack_frame_kernel (struct x86_stack_frame *frame)
   frame->segs.fs = GDT_SEGMENT_KERNEL_DATA;
   frame->segs.ss = GDT_SEGMENT_KERNEL_DATA;
 
-  frame->regs.esp = (DWORD) frame; /* Unnecesary, but cool */
+  frame->regs.esp = 0; /* Ignored */
   
   frame->priv.cs = GDT_SEGMENT_KERNEL_CODE;
   frame->priv.eflags = EFLAGS_INTERRUPT;
@@ -78,7 +78,7 @@ x86_init_stack_frame_user (struct x86_stack_frame *frame)
   frame->segs.fs = GDT_SEGMENT_USER_DATA | 3;
   frame->segs.ss = GDT_SEGMENT_USER_DATA | 3;
 
-  frame->regs.esp = (DWORD) frame; /* Unnecesary, but cool */
+  frame->regs.esp = 0; /* Ignored */
   
   frame->unpriv.cs     = GDT_SEGMENT_USER_CODE | 3;
   frame->unpriv.eflags = EFLAGS_INTERRUPT;
@@ -105,19 +105,43 @@ __alloc_task (void)
 {
   struct task *new_task;
   struct task_ctx_data *data;
+  busword_t stack_vaddr;
+
+  if ((stack_vaddr = kernel_vremap_ensure (KERNEL_MODE_STACK_PAGES)) == -1)
+    return NULL;
   
   if ((new_task = page_alloc (KERNEL_MODE_STACK_PAGES)) == NULL)
+  {
+    (void) kernel_vremap_release (stack_vaddr, KERNEL_MODE_STACK_PAGES);
     return NULL;
+  }
+
+  if (kernel_vremap_map_pages (stack_vaddr, (busword_t) new_task, KERNEL_MODE_STACK_PAGES, VM_PAGE_READABLE | VM_PAGE_WRITABLE) == -1)
+  {
+    page_free (new_task, KERNEL_MODE_STACK_PAGES);
     
+    (void) kernel_vremap_release (stack_vaddr, KERNEL_MODE_STACK_PAGES);
+    return NULL;
+  }
+
+  /* Update kernel space */
+  kernel_vremap_update_kernel ();
+  
   memset (new_task, 0, KERNEL_MODE_STACK_PAGES << (__PAGE_BITS));
 
   data = get_task_ctx_data (new_task);
-  
+
+  data->stack_info.stack_vaddr = stack_vaddr;
+    
   data->stack_info.stack_bottom = 
     (DWORD) new_task + 
     (KERNEL_MODE_STACK_PAGES << (__PAGE_BITS)) - sizeof (DWORD);
     
-  data->stack_info.esp     = data->stack_info.stack_bottom;
+  data->stack_info.esp =
+    stack_vaddr +
+    (KERNEL_MODE_STACK_PAGES << (__PAGE_BITS)) - sizeof (DWORD);
+
+  data->stack_info.stack_bottom_virtual = data->stack_info.esp;
   
   return new_task;
 }
@@ -125,6 +149,12 @@ __alloc_task (void)
 void
 __free_task (struct task *task)
 {
+  struct task_ctx_data *data;
+
+  data = get_task_ctx_data (task);
+
+  kernel_vremap_release (data->stack_info.stack_vaddr, KERNEL_MODE_STACK_PAGES);
+  
   page_free (task, KERNEL_MODE_STACK_PAGES);
 }
 
@@ -164,7 +194,7 @@ __task_config_start (struct task *task, void (*start) ())
 
   /* Kernel stack is the same for all task types */
   data->stack_info.esp -= sizeof (struct x86_stack_frame);
-  frameptr = (struct x86_stack_frame *) data->stack_info.esp;
+  frameptr = (struct x86_stack_frame *) (data->stack_info.stack_bottom - sizeof (struct x86_stack_frame));
   
   if (task->ts_type == TASK_TYPE_KERNEL_THREAD || task->ts_type == TASK_TYPE_IDLE)
     x86_init_stack_frame_kernel (frameptr);
@@ -201,7 +231,7 @@ __task_perform_switch (struct task *task)
 
   /* Just telling the CPU where to come back from user mode */
   
-  x86_set_kernel_stack (data->stack_info.stack_bottom);
+  x86_set_kernel_stack (data->stack_info.stack_bottom_virtual);
 
   __asm__ __volatile__ (".extern __restore_context\n"
                         "movl %0, %%esp           \n"

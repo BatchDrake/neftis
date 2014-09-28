@@ -133,6 +133,8 @@ main (void)
   
   hw_memory_init ();
   
+  vremap_init ();
+  
   vm_init ();
 
   setup_system_consoles ();
@@ -151,8 +153,6 @@ main (void)
 
   early_timers_init ();
 
-  vremap_init ();
-  
   test_kthreads ();
   
   enable_interrupts ();

@@ -476,9 +476,9 @@ __kmem_cache_alloc (struct kmem_cache *cache)
   
   /* Small slabs: */
   /*   Check if head is partial or empty. If it is, allocate there*/
-  
+
   if (!MM_CACHE_IS_BIG (cache))
-  {
+  { 
     if (cache->state == MM_SLAB_STATE_EMPTY || cache->state == MM_SLAB_STATE_PARTIAL)
     {
       if (cache->last_freed != MM_SLAB_NO_HINT)

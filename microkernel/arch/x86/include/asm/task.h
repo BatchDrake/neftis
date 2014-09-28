@@ -20,12 +20,15 @@
 #define _ASM_TASK_H
 
 #include <asm/seg.h>
+#include <mm/vremap.h>
 
 #define KERNEL_MODE_STACK_PAGES 4
 
 struct task_ctx_stack_info
 {
   DWORD stack_bottom;
+  DWORD stack_bottom_virtual;
+  DWORD stack_vaddr;
   DWORD esp;
 };
 

@@ -128,7 +128,8 @@ struct vm_space
 /* Region operations */
 struct vm_region *vm_region_new (busword_t, busword_t, struct vm_region_ops *, void *);
 int vm_region_map_page (struct vm_region *, busword_t, busword_t, DWORD);
-int vm_region_unmap_page (struct vm_region *region, busword_t virt);
+int vm_region_unmap_page (struct vm_region *, busword_t);
+int vm_region_map_pages (struct vm_region *, busword_t, busword_t, DWORD, busword_t);
 busword_t vm_region_translate_page (struct vm_region *, busword_t, DWORD *);
 
 void vm_region_invalidate (struct vm_region *);

@@ -23,6 +23,7 @@
 #include <mm/vm.h>
 #include <mm/anon.h>
 #include <mm/salloc.h>
+#include <mm/vremap.h>
 
 #include <misc/list.h>
 #include <task/loader.h>
@@ -55,10 +56,13 @@ __vm_pagemap_page_free (radixkey_t key, void **slot, radixtag_t *tag)
 void
 vm_region_destroy (struct vm_region *region, struct task *task)
 {
+  /* Check whether region can be destroyed. Usual scenarios
+     where it cannot can be a systemwide vregion */
   if (region->vr_ops->destroy != NULL)
-    (region->vr_ops->destroy) (task, region);
+    if ((region->vr_ops->destroy) (task, region) == -1)
+      return;
 
-  if (region->vr_type == VREGION_TYPE_PAGEMAP)
+  if (region->vr_type == VREGION_TYPE_PAGEMAP && region->vr_page_tree != NULL)
     radix_tree_destroy (region->vr_page_tree, __vm_pagemap_page_free);
   
   sfree (region);
@@ -69,7 +73,7 @@ vm_region_unmap_page (struct vm_region *region, busword_t virt)
 {
   radixtag_t *tag;
 
-  if (region->vr_type == VREGION_TYPE_RANGEMAP)
+  if (region->vr_type == VREGION_TYPE_RANGEMAP || region->vr_page_tree == NULL)
     return KERNEL_ERROR_VALUE;
 
   if ((tag = radix_tree_lookup_tag (region->vr_page_tree, virt)) == NULL)
@@ -87,15 +91,27 @@ vm_region_map_page (struct vm_region *region, busword_t virt, busword_t phys, DW
 
   if (region->vr_type == VREGION_TYPE_RANGEMAP)
     return KERNEL_ERROR_VALUE;
-  
+
   /* TODO: define radix_tree_set_with_flags */
   if (radix_tree_set (&region->vr_page_tree, virt, (void *) phys) == KERNEL_ERROR_VALUE)
     return KERNEL_ERROR_VALUE;
 
   if (radix_tree_set_tag (region->vr_page_tree, virt, flags | VM_PAGE_PRESENT) == -1)
     FAIL ("Cannot set tag on existing mapped page?\n");
-
+  
   return KERNEL_SUCCESS_VALUE;
+}
+
+int
+vm_region_map_pages (struct vm_region *region, busword_t virt, busword_t phys, DWORD flags, busword_t num)
+{
+  busword_t i;
+
+  for (i = 0; i < num; ++i)
+    if (FAILED (vm_region_map_page (region, virt + (i << __PAGE_BITS), phys + (i << __PAGE_BITS), flags)))
+      return -1;
+
+  return 0;
 }
 
 busword_t
@@ -113,6 +129,10 @@ vm_region_translate_page (struct vm_region *region, busword_t virt, DWORD *flags
   }
   else
   {
+    /* There are no mapped pages (it may happen!) */
+    if (region->vr_page_tree == NULL)
+      return KERNEL_ERROR_VALUE;
+    
     /* Really, this sucks */
     if ((addr = radix_tree_lookup_slot (region->vr_page_tree, virt)) == NULL)
       return (busword_t) KERNEL_ERROR_VALUE;
@@ -201,7 +221,8 @@ __invalidate_pages (radixkey_t virt, void **phys, radixtag_t *perms, void *data)
 void
 vm_region_invalidate (struct vm_region *region)
 {
-  radix_tree_walk (region->vr_page_tree, __invalidate_pages, NULL);
+  if (region->vr_page_tree != NULL)
+    radix_tree_walk (region->vr_page_tree, __invalidate_pages, NULL);
 }
 
 int
@@ -331,8 +352,10 @@ vm_update_region (struct vm_space *space, struct vm_region *region)
 
   if (region->vr_type == VREGION_TYPE_RANGEMAP)
     return __vm_map_to (space->vs_pagetable, region->vr_virt_start, region->vr_phys_start, __UNITS (region->vr_virt_end - region->vr_virt_start + 1, PAGE_SIZE), region->vr_access);
-  else
+  else if (region->vr_page_tree != NULL)
     return radix_tree_walk (region->vr_page_tree, __map_pages, space);
+
+  return 0;
 }
 
 /* Transforms segment information into hardware translation data (i.e.
@@ -409,6 +432,14 @@ vm_kernel_space (void)
     return KERNEL_INVALID_POINTER;
   }
 
+  if (UNLIKELY_TO_FAIL (vm_kernel_space_init_vremap (new_space)))
+  {
+    error ("Cannot map system vremap!\n");
+
+    vm_space_destroy (new_space);
+
+    return KERNEL_INVALID_POINTER;
+  }
   
   return new_space;
 }
@@ -431,6 +462,15 @@ vm_bare_sysproc_space (void)
     
     vm_space_destroy (new_space);
     
+    return KERNEL_INVALID_POINTER;
+  }
+
+  if (UNLIKELY_TO_FAIL (vm_kernel_space_init_vremap (new_space)))
+  {
+    error ("Cannot map system vremap!\n");
+
+    vm_space_destroy (new_space);
+
     return KERNEL_INVALID_POINTER;
   }
 
@@ -616,6 +656,7 @@ DEBUG_FUNC (__alloc_colored);
 DEBUG_FUNC (vm_region_new);
 DEBUG_FUNC (__vm_pagemap_page_free);
 DEBUG_FUNC (vm_region_destroy);
+DEBUG_FUNC (vm_region_unmap_page);
 DEBUG_FUNC (vm_region_map_page);
 DEBUG_FUNC (vm_region_translate_page);
 DEBUG_FUNC (vm_space_new);

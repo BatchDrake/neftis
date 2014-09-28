@@ -309,7 +309,7 @@ kernel_task_new (void (*entry) (void))
   task->ts_type  = TASK_TYPE_KERNEL_THREAD;
   
   task->ts_vm_space = current_kctx->kc_vm_space;
-  
+
   __task_config_start (task, entry);
 
   if (register_task (task) == -1)
@@ -317,7 +317,7 @@ kernel_task_new (void (*entry) (void))
     task_destroy (task);
     return NULL;
   }
-  
+
   return task;
 }
 
@@ -394,7 +394,7 @@ user_task_new_from_exec (const void *data, busword_t size)
     task_destroy (task);
     return NULL;
   }
-  
+
   return task;
 }
 

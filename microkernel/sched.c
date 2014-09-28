@@ -118,13 +118,19 @@ getprio (struct task *task, prio_t *prio)
 void
 sched_save (int *state)
 {
-  *state = (get_current_scheduler ())->sc_get_state ();
+  struct sched *sched;
+  
+  if ((sched = get_current_scheduler ()) != NULL)
+      *state = sched->sc_get_state ();
 }
 
 void
 sched_restore (int state)
 {
-  (get_current_scheduler ())->sc_set_state (state);
+  struct sched *sched;
+  
+  if ((sched = get_current_scheduler ()) != NULL)
+      sched->sc_set_state (state);
 }
 
 int

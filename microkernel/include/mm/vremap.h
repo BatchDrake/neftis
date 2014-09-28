@@ -19,6 +19,9 @@
 #ifndef _MM_VREMAP_H
 #define _MM_VREMAP_H
 
+#define KERNEL_VREMAP_AREA_START 0xe0000000
+#define KERNEL_VREMAP_AREA_SIZE  0x10000
+
 /* Sorted in size */
 struct vremap_free_chunk
 {
@@ -43,5 +46,10 @@ void vremap_init (void);
 struct vm_region *vm_region_vremap_new (busword_t, busword_t, DWORD);
 busword_t vm_region_vremap_ensure (struct vm_region *, busword_t);
 int vm_region_vremap_release (struct vm_region *, busword_t, busword_t);
-
+busword_t kernel_vremap_ensure (busword_t);
+int kernel_vremap_release (busword_t, busword_t);
+void vremap_data_debug (struct vremap_data *);
+int vm_kernel_space_init_vremap (struct vm_space *);
+int kernel_vremap_map_pages (busword_t, busword_t, busword_t, DWORD);
+void kernel_vremap_update_kernel (void);
 #endif /* _MM_VREMAP_H */

@@ -28,7 +28,7 @@
 void
 x86_sys_microkernel (struct x86_stack_frame *frame)
 {
-  printk ("Microkernel system call (called from userland address %p), function %d\n", frame->priv.eip, frame->regs.eax);
+  printk ("Microkernel system call (called from userland address %p), function %d - stack@%p\n", frame->priv.eip, frame->regs.eax, frame);
 
   printk ("Task about to be destroyed\n");
 

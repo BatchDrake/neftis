@@ -32,6 +32,7 @@ neftis_SOURCES=arch/x86/boot.S \
                loader.c        \
                main.c          \
                mutex.c         \
+	       object.c        \
                printk.c        \
                radix_tree.c    \
                sched.c         \
@@ -81,6 +82,7 @@ neftis_SOURCES=arch/x86/boot.S \
                include/misc/msgsink.h \
                include/misc/vkprintf.h \
                include/misc/list.h \
+	       include/misc/object.h \
                include/misc/radix_tree.h \
                include/misc/hook.h \
                include/arch.h \

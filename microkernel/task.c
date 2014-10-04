@@ -325,7 +325,7 @@ struct task *
 user_task_new_from_exec (const void *data, busword_t size)
 {
   struct task *task;
-  struct vm_region *stack, *kstack;
+  struct vm_region *stack;
   struct vm_space *space;
   loader_handle *handler;
   void (*entry) (void);
@@ -335,15 +335,6 @@ user_task_new_from_exec (const void *data, busword_t size)
     return NULL;
   
   PTR_RETURN_ON_PTR_FAILURE (space = vm_space_load_from_exec (data, size, (busword_t *) &entry));
-
-  if (PTR_UNLIKELY_TO_FAIL (kstack = vm_region_physmap (__task_get_kernel_stack_top (task), __task_get_kernel_stack_size (task), VREGION_ACCESS_READ | VREGION_ACCESS_WRITE)))
-  {
-    error ("couldn't allocate kernel stack!\n");
-
-    vm_space_destroy (space);
-
-    return KERNEL_INVALID_POINTER;
-  }
   
   /* Use space data to look for free space */
   if (PTR_UNLIKELY_TO_FAIL (stack = vm_region_stack (__task_get_user_stack_bottom (task), TASK_USR_STACK_PAGES)))
@@ -360,18 +351,6 @@ user_task_new_from_exec (const void *data, busword_t size)
     error ("couldn't add stack to new space (bottom = %p)\n", stack->vr_virt_end);
 
     vm_region_destroy (stack, NULL);
-
-    vm_space_destroy (space);
-
-    return KERNEL_INVALID_POINTER;
-  }
-
-  
-  if (UNLIKELY_TO_FAIL (vm_space_add_region (space, kstack)))
-  {
-    error ("couldn't add kernel stack to new space (bottom = %p)\n", kstack->vr_virt_end);
-
-    vm_region_destroy (kstack, NULL);
 
     vm_space_destroy (space);
 

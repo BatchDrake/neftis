@@ -448,9 +448,7 @@ struct vm_space *
 vm_bare_sysproc_space (void)
 {
   extern struct mm_region *mm_regions;
-  busword_t stack_bottom;
   struct vm_space  *new_space;
-  struct vm_region *stack;
   
   PTR_RETURN_ON_PTR_FAILURE (new_space = vm_space_new ());
 

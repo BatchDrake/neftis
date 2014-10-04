@@ -393,10 +393,12 @@ x86_isr_handler (struct x86_stack_frame *frame)
     else if (old_ctx == KERNEL_CONTEXT_INTERRUPT)
     {
       panic ("fatal: microkernel fault while handling fault\n");
+
+      x86_regdump (frame);
       
       kernel_halt ();
     }
-
+      
     switch (frame->int_no)
     {
     case KERNEL_SYSCALL_MICROKERNEL:

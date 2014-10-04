@@ -132,8 +132,11 @@ defsched_wake_up (struct task *task, int op, int reason)
   ASSERT (task != NULL);
 
   if (task->ts_state == op)
+  {
+    FAIL ("already in state %d\n", op);
     return 0;
-    
+  }
+  
   switch (op)
   {
     case TASK_STATE_RUNNING:
@@ -162,6 +165,7 @@ defsched_wake_up (struct task *task, int op, int reason)
         FAIL ("not in runqueue but running. how?\n");
     
     task->ts_state = op;
+      
     break;
     
   default:

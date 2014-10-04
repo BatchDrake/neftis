@@ -37,9 +37,11 @@ task_set_exception_handler (struct task *task, int exception, void (*handler) (s
 void
 task_trigger_exception (struct task *task, int exception, busword_t textaddr, busword_t data, int code)
 {
+  DECLARE_CRITICAL_SECTION (except);
+
   ASSERT (get_current_context () == KERNEL_CONTEXT_INTERRUPT);
   ASSERT (get_current_task () == task);
-
+  
   if (exception < 0 || exception >= EX_MAX)
     FAIL ("exception code unrecognized\n");
 
@@ -47,11 +49,15 @@ task_trigger_exception (struct task *task, int exception, busword_t textaddr, bu
   {
     /* Process shall be killed */
 
+    TASK_ATOMIC_ENTER (except);
+    
     (void) wake_up (task, TASK_STATE_EXITED, 0);
 
     task_destroy (task);
-    
+
     schedule ();
+    
+    TASK_ATOMIC_LEAVE (except);
   }
   else
     (task->ts_ex_handlers[exception]) (task, exception, textaddr, data, code);

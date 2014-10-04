@@ -28,15 +28,21 @@
 void
 x86_sys_microkernel (struct x86_stack_frame *frame)
 {
+  DECLARE_CRITICAL_SECTION (sys);
+  
   printk ("Microkernel system call (called from userland address %p), function %d - stack@%p\n", frame->priv.eip, frame->regs.eax, frame);
 
   printk ("Task about to be destroyed\n");
 
+  TASK_ATOMIC_ENTER (sys);
+  
   (void) wake_up (get_current_task (), TASK_STATE_EXITED, 0);
 
   task_destroy (get_current_task ());
   
   schedule ();
+
+  TASK_ATOMIC_LEAVE (sys);
 }
 
 void

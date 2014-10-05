@@ -21,6 +21,8 @@
 
 #include <mm/vm.h>
 #include <misc/list.h>
+#include <misc/object.h>
+
 #include <task/exception.h>
 
 #include <arch.h>
@@ -77,7 +79,7 @@ struct sched_buffer
 struct task
 {
   struct sched_buffer ts_sched_info;
-  struct vm_space    *ts_vm_space;
+  objref_t           *ts_vm_space;
   tid_t               ts_tid;
   int                 ts_state;
   int                 ts_type;
@@ -97,7 +99,7 @@ struct task
 INLINE struct vm_space *
 task_get_vm_space (struct task *task)
 {
-  return task->ts_vm_space;
+  return REFCAST (struct vm_space, task->ts_vm_space);
 }
 
 void switch_to (struct task *task);

@@ -355,7 +355,7 @@ kernel_vremap_release (busword_t virt, busword_t pages)
 void
 kernel_vremap_update_kernel (void)
 {
-  vm_update_region (current_kctx->kc_vm_space, vremap_kernel_region);
+  vm_update_region (OBJCAST (struct vm_space, current_kctx->kc_vm_space), vremap_kernel_region);
 }
 
 /* TODO: write unmap pages to use after stack pivot */

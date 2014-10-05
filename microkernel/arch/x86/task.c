@@ -166,7 +166,7 @@ __task_find_stack_bottom (struct task *task)
   if (task->ts_vm_space == NULL)
     return KERNEL_ERROR_VALUE;
 
-  curr = task->ts_vm_space->vs_regions;
+  curr = REFCAST (struct vm_space, task->ts_vm_space)->vs_regions;
 
   while (curr)
   {
@@ -209,16 +209,9 @@ __task_config_start (struct task *task, void (*start) ())
     FAIL ("Don't know how to build start frame for this type of task!\n");
 
   /* Return address goes where? */
-
+  
   frameptr->priv.eip = (physptr_t) start;
-
-  if (task->ts_vm_space != NULL)
-    frameptr->cr3 = (busword_t) task->ts_vm_space->vs_pagetable;
-  else
-  {
-    FAIL ("Building task of type %d (entry: %p) with no vm_space!\n",
-	  task->ts_type, start);
-  }
+  frameptr->cr3 = (busword_t) (REFCAST (struct vm_space, task->ts_vm_space)->vs_pagetable);
 }
 
 void

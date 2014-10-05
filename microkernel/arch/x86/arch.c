@@ -340,7 +340,7 @@ hw_vm_init (void)
 {
   DWORD cr0, cr3;
 
-  kernel_pagedir = (busword_t) current_kctx->kc_vm_space->vs_pagetable;
+  kernel_pagedir = (busword_t) (OBJCAST (struct vm_space, current_kctx->kc_vm_space)->vs_pagetable);
   
   SET_REGISTER ("%cr3", kernel_pagedir);
   

@@ -612,7 +612,7 @@ __kmem_cache_free (struct kmem_cache *cache, void *ptr)
   int block;
 
   ASSERT (ptr);
-  
+
   if (!MM_CACHE_IS_BIG (cache))
   {
     if (PAGE_START (ptr) == PAGE_START (cache))
@@ -623,7 +623,9 @@ __kmem_cache_free (struct kmem_cache *cache, void *ptr)
 
       ASSERT (cache->object_used > 0);
       ASSERT (ptr == cache->data + block * cache->object_size);
-      ASSERT (bitmap_get (cache->bitmap, block));
+
+      if (!bitmap_get (cache->bitmap, block))
+	FAIL ("double free in cache \"%s\" (%p)\n", cache->name, ptr);
 
       bitmap_unmark (cache->bitmap, block);
       

@@ -19,6 +19,8 @@
 #ifndef _KCTX_H
 #define _KCTX_H
 
+#include <misc/object.h>
+
 #include <mm/regions.h>
 #include <mm/salloc.h>
 #include <mm/vm.h>
@@ -44,7 +46,8 @@ struct kernel_context
 {
   int                kc_context;
   struct mm_regions *kc_numa_regions[MAX_NUMA_REGIONS];
-  struct vm_space   *kc_vm_space;
+  object_t          *kc_vm_space;
+
   struct task       *kc_current;
   struct sched      *kc_scheduler;
   void              *kc_intr_frame;

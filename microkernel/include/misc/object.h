@@ -20,9 +20,7 @@
 #define _MISC_OBJECT_H
 
 #include <types.h>
-
 #include <misc/list.h>
-#include <task/task.h>
 
 #define KERNEL_INVALID_HANDLE        0xffffffff
 #define KERNEL_OBJECT_INSTANCE_FIELD __instance
@@ -33,6 +31,7 @@
 
 struct kernel_object;
 struct kernel_object_list;
+struct task;
 
 /* Reference to a kernel object */
 struct kernel_object_ref
@@ -78,12 +77,16 @@ struct kernel_object
   void *ptr; /* Pointer to the actual object */
 };
 
-typedef struct kernel_class  class_t;
-typedef struct kernel_object object_t;
+typedef struct kernel_class      class_t;
+typedef struct kernel_object     object_t;
+typedef struct kernel_object_ref objref_t;
 
 void kernel_class_register (struct kernel_class *);
 struct kernel_class *kernel_class_lookup_by_name (const char *);
 struct kernel_object *kernel_object_create (struct kernel_class *, void *);
+struct kernel_object_ref *kernel_object_instance (struct kernel_class *, void *);
+struct kernel_object_ref *kernel_object_instance_task (struct kernel_class *, void *, struct task *);
+
 struct kernel_object_ref *kernel_object_open (struct kernel_object *);
 struct kernel_object_ref *kernel_object_open_task (struct kernel_object *, struct task *);
 struct kernel_object *kernel_object_dup (struct kernel_object *);
@@ -96,5 +99,6 @@ struct kernel_object_list *kernel_object_list_dup (struct kernel_object_list *, 
 
 void kernel_object_list_destroy (struct kernel_object_list *);
 
+void kernel_debug_all_classes (void);
 
 #endif /* _MISC_OBJECT_H */

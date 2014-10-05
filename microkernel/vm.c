@@ -26,6 +26,7 @@
 #include <mm/vremap.h>
 
 #include <misc/list.h>
+#include <misc/object.h>
 #include <task/loader.h>
 
 #include <arch.h>
@@ -43,7 +44,7 @@ vm_region_new (busword_t start, busword_t end, struct vm_region_ops *ops, void *
   new->vr_ops_data = data;
   new->vr_virt_start = start;
   new->vr_virt_end   = end;
-  
+
   return new;
 }
 
@@ -162,7 +163,7 @@ void
 vm_space_destroy (struct vm_space *space)
 {
   struct vm_region *region, *next;
-  
+
   region = space->vs_regions;
   
   while (region)
@@ -565,7 +566,7 @@ vm_space_debug (struct vm_space *space)
 int
 vm_handle_page_fault (struct task *task, busword_t addr, int access)
 {
-  struct vm_region *region = vm_space_find_region (task->ts_vm_space, addr);
+  struct vm_region *region = vm_space_find_region (REFCAST (struct vm_space, task->ts_vm_space), addr);
 
   if (region == KERNEL_INVALID_POINTER)
   {
@@ -601,16 +602,38 @@ vm_handle_page_fault (struct task *task, busword_t addr, int access)
   return 0;
 }
 
+/* vm kobjmgr callbacks */
+/* TODO: implement dup () */
+
+void
+kobjmgr_vm_space_dtor (void *data)
+{
+  vm_space_destroy ((struct vm_space *) data);
+}
+
+class_t vm_space_class =
+{
+  .name = "vm-space",
+  .dtor = kobjmgr_vm_space_dtor
+};
+  
 void
 vm_init (void)
-{ 
-  /* TODO: fix for SMP */
+{
+  struct vm_space *kernel_space;
+  
+  kernel_class_register (&vm_space_class);
   
   MANDATORY (SUCCESS_PTR (
-    current_kctx->kc_vm_space = vm_kernel_space ()
+    kernel_space = vm_kernel_space ()
     )
   );
 
+  MANDATORY (SUCCESS_PTR (
+    current_kctx->kc_vm_space = kernel_object_create (&vm_space_class, kernel_space)
+    )
+  );
+  
   hw_vm_init ();
 }
 

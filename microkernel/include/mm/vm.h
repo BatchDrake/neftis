@@ -21,6 +21,7 @@
 
 #include <types.h>
 #include <misc/list.h>
+#include <misc/object.h>
 #include <misc/radix_tree.h>
 #include <mm/regions.h>
 
@@ -98,6 +99,8 @@ struct vm_region
 {
   SORTED_LIST;
 
+  KERNEL_OBJECT;
+  
   int                   vr_type;
   int                   vr_role;
   struct vm_region_ops *vr_ops;

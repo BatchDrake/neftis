@@ -41,7 +41,6 @@ __salloc (size_t size, const char *pfx)
   memsize_t storage = MM_SLAB_DEFAULT_ALIGN;
   struct kmem_cache *cache;
   void *ptr;
-
   
   strncpy (name, pfx, MM_SLAB_NAME_MAX - 10);
   
@@ -64,7 +63,7 @@ __salloc (size_t size, const char *pfx)
 
     ptr = __kmem_cache_alloc (cache);
   }
-  
+
   return ptr;
 }
 

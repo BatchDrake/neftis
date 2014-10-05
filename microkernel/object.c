@@ -57,7 +57,8 @@ __kernel_object_open (struct kernel_object *object, struct task *who)
   CONSTRUCT_STRUCT (kernel_object_ref, ref);
 
   ref->owner = who;
-  
+  ref->object = object;
+
   ++object->count;
 
   if (object->class->open != NULL)
@@ -181,6 +182,58 @@ __kernel_object_destroy (struct kernel_object *object)
   sfree (object);
 }
 
+static struct kernel_object_ref *
+__kernel_object_instance (struct kernel_class *class, void *ptr, struct task *owner)
+{
+  struct kernel_object *object;
+  struct kernel_object_ref *ref;
+  
+  if ((object = __kernel_object_create (class, ptr)) == NULL)
+    return NULL;
+
+  if ((ref = __kernel_object_open (object, owner)) == NULL)
+  {
+    __kernel_object_destroy (object);
+
+    return NULL;
+  }
+
+  return ref;
+}
+
+struct kernel_object_ref *
+kernel_object_instance_task (struct kernel_class *class, void *ptr, struct task *owner)
+{
+  struct kernel_object_ref *ref;
+  
+  DECLARE_CRITICAL_SECTION (instance);
+
+  TASK_ATOMIC_ENTER (instance);
+  
+  ref = __kernel_object_instance (class, ptr, owner);
+
+  TASK_ATOMIC_LEAVE (instance);
+
+  return ref;
+}
+
+struct kernel_object_ref *
+kernel_object_instance (struct kernel_class *class, void *ptr)
+{
+  struct kernel_object_ref *ref;
+  
+  DECLARE_CRITICAL_SECTION (instance);
+
+  TASK_ATOMIC_ENTER (instance);
+  
+  ref = __kernel_object_instance (class, ptr, get_current_task ());
+
+  TASK_ATOMIC_LEAVE (instance);
+
+  return ref;
+}
+
+
 static void
 __kernel_object_ref_close (struct kernel_object_ref *ref)
 {
@@ -203,8 +256,6 @@ __kernel_object_ref_close (struct kernel_object_ref *ref)
       ASSERT (object->refs == ref);
       
       list_remove_element ((void **) &object->refs, ref);
-
-      __kernel_object_destroy (object);
     }
     else
       list_remove_element ((void **) &object->refs, ref);
@@ -218,7 +269,7 @@ __kernel_object_ref_close (struct kernel_object_ref *ref)
   
   /* Free object */
   if (object->count == 0)
-  sfree (object);
+    __kernel_object_destroy (object);
 }
 
 void
@@ -466,3 +517,68 @@ kernel_object_unregister (struct kernel_object *object)
   /* Remove system-wide handle for object */
   return -1;
 }
+
+void
+kernel_debug_object (struct kernel_object *object)
+{
+  printk ("  Object of type \"%s\"\n", object->class->name);
+  printk ("    Handle: %w\n", object->handle);
+  printk ("    References: %d\n", object->count);
+  printk ("    Private: %p\n\n", object->ptr);
+}
+
+void
+kernel_debug_class (struct kernel_class *class)
+{
+  struct kernel_object *this;
+
+  printk ("Class \"%s\" has %d instances\n", class->name, class->count);
+  
+  FOR_EACH (this, class->instances)
+    kernel_debug_object (this);
+
+  printk ("\n");
+}
+
+void
+kernel_debug_all_classes (void)
+{
+  struct kernel_class *this;
+
+  FOR_EACH (this, kernel_class_list)
+    kernel_debug_class (this);
+}
+
+DEBUG_FUNC (kernel_class_register);
+DEBUG_FUNC (kernel_class_lookup_by_name);
+DEBUG_FUNC (__kernel_object_open);
+DEBUG_FUNC (__kernel_object_create);
+DEBUG_FUNC (kernel_object_create);
+DEBUG_FUNC (kernel_object_open);
+DEBUG_FUNC (kernel_object_open_task);
+DEBUG_FUNC (__kernel_object_dup);
+DEBUG_FUNC (kernel_object_dup);
+DEBUG_FUNC (__kernel_object_destroy);
+DEBUG_FUNC (__kernel_object_instance);
+DEBUG_FUNC (kernel_object_instance_task);
+DEBUG_FUNC (kernel_object_instance);
+DEBUG_FUNC (__kernel_object_ref_close);
+DEBUG_FUNC (kernel_object_ref_close);
+DEBUG_FUNC (__kernel_object_list_element_new);
+DEBUG_FUNC (__kernel_object_list_element_destroy);
+DEBUG_FUNC (__kernel_object_list_destroy);
+DEBUG_FUNC (kernel_object_list_destroy);
+DEBUG_FUNC (__kernel_object_list_remove_ref);
+DEBUG_FUNC (kernel_object_list_remove_ref);
+DEBUG_FUNC (__kernel_object_list_add_ref);
+DEBUG_FUNC (kernel_object_list_add_ref);
+DEBUG_FUNC (__kernel_object_open_from_list);
+DEBUG_FUNC (__kernel_object_ref_close_from_list);
+DEBUG_FUNC (kernel_object_open_from_list);
+DEBUG_FUNC (kernel_object_open_from_list_task);
+DEBUG_FUNC (kernel_object_ref_close_from_list);
+DEBUG_FUNC (__kernel_object_list_dup);
+DEBUG_FUNC (kernel_object_list_dup);
+DEBUG_FUNC (kernel_object_register);
+DEBUG_FUNC (kernel_object_from_handle);
+DEBUG_FUNC (kernel_object_unregister);

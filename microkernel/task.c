@@ -291,8 +291,8 @@ idle_task (void)
 void
 task_destroy (struct task *task)
 {
-  if (task->ts_type != TASK_TYPE_KERNEL_THREAD)
-    vm_space_destroy (task->ts_vm_space);
+  if (task->ts_vm_space != NULL)
+    kernel_object_ref_close (task->ts_vm_space);
   
   __free_task (task);
 }
@@ -308,7 +308,11 @@ kernel_task_new (void (*entry) (void))
   task->ts_state = TASK_STATE_NEW;
   task->ts_type  = TASK_TYPE_KERNEL_THREAD;
   
-  task->ts_vm_space = current_kctx->kc_vm_space;
+  if ((task->ts_vm_space = kernel_object_open_task (current_kctx->kc_vm_space, task)) == NULL)
+  {
+    task_destroy (task);
+    return NULL;
+  }
 
   __task_config_start (task, entry);
 
@@ -320,6 +324,8 @@ kernel_task_new (void (*entry) (void))
 
   return task;
 }
+
+extern class_t vm_space_class;
 
 struct task *
 user_task_new_from_exec (const void *data, busword_t size)
@@ -335,13 +341,23 @@ user_task_new_from_exec (const void *data, busword_t size)
     return NULL;
   
   PTR_RETURN_ON_PTR_FAILURE (space = vm_space_load_from_exec (data, size, (busword_t *) &entry));
-  
+
+  if ((task->ts_vm_space = kernel_object_instance_task (&vm_space_class, space, task)) == NULL)
+  {
+    vm_space_destroy (space);
+
+    task_destroy (task);
+
+    return NULL;
+  }
+
+  /* From now on, we can forget about task->ts_vm_space */
   /* Use space data to look for free space */
   if (PTR_UNLIKELY_TO_FAIL (stack = vm_region_stack (__task_get_user_stack_bottom (task), TASK_USR_STACK_PAGES)))
   {
     error ("couldn't allocate userspace stack!\n");
 
-    vm_space_destroy (space);
+    task_destroy (task);
 
     return KERNEL_INVALID_POINTER;
   }
@@ -352,25 +368,21 @@ user_task_new_from_exec (const void *data, busword_t size)
 
     vm_region_destroy (stack, NULL);
 
-    vm_space_destroy (space);
-
+    task_destroy (task);
+    
     return KERNEL_INVALID_POINTER;
   }
-
-  /* I use CRITICAL_ENTER because I know there are no futher calls
-     to scheduler functions */
   
   task->ts_tid   = tid;
   task->ts_state = TASK_STATE_NEW;
   task->ts_type  = TASK_TYPE_USER_THREAD;
-  
-  task->ts_vm_space = space;
   
   __task_config_start (task, entry);
 
   if (register_task (task) == -1)
   {
     task_destroy (task);
+
     return NULL;
   }
 
@@ -402,7 +414,7 @@ init_kernel_threads (void)
   new->ts_state = TASK_STATE_SOFT_WAIT;
   new->ts_type  = TASK_TYPE_IDLE;
 
-  new->ts_vm_space = current_kctx->kc_vm_space;
+  MANDATORY (new->ts_vm_space = kernel_object_open_task (current_kctx->kc_vm_space, new));
   
   __task_config_start (new, idle_task);
 

@@ -17,60 +17,433 @@
  */
 
 #include <task/task.h>
+#include <misc/list.h>
+
 #include <misc/object.h>
 
+#include <mm/slab.h>
+#include <mm/salloc.h>
+
+#include <kctx.h>
+#include <util.h>
+
 struct kernel_class *kernel_class_list;
+
+void
+kernel_class_register (struct kernel_class *class)
+{
+  list_insert_head ((void **) &kernel_class_list, class);
+}
 
 struct kernel_class *
 kernel_class_lookup_by_name (const char *name)
 {
+  struct kernel_class *this;
+
+  FOR_EACH (this, kernel_class_list)
+    if (strcmp (this->name, name) == 0)
+      return this;
+	
   return NULL;
+}
+
+static struct kernel_object_ref *
+__kernel_object_open (struct kernel_object *object, struct task *who)
+{
+  struct kernel_object_ref *ref;
+  
+  ASSERT (who);
+
+  CONSTRUCT_STRUCT (kernel_object_ref, ref);
+
+  ref->owner = who;
+  
+  ++object->count;
+
+  if (object->class->open != NULL)
+    (object->class->open) (who, object->ptr);
+
+  list_insert_head ((void **) &object->refs, ref);
+  
+  return ref;
+}
+
+static struct kernel_object *
+__kernel_object_create (struct kernel_class *class, void *ptr)
+{
+  struct kernel_object *new;
+
+  CONSTRUCT_STRUCT (kernel_object, new);
+  
+  new->handle = KERNEL_INVALID_HANDLE;
+  new->class  = class;
+  new->count  = 0;
+  
+  new->ptr    = ptr;
+
+  list_insert_head ((void **) &class->instances, new);
+  ++class->count;
+  
+  return new;
 }
 
 struct kernel_object *
 kernel_object_create (struct kernel_class *class, void *ptr)
 {
-  /* Create new object, put it in class object list */
-  return NULL;
+  struct kernel_object *new;
+  
+  DECLARE_CRITICAL_SECTION (create);
+
+  TASK_ATOMIC_ENTER (create);
+
+  new = __kernel_object_create (class, ptr);
+
+  TASK_ATOMIC_LEAVE (create);
+
+  return new;
 }
 
-struct kernel_object *
+struct kernel_object_ref *
 kernel_object_open (struct kernel_object *object)
 {
-  /* Open existing object, increment instance count */
-  return NULL;
+  struct kernel_object_ref *ref;
+  
+  DECLARE_CRITICAL_SECTION (open);
+
+  TASK_ATOMIC_ENTER (open);
+
+  ref = __kernel_object_open (object, get_current_task ());
+
+  TASK_ATOMIC_LEAVE (open);
+
+  return ref;
+}
+
+struct kernel_object_ref *
+kernel_object_open_task (struct kernel_object *object, struct task *task)
+{
+  struct kernel_object_ref *ref;
+  
+  DECLARE_CRITICAL_SECTION (open);
+
+  TASK_ATOMIC_ENTER (open);
+
+  ref = __kernel_object_open (object, task);
+
+  TASK_ATOMIC_LEAVE (open);
+
+  return ref;
+}
+
+static struct kernel_object *
+__kernel_object_dup (struct kernel_object *object)
+{
+  void *copy;
+
+  if (object->class->dup == NULL)
+    return NULL;
+
+  if ((copy = (object->class->dup) (object->ptr)) == NULL)
+    return NULL;
+
+  return __kernel_object_create (object->class, copy);
 }
 
 struct kernel_object *
 kernel_object_dup (struct kernel_object *object)
 {
-  /* Duplicate existing object */
+  struct kernel_object *new;
+  
+  DECLARE_CRITICAL_SECTION (dup);
 
-  return NULL;
+  TASK_ATOMIC_ENTER (dup);
+
+  new = __kernel_object_dup (object);
+
+  TASK_ATOMIC_LEAVE (dup);
+
+  return new;
+}
+
+/* To be used internally */
+static void
+__kernel_object_destroy (struct kernel_object *object)
+{
+  ASSERT (object->class->count);
+  
+  list_remove_element ((void **) &object->class->instances, object);
+
+  --object->class->count;
+  
+  if (object->class->dtor != NULL)
+    (object->class->dtor) (object->ptr);
+
+  sfree (object);
+}
+
+static void
+__kernel_object_ref_close (struct kernel_object_ref *ref)
+{
+  struct kernel_object *object = ref->object;
+
+  ASSERT (object);
+  ASSERT (object->count >= 0);
+
+  if (object->count > 0)
+  {
+    ASSERT (ref);
+    ASSERT (object->refs);
+    
+    if (object->class->close != NULL)
+      (object->class->close) (ref->owner, object->ptr);
+    
+    if (--object->count == 0)
+    {
+      /* Ensure integrity */
+      ASSERT (object->refs == ref);
+      
+      list_remove_element ((void **) &object->refs, ref);
+
+      __kernel_object_destroy (object);
+    }
+    else
+      list_remove_element ((void **) &object->refs, ref);
+    
+    sfree (ref);
+  }
+
+  /* count == 0 => refs == NULL */
+  ASSERT (object->count == 0 || object->refs != NULL);
+  ASSERT (object->count != 0 || object->refs == NULL);
+  
+  /* Free object */
+  if (object->count == 0)
+  sfree (object);
 }
 
 void
-kernel_object_close (struct kernel_object *object)
+kernel_object_ref_close (struct kernel_object_ref *ref)
 {
-  /* Decrement instances and destruct object if instance count drops to zero */
+  DECLARE_CRITICAL_SECTION (close);
+
+  TASK_ATOMIC_ENTER (close);
+
+  __kernel_object_ref_close (ref);
+  
+  TASK_ATOMIC_LEAVE (close);
 }
 
-struct kernel_object_list *
-kernel_object_list_dup (struct kernel_object_list *task_handle_list, struct task *task)
+static struct kernel_object_list *
+__kernel_object_list_element_new (struct kernel_object_ref *ref)
 {
-  /* Duplicate per-task object list, increment instance count of each object, and create proper kernel_object_users */
+  struct kernel_object_list *new;
+
+  CONSTRUCT_STRUCT (kernel_object_list, new);
+
+  new->ref   = ref;
+  ref->element = new; /* Update backpointer */
+  
+  return new;
+}
+
+static void
+__kernel_object_list_element_destroy (struct kernel_object_list *element)
+{
+  /* Ref is automatically destroyed on close */
+  __kernel_object_ref_close (element->ref);
+  
+  sfree (element);
+}
+
+static void
+__kernel_object_list_destroy (struct kernel_object_list *head)
+{
+  struct kernel_object_list *copy, *this;
+  
+  this = head;
+  
+  while (this != NULL)
+  {
+    copy = LIST_NEXT (this);
+
+    __kernel_object_list_element_destroy (this);
+    
+    this = copy;
+  }
 }
 
 void
-kernel_object_list_destroy (struct kernel_object_list *task_handle_list)
+kernel_object_list_destroy (struct kernel_object_list *head)
 {
-  /* Destroy per-task object list */
+  DECLARE_CRITICAL_SECTION (destroy);
+
+  TASK_ATOMIC_ENTER (destroy);
+
+  __kernel_object_list_destroy (head);
+
+  TASK_ATOMIC_LEAVE (destroy);
+}
+
+static void
+__kernel_object_list_remove_ref (struct kernel_object_list **head, struct kernel_object_ref *ref)
+{
+  ASSERT (ref->element);
+  
+  list_remove_element ((void **) head, ref->element);
+}
+
+void
+kernel_object_list_remove_ref (struct kernel_object_list **head, struct kernel_object_ref *ref)
+{
+  DECLARE_CRITICAL_SECTION (remove);
+
+  TASK_ATOMIC_ENTER (remove);
+
+  __kernel_object_list_remove_ref (head, ref);
+  
+  TASK_ATOMIC_LEAVE (remove);
+}
+
+static int
+__kernel_object_list_add_ref (struct kernel_object_list **head, struct kernel_object_ref *ref)
+{
+  struct kernel_object_list *new;
+  
+  if ((new = __kernel_object_list_element_new (ref)) == NULL)
+    return -1;
+
+  list_insert_head ((void **) head, new);
+
+  return 0;
 }
 
 int
-task_register_kernel_object (struct task *task, struct kernel_object *object)
+kernel_object_list_add_ref (struct kernel_object_list **head, struct kernel_object_ref *ref)
 {
-  /* Register instance in task instance list (create kernel_object_list and link it) */
+  int ret;
+
+  DECLARE_CRITICAL_SECTION (add);
+
+  TASK_ATOMIC_ENTER (add);
+
+  ret = __kernel_object_list_add_ref (head, ref);
+  
+  TASK_ATOMIC_LEAVE (add);
+
+  return ret;
+}
+
+static struct kernel_object_ref *
+__kernel_object_open_from_list (struct kernel_object_list **head, struct kernel_object *object, struct task *task)
+{
+  struct kernel_object_ref *ref;
+
+  if ((ref = __kernel_object_open (object, task)) == NULL)
+    return NULL;
+
+  if (__kernel_object_list_add_ref (head, ref) == -1)
+  {
+    __kernel_object_ref_close (ref);
+
+    return NULL;
+  }
+
+  return ref;
+}
+
+void
+__kernel_object_ref_close_from_list (struct kernel_object_list **head, struct kernel_object_ref *ref)
+{
+  __kernel_object_list_remove_ref (head, ref);
+
+  __kernel_object_ref_close (ref);
+}
+
+struct kernel_object_ref *
+kernel_object_open_from_list (struct kernel_object_list **head, struct kernel_object *object)
+{
+  struct kernel_object_ref *ref;
+  
+  DECLARE_CRITICAL_SECTION (open);
+
+  TASK_ATOMIC_ENTER (open);
+
+  ref = __kernel_object_open_from_list (head, object, get_current_task ());
+  
+  TASK_ATOMIC_LEAVE (open);
+
+  return ref;
+}
+
+struct kernel_object_ref *
+kernel_object_open_from_list_task (struct kernel_object_list **head, struct kernel_object *object, struct task *task)
+{
+  struct kernel_object_ref *ref;
+  
+  DECLARE_CRITICAL_SECTION (open);
+
+  TASK_ATOMIC_ENTER (open);
+
+  ref = __kernel_object_open_from_list (head, object, task);
+  
+  TASK_ATOMIC_LEAVE (open);
+
+  return ref;
+}
+
+void
+kernel_object_ref_close_from_list (struct kernel_object_list **head, struct kernel_object_ref *ref)
+{
+  DECLARE_CRITICAL_SECTION (close);
+
+  TASK_ATOMIC_ENTER (close);
+
+  __kernel_object_ref_close_from_list (head, ref);
+  
+  TASK_ATOMIC_LEAVE (close);
+}
+
+static struct kernel_object_list *
+__kernel_object_list_dup (struct kernel_object_list *src_head, struct task *task)
+{
+  struct kernel_object_list *head = NULL, *this;
+  struct kernel_object *dup;
+  
+  FOR_EACH (this, src_head)
+  {
+    if ((dup = __kernel_object_dup (this->ref->object)) == NULL)
+      goto fail;
+
+    if (__kernel_object_open_from_list (&head, dup, task) == NULL)
+    {
+      __kernel_object_destroy (dup);
+
+      goto fail;
+    }
+  }
+
+  return head;
+  
+fail:
+  __kernel_object_list_destroy (head);
+  
+  return NULL;
+}
+
+struct kernel_object_list *
+kernel_object_list_dup (struct kernel_object_list *src_head, struct task *task)
+{
+  struct kernel_object_list *head;
+  
+  DECLARE_CRITICAL_SECTION (dup);
+
+  TASK_ATOMIC_ENTER (dup);
+
+  head = __kernel_object_list_dup (src_head, task);
+  
+  TASK_ATOMIC_LEAVE (dup);
+
+  return head;
 }
 
 uint32_t

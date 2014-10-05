@@ -32,7 +32,7 @@ list_is_head (void **list)
 {
   ASSERT (list != NULL);
   
-  if (list_is_empty)
+  if (list_is_empty (list))
     return 1;
     
   return LIST_HEAD (*list)->prev == NULL;

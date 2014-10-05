@@ -28,26 +28,28 @@
 #define KERNEL_OBJECT_INSTANCE_FIELD __instance
 #define KERNEL_OBJECT struct kernel_object *KERNEL_OBJECT_INSTANCE_FIELD
 #define OBJECT(ptr) ((ptr)->KERNEL_OBJECT_INSTANCE_FIELD)
+#define OBJCAST(type, obj) ((type *) (obj->ptr))
+#define REFCAST(type, ref) OBJCAST (type, ref->object)
 
 struct kernel_object;
+struct kernel_object_list;
 
+/* Reference to a kernel object */
+struct kernel_object_ref
+{
+  LINKED_LIST;
+
+  struct task *owner;
+  struct kernel_object *object;
+  struct kernel_object_list *element;
+};
+
+/* List element of kernel object reference */
 struct kernel_object_list
 {
   LINKED_LIST;
 
-  /* Each kernel_object_user must be created for each
-     registered kernel object in the current task */
-     
-  struct kernel_object_user *user;
-  
-  struct kernel_object *object;
-};
-
-struct kernel_object_user
-{
-  LINKED_LIST;
-
-  struct task *user;
+  struct kernel_object_ref *ref;
 };
 
 struct kernel_class
@@ -56,11 +58,12 @@ struct kernel_class
   
   char                 *name;      /* Descriptive name */
   struct kernel_object *instances; /* Instance list */
+  unsigned long         count;     /* Instance counter */
   
-  void * (*dup)   (void *);                /* Duplicate with no users */
+  void * (*dup)   (void *); /* Duplicate with no refs */
   void   (*open)  (struct task *, void *); /* Open instance */
   void   (*close) (struct task *, void *); /* Close instance */
-  void   (*dtor)  (void *);                /* Destroy */
+  void   (*dtor)  (void *); /* Destroy */
 };
 
 /* Add mutexes? */
@@ -69,7 +72,7 @@ struct kernel_object
   LINKED_LIST;
   uint32_t                   handle; /* System-wide handle */
   struct kernel_class       *class;  /* Object class */
-  struct kernel_object_user *users;  /* List of object users */
+  struct kernel_object_ref  *refs;   /* List of object refs */
   unsigned long              count;  /* Instance count */
   
   void *ptr; /* Pointer to the actual object */
@@ -77,5 +80,21 @@ struct kernel_object
 
 typedef struct kernel_class  class_t;
 typedef struct kernel_object object_t;
+
+void kernel_class_register (struct kernel_class *);
+struct kernel_class *kernel_class_lookup_by_name (const char *);
+struct kernel_object *kernel_object_create (struct kernel_class *, void *);
+struct kernel_object_ref *kernel_object_open (struct kernel_object *);
+struct kernel_object_ref *kernel_object_open_task (struct kernel_object *, struct task *);
+struct kernel_object *kernel_object_dup (struct kernel_object *);
+void kernel_object_ref_close (struct kernel_object_ref *);
+
+struct kernel_object_ref *kernel_object_open_from_list (struct kernel_object_list **, struct kernel_object *);
+struct kernel_object_ref *kernel_object_open_from_list_task (struct kernel_object_list **, struct kernel_object *, struct task *);
+void kernel_object_ref_close_from_list (struct kernel_object_list **, struct kernel_object_ref *);
+struct kernel_object_list *kernel_object_list_dup (struct kernel_object_list *, struct task *);
+
+void kernel_object_list_destroy (struct kernel_object_list *);
+
 
 #endif /* _MISC_OBJECT_H */

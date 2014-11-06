@@ -605,10 +605,16 @@ vm_handle_page_fault (struct task *task, busword_t addr, int access)
 /* vm kobjmgr callbacks */
 /* TODO: implement dup () */
 
-void
+static void
 kobjmgr_vm_space_dtor (void *data)
 {
   vm_space_destroy ((struct vm_space *) data);
+}
+
+static void
+kobjmgr_vm_region_dtor (void *data)
+{
+  vm_region_destroy ((struct vm_region *) data, get_current_task ());
 }
 
 class_t vm_space_class =
@@ -616,13 +622,20 @@ class_t vm_space_class =
   .name = "vm-space",
   .dtor = kobjmgr_vm_space_dtor
 };
-  
+
+class_t vm_region_class =
+{
+  .name = "vm-region",
+  .dtor = kobjmgr_vm_region_dtor
+};
+
 void
 vm_init (void)
 {
   struct vm_space *kernel_space;
   
   kernel_class_register (&vm_space_class);
+  kernel_class_register (&vm_region_class);
   
   MANDATORY (SUCCESS_PTR (
     kernel_space = vm_kernel_space ()

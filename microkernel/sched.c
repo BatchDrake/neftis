@@ -136,9 +136,10 @@ sched_restore (int state)
 int
 pause (void)
 {
-  SCHEDULER_CHECK ();
+  struct sched *sched;
   
-  (get_current_scheduler ())->sc_set_state (0);
+  if ((sched = get_current_scheduler ()) != NULL)
+    sched->sc_set_state (0);
 }
 
 int

@@ -107,12 +107,15 @@ __alloc_task (void)
   struct task_ctx_data *data;
   busword_t stack_vaddr;
 
-  if ((stack_vaddr = kernel_vremap_ensure (KERNEL_MODE_STACK_PAGES)) == -1)
-    return NULL;
-  
   if ((new_task = page_alloc (KERNEL_MODE_STACK_PAGES)) == NULL)
+    return NULL;
+
+  /* If this is the first task being created, create a kernel space */
+  preload_kernel_space (new_task);
+
+  if ((stack_vaddr = kernel_vremap_ensure (KERNEL_MODE_STACK_PAGES)) == -1)
   {
-    (void) kernel_vremap_release (stack_vaddr, KERNEL_MODE_STACK_PAGES);
+    page_free (new_task, KERNEL_MODE_STACK_PAGES);
     return NULL;
   }
 

@@ -118,5 +118,7 @@ struct task *user_task_new_from_exec (const void *, busword_t);
 
 void task_destroy (struct task *);
 
+void preload_kernel_space (struct task *);
+
 #endif /* _TASK_TASK_H */
 

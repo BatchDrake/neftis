@@ -65,23 +65,37 @@ struct vm_region_ops kmap_region_ops =
   .exec_fault  = kmap_pagefault
 };
 
+class_t vm_page_set_class;
+
 struct vm_region *
 vm_region_anonmap (busword_t virt, busword_t pages, DWORD perms)
 {
   struct vm_region *new;
   struct mm_region *region;
-  
+  struct vm_page_set *pageset;
+
   extern struct mm_region *mm_regions;
 
   DECLARE_CRITICAL_SECTION (alloc_anon);
   
   /* TODO: do this NUMA-friendly */
 
-  PTR_RETURN_ON_PTR_FAILURE (new = vm_region_new (virt, virt + (pages << __PAGE_BITS) - 1, &anonmap_region_ops, NULL));
+  PTR_RETURN_ON_PTR_FAILURE (pageset = vm_page_set_new ());
+  
+  if ((new = vm_region_new (virt, virt + (pages << __PAGE_BITS) - 1, &anonmap_region_ops, NULL)) == KERNEL_INVALID_POINTER)
+    return KERNEL_INVALID_POINTER;
 
   new->vr_access = perms;
   new->vr_type   = VREGION_TYPE_PAGEMAP;
+  
+  if ((new->vr_page_set = kernel_object_instance (&vm_page_set_class, pageset)) == NULL)
+  {
+    vm_page_set_destroy (pageset);
+    vm_region_destroy (new, NULL);
 
+    return KERNEL_INVALID_POINTER;
+  }
+  
   /* TODO: use mutexes, this can wait */
   CRITICAL_ENTER (alloc_anon);
   

@@ -174,26 +174,39 @@ vremap_data_destroy (struct vremap_data *data)
   sfree (data);
 }
 
+class_t vm_page_set_class;
+
 struct vm_region *
 vm_region_vremap_new (busword_t virt, busword_t pages, DWORD perms)
 {
   struct vm_region         *new;
   struct vremap_data       *data  = NULL;
+  struct vm_page_set       *pageset = NULL;
 
+  if ((pageset = vm_page_set_new ()) == NULL)
+    goto fail;
+  
   if ((data = vremap_data_new (virt, pages)) == NULL)
     goto fail;
 
   if ((new = vm_region_new (virt, virt + (pages << __PAGE_BITS) - 1, &vremap_region_ops, data)) == NULL)
     goto fail;
 
-  new->vr_type = VREGION_TYPE_PAGEMAP;
+  new->vr_type     = VREGION_TYPE_PAGEMAP;
+  new->vr_ops_data = data;
+  
+  if ((new->vr_page_set = kernel_object_instance (&vm_page_set_class, pageset)) == NULL)
+    goto fail;
   
   return new;
   
 fail:
   if (data != NULL)
     vremap_data_destroy (data);
-    
+
+  if (pageset != NULL)
+    vm_page_set_destroy (pageset);
+  
   return NULL;
 }
 

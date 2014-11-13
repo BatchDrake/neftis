@@ -93,6 +93,8 @@ test_kthreads (void)
     wake_up (tasks[i], TASK_STATE_RUNNING | WAKEUP_DELAYED, 0);
   }
 
+  kernel_debug_all_classes ();
+  
   schedule ();
 }
 

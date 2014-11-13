@@ -92,6 +92,25 @@ struct vm_region_ops
   int (*exec_fault)  (struct task *, struct vm_region *, busword_t);
 };
 
+/* This structure holds a radix tree of pages. The key is the offset from
+   the segment they should be mapped against.
+
+   VMO's are just regular vm_region whose vm_page_set can be modified
+   by a process.
+
+   NOTE: all page sets *MUST* be accessed from kobjmgr as we need
+   to keep track of all tasks with references to this page set
+   in order to update their pagetables upon page set update */
+
+struct vm_page_set
+{
+  KERNEL_OBJECT;
+
+  busword_t vp_pages; /* Count of allocated pages */
+  
+  struct radix_tree_node *vp_page_tree; /* Radix tree of pages */
+};
+
 /* I don't care too much about this. I don't expect a process to
    have thousands of regions, but if it ends up becoming like that,
    vm_region will be inside a tree in future versions */
@@ -115,9 +134,10 @@ struct vm_region
   {
     /* This is just an optimization: some maps are just remaps
        of existing physical regions to virtual regions */
-    busword_t vr_phys_start;
-  
-    struct radix_tree_node *vr_page_tree; /* Radix tree of pages */
+    busword_t  vr_phys_start;
+
+    /* This is the set of pages that are mapped in RAM */
+    objref_t  *vr_page_set;
   };
 };
 
@@ -152,6 +172,13 @@ struct vm_space *vm_bare_sysproc_space (void);
 struct vm_space *vm_space_load_from_exec (const void *, busword_t, busword_t *);
 
 void vm_space_debug (struct vm_space *);
+
+/* Page set operations */
+struct vm_page_set *vm_page_set_new (void);
+int  vm_page_set_put (struct vm_page_set *set, busword_t pageno, busword_t phys);
+int  vm_page_set_remove (struct vm_page_set *set, busword_t pageno);
+int  vm_page_set_translate (struct vm_page_set *set, busword_t pageno, busword_t *phys);
+void vm_page_set_destroy (struct vm_page_set *set);
 
 /* Misc operations */
 busword_t virt2phys (const struct vm_space *space, busword_t virt);

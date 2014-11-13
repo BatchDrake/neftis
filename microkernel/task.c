@@ -297,6 +297,36 @@ task_destroy (struct task *task)
   __free_task (task);
 }
 
+extern class_t vm_space_class;
+
+void
+preload_kernel_space (struct task *this_task)
+{
+  struct vm_space *kernel_space;
+  struct task *old_task;
+
+  if (current_kctx->kc_vm_space == NULL)
+  {
+    old_task = get_current_task ();
+
+    set_current_task (this_task);
+      
+    MANDATORY (SUCCESS_PTR (
+                 kernel_space = vm_kernel_space ()
+                 )
+      );
+
+    MANDATORY (SUCCESS_PTR (
+                 current_kctx->kc_vm_space = kernel_object_create (&vm_space_class, kernel_space)
+                 )
+      );
+
+    hw_vm_init ();
+    
+    set_current_task (old_task);
+  }
+}
+
 struct task *
 kernel_task_new (void (*entry) (void))
 {
@@ -307,7 +337,7 @@ kernel_task_new (void (*entry) (void))
 
   task->ts_state = TASK_STATE_NEW;
   task->ts_type  = TASK_TYPE_KERNEL_THREAD;
-  
+
   if ((task->ts_vm_space = kernel_object_open_task (current_kctx->kc_vm_space, task)) == NULL)
   {
     task_destroy (task);
@@ -325,22 +355,38 @@ kernel_task_new (void (*entry) (void))
   return task;
 }
 
-extern class_t vm_space_class;
-
 struct task *
 user_task_new_from_exec (const void *data, busword_t size)
 {
-  struct task *task;
+  struct task *task, *old_task;
   struct vm_region *stack;
   struct vm_space *space;
   loader_handle *handler;
+
+  DECLARE_CRITICAL_SECTION (vm_space_load);
+  
   void (*entry) (void);
   tid_t tid;
 
   if ((task = __alloc_task ()) == NULL)
     return NULL;
+
+  CRITICAL_ENTER (vm_space_load);
+
+  old_task = get_current_task ();
+
+  set_current_task (task);
   
-  PTR_RETURN_ON_PTR_FAILURE (space = vm_space_load_from_exec (data, size, (busword_t *) &entry));
+  if ((space = vm_space_load_from_exec (data, size, (busword_t *) &entry)) == KERNEL_INVALID_POINTER)
+  {
+    task_destroy (task);
+
+    set_current_task (old_task);
+    
+    CRITICAL_LEAVE (vm_space_load);
+
+    return KERNEL_INVALID_POINTER;
+  }
 
   if ((task->ts_vm_space = kernel_object_instance_task (&vm_space_class, space, task)) == NULL)
   {
@@ -348,6 +394,10 @@ user_task_new_from_exec (const void *data, busword_t size)
 
     task_destroy (task);
 
+    set_current_task (old_task);
+    
+    CRITICAL_LEAVE (vm_space_load);
+  
     return NULL;
   }
 
@@ -359,9 +409,17 @@ user_task_new_from_exec (const void *data, busword_t size)
 
     task_destroy (task);
 
+    set_current_task (old_task);
+    
+    CRITICAL_LEAVE (vm_space_load);
+  
     return KERNEL_INVALID_POINTER;
   }
 
+  set_current_task (old_task);
+  
+  CRITICAL_LEAVE (vm_space_load);
+  
   if (UNLIKELY_TO_FAIL (vm_space_add_region (space, stack)))
   {
     error ("couldn't add stack to new space (bottom = %p)\n", stack->vr_virt_end);
@@ -406,11 +464,13 @@ void
 init_kernel_threads (void)
 {
   struct task *new;
-
+  
   init_task_list_table ();
   
   MANDATORY (new = __alloc_task ());
-    
+
+  preload_kernel_space (new);
+  
   new->ts_state = TASK_STATE_SOFT_WAIT;
   new->ts_type  = TASK_TYPE_IDLE;
 
@@ -434,6 +494,7 @@ DEBUG_FUNC (switch_lock);
 DEBUG_FUNC (switch_to);
 DEBUG_FUNC (idle_task);
 DEBUG_FUNC (task_destroy);
+DEBUG_FUNC (preload_kernel_space);
 DEBUG_FUNC (kernel_task_new);
 DEBUG_FUNC (user_task_new_from_exec);
 DEBUG_FUNC (init_task_list_table);

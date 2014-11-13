@@ -32,7 +32,6 @@
 #include <arch.h>
 #include <kctx.h>
 
-
 struct vm_region *
 vm_region_new (busword_t start, busword_t end, struct vm_region_ops *ops, void *data)
 {
@@ -48,12 +47,6 @@ vm_region_new (busword_t start, busword_t end, struct vm_region_ops *ops, void *
   return new;
 }
 
-static void
-__vm_pagemap_page_free (radixkey_t key, void **slot, radixtag_t *tag)
-{
-  page_free (*slot, 1);
-}
-
 void
 vm_region_destroy (struct vm_region *region, struct task *task)
 {
@@ -63,8 +56,8 @@ vm_region_destroy (struct vm_region *region, struct task *task)
     if ((region->vr_ops->destroy) (task, region) == -1)
       return;
 
-  if (region->vr_type == VREGION_TYPE_PAGEMAP && region->vr_page_tree != NULL)
-    radix_tree_destroy (region->vr_page_tree, __vm_pagemap_page_free);
+  if (region->vr_type == VREGION_TYPE_PAGEMAP && region->vr_page_set != NULL)
+    kernel_object_ref_close (region->vr_page_set);
   
   sfree (region);
 }
@@ -72,17 +65,10 @@ vm_region_destroy (struct vm_region *region, struct task *task)
 int
 vm_region_unmap_page (struct vm_region *region, busword_t virt)
 {
-  radixtag_t *tag;
-
-  if (region->vr_type == VREGION_TYPE_RANGEMAP || region->vr_page_tree == NULL)
+  if (region->vr_type != VREGION_TYPE_RANGEMAP)
     return KERNEL_ERROR_VALUE;
 
-  if ((tag = radix_tree_lookup_tag (region->vr_page_tree, virt)) == NULL)
-    return KERNEL_ERROR_VALUE;
-
-  *tag &= ~VM_PAGE_PRESENT;
-
-  return 0;
+  return vm_page_set_remove (REFCAST (struct vm_page_set, region->vr_page_set), virt - region->vr_virt_start);
 }
 
 int
@@ -93,14 +79,7 @@ vm_region_map_page (struct vm_region *region, busword_t virt, busword_t phys, DW
   if (region->vr_type == VREGION_TYPE_RANGEMAP)
     return KERNEL_ERROR_VALUE;
 
-  /* TODO: define radix_tree_set_with_flags */
-  if (radix_tree_set (&region->vr_page_tree, virt, (void *) phys) == KERNEL_ERROR_VALUE)
-    return KERNEL_ERROR_VALUE;
-
-  if (radix_tree_set_tag (region->vr_page_tree, virt, flags | VM_PAGE_PRESENT) == -1)
-    FAIL ("Cannot set tag on existing mapped page?\n");
-  
-  return KERNEL_SUCCESS_VALUE;
+  return vm_page_set_put (REFCAST (struct vm_page_set, region->vr_page_set), virt - region->vr_virt_start, phys);
 }
 
 int
@@ -118,39 +97,22 @@ vm_region_map_pages (struct vm_region *region, busword_t virt, busword_t phys, D
 busword_t
 vm_region_translate_page (struct vm_region *region, busword_t virt, DWORD *flags)
 {
-  void **addr;
-  radixtag_t *tag;
-
+  busword_t addr;
+  
   if (region->vr_type == VREGION_TYPE_RANGEMAP)
   {
     if (virt < region->vr_virt_start || virt > region->vr_virt_end)
       return (busword_t) KERNEL_ERROR_VALUE;
 
-    return virt - region->vr_virt_start + region->vr_phys_start;
+    addr = virt - region->vr_virt_start + region->vr_phys_start;
   }
   else
   {
-    /* There are no mapped pages (it may happen!) */
-    if (region->vr_page_tree == NULL)
-      return KERNEL_ERROR_VALUE;
-    
-    /* Really, this sucks */
-    if ((addr = radix_tree_lookup_slot (region->vr_page_tree, virt)) == NULL)
+    if (vm_page_set_translate (REFCAST (struct vm_page_set, region->vr_page_set), virt - region->vr_virt_start, &addr) == KERNEL_ERROR_VALUE)
       return (busword_t) KERNEL_ERROR_VALUE;
-
-    if ((tag = radix_tree_lookup_tag (region->vr_page_tree, virt)) == NULL)
-      return (busword_t) KERNEL_ERROR_VALUE;
-
-    /* This page doesn't exist */
-    if (!(*tag & VM_PAGE_PRESENT))
-      return (busword_t) KERNEL_ERROR_VALUE;
-    
-    if (flags != NULL)
-      *flags = *tag;
-
   }
   
-  return (busword_t) *addr;
+  return addr;
 }
 
 struct vm_space *
@@ -222,8 +184,8 @@ __invalidate_pages (radixkey_t virt, void **phys, radixtag_t *perms, void *data)
 void
 vm_region_invalidate (struct vm_region *region)
 {
-  if (region->vr_page_tree != NULL)
-    radix_tree_walk (region->vr_page_tree, __invalidate_pages, NULL);
+  if (region->vr_type == VREGION_TYPE_PAGEMAP)
+    (void) vm_page_set_walk (REFCAST (struct vm_page_set, region->vr_page_set), __invalidate_pages, NULL);
 }
 
 int
@@ -337,24 +299,33 @@ copy2virt (const struct vm_space *space, busword_t virt, const void *orig, buswo
   return size;
 }
 
+struct vm_space_region
+{
+  struct vm_space *space;
+  struct vm_region *region;
+};
+
 static int
 __map_pages (radixkey_t virt, void **phys, radixtag_t *perms, void *data)
 {
-  struct vm_space *space = data;
+  struct vm_space_region *spaceregion = data;
+  radixtag_t actual_perms = (spaceregion->region->vr_access & ~VM_PAGE_PRESENT) | (*perms & VM_PAGE_PRESENT);
 
-  return __vm_map_to (space->vs_pagetable, (busword_t) virt, (busword_t) *phys, 1, *perms);
+  return __vm_map_to (spaceregion->space->vs_pagetable, (busword_t) virt + spaceregion->region->vr_virt_start, (busword_t) *phys, 1, actual_perms);
 }
 
 int
 vm_update_region (struct vm_space *space, struct vm_region *region)
 {
+  struct vm_space_region sr = {space, region};
+  
   if (space->vs_pagetable == NULL)
     space->vs_pagetable = __vm_alloc_page_table ();
 
   if (region->vr_type == VREGION_TYPE_RANGEMAP)
     return __vm_map_to (space->vs_pagetable, region->vr_virt_start, region->vr_phys_start, __UNITS (region->vr_virt_end - region->vr_virt_start + 1, PAGE_SIZE), region->vr_access);
-  else if (region->vr_page_tree != NULL)
-    return radix_tree_walk (region->vr_page_tree, __map_pages, space);
+  else
+    return vm_page_set_walk (REFCAST (struct vm_page_set, region->vr_page_set), __map_pages, &sr);
 
   return 0;
 }
@@ -392,7 +363,7 @@ vm_kernel_space (void)
   PTR_RETURN_ON_PTR_FAILURE (new_space = vm_space_new ());
 
   this = mm_regions;
-  
+
   while (this != NULL)
   { 
     if (PTR_UNLIKELY_TO_FAIL (new_region = vm_region_physmap ((busword_t) this->mr_start, __UNITS ((busword_t) this->mr_end - (busword_t) this->mr_start + 1, PAGE_SIZE), VREGION_ACCESS_READ | VREGION_ACCESS_WRITE)))
@@ -602,6 +573,101 @@ vm_handle_page_fault (struct task *task, busword_t addr, int access)
   return 0;
 }
 
+/* Page set functions */
+
+struct vm_page_set *
+vm_page_set_new (void)
+{
+  CONSTRUCTOR_BODY_OF_STRUCT (vm_page_set);
+}
+
+static void
+__vm_page_set_page_free (radixkey_t key, void **slot, radixtag_t *tag)
+{
+  page_free (*slot, 1);
+}
+
+/* Be careful: this operations should lock!! */
+int
+vm_page_set_put (struct vm_page_set *set, busword_t pageno, busword_t phys)
+{
+  pageno &= ~PAGE_MASK;
+  
+  if (radix_tree_set (&set->vp_page_tree, pageno, (void *) phys) == KERNEL_ERROR_VALUE)
+    return KERNEL_ERROR_VALUE;
+
+  if (radix_tree_set_tag (set->vp_page_tree, pageno, VM_PAGE_PRESENT) == -1)
+    FAIL ("Cannot set tag on existing mapped page?\n");
+
+  ++set->vp_pages;
+  
+  return KERNEL_SUCCESS_VALUE;
+}
+
+int
+vm_page_set_translate (struct vm_page_set *set, busword_t pageno, busword_t *phys)
+{
+  void **addr;
+  radixtag_t *tag;
+  
+  pageno &= ~PAGE_MASK;
+
+  /* There are no mapped pages (it may happen!) */
+  if (set->vp_page_tree == NULL)
+    return KERNEL_ERROR_VALUE;
+    
+  /* Really, this sucks */
+  if ((addr = radix_tree_lookup_slot (set->vp_page_tree, pageno)) == NULL)
+    return KERNEL_ERROR_VALUE;
+
+  if ((tag = radix_tree_lookup_tag (set->vp_page_tree, pageno)) == NULL)
+    return KERNEL_ERROR_VALUE;
+
+  /* This page doesn't exist */
+  if (!(*tag & VM_PAGE_PRESENT))
+    return KERNEL_ERROR_VALUE;
+    
+  *phys = (busword_t) *addr;
+
+  return KERNEL_SUCCESS_VALUE;
+}
+
+int
+vm_page_set_walk (struct vm_page_set *set, int (*callback) (radixkey_t virt, void **phys, radixtag_t *perms, void *data), void *data)
+{
+  if (set->vp_page_tree != NULL)
+    return radix_tree_walk (set->vp_page_tree, callback, data);
+}
+
+int
+vm_page_set_remove (struct vm_page_set *set, busword_t pageno)
+{
+  radixtag_t *tag;
+
+  pageno &= ~PAGE_MASK;
+  
+  if ((tag = radix_tree_lookup_tag (set->vp_page_tree, pageno)) == NULL)
+    return KERNEL_ERROR_VALUE;
+
+  if (*tag & VM_PAGE_PRESENT)
+  {
+    *tag &= ~VM_PAGE_PRESENT;
+
+    --set->vp_pages;
+  }
+  
+  return 0;
+}
+
+void
+vm_page_set_destroy (struct vm_page_set *set)
+{
+  if (set->vp_page_tree != NULL)
+    radix_tree_destroy (set->vp_page_tree, __vm_page_set_page_free);
+
+  sfree (set);
+}
+
 /* vm kobjmgr callbacks */
 /* TODO: implement dup () */
 
@@ -612,9 +678,9 @@ kobjmgr_vm_space_dtor (void *data)
 }
 
 static void
-kobjmgr_vm_region_dtor (void *data)
+kobjmgr_vm_page_set_dtor (void *data)
 {
-  vm_region_destroy ((struct vm_region *) data, get_current_task ());
+  vm_page_set_destroy ((struct vm_page_set *) data);
 }
 
 class_t vm_space_class =
@@ -623,31 +689,17 @@ class_t vm_space_class =
   .dtor = kobjmgr_vm_space_dtor
 };
 
-class_t vm_region_class =
+class_t vm_page_set_class =
 {
-  .name = "vm-region",
-  .dtor = kobjmgr_vm_region_dtor
+  .name = "vm-page-set",
+  .dtor = kobjmgr_vm_page_set_dtor
 };
 
 void
 vm_init (void)
 {
-  struct vm_space *kernel_space;
-  
   kernel_class_register (&vm_space_class);
-  kernel_class_register (&vm_region_class);
-  
-  MANDATORY (SUCCESS_PTR (
-    kernel_space = vm_kernel_space ()
-    )
-  );
-
-  MANDATORY (SUCCESS_PTR (
-    current_kctx->kc_vm_space = kernel_object_create (&vm_space_class, kernel_space)
-    )
-  );
-  
-  hw_vm_init ();
+  kernel_class_register (&vm_page_set_class);
 }
 
 int
@@ -689,15 +741,15 @@ fail:
   return KERNEL_ERROR_VALUE;
 }
 
-DEBUG_FUNC (__alloc_colored);
 DEBUG_FUNC (vm_region_new);
-DEBUG_FUNC (__vm_pagemap_page_free);
 DEBUG_FUNC (vm_region_destroy);
 DEBUG_FUNC (vm_region_unmap_page);
 DEBUG_FUNC (vm_region_map_page);
+DEBUG_FUNC (vm_region_map_pages);
 DEBUG_FUNC (vm_region_translate_page);
 DEBUG_FUNC (vm_space_new);
 DEBUG_FUNC (vm_space_destroy);
+DEBUG_FUNC (vm_space_find_first_in_range);
 DEBUG_FUNC (vm_test_range);
 DEBUG_FUNC (__invalidate_pages);
 DEBUG_FUNC (vm_region_invalidate);
@@ -715,5 +767,14 @@ DEBUG_FUNC (__load_segment_cb);
 DEBUG_FUNC (vm_space_load_from_exec);
 DEBUG_FUNC (vm_space_debug);
 DEBUG_FUNC (vm_handle_page_fault);
+DEBUG_FUNC (vm_page_set_new);
+DEBUG_FUNC (__vm_page_set_page_free);
+DEBUG_FUNC (vm_page_set_put);
+DEBUG_FUNC (vm_page_set_translate);
+DEBUG_FUNC (vm_page_set_walk);
+DEBUG_FUNC (vm_page_set_remove);
+DEBUG_FUNC (vm_page_set_destroy);
+DEBUG_FUNC (kobjmgr_vm_space_dtor);
+DEBUG_FUNC (kobjmgr_vm_page_set_dtor);
 DEBUG_FUNC (vm_init);
-
+DEBUG_FUNC (__alloc_colored);

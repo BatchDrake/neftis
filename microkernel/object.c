@@ -51,8 +51,6 @@ static struct kernel_object_ref *
 __kernel_object_open (struct kernel_object *object, struct task *who)
 {
   struct kernel_object_ref *ref;
-  
-  ASSERT (who);
 
   CONSTRUCT_STRUCT (kernel_object_ref, ref);
 

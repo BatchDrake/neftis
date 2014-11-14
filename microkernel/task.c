@@ -302,29 +302,7 @@ extern class_t vm_space_class;
 void
 preload_kernel_space (struct task *this_task)
 {
-  struct vm_space *kernel_space;
-  struct task *old_task;
 
-  if (current_kctx->kc_vm_space == NULL)
-  {
-    old_task = get_current_task ();
-
-    set_current_task (this_task);
-      
-    MANDATORY (SUCCESS_PTR (
-                 kernel_space = vm_kernel_space ()
-                 )
-      );
-
-    MANDATORY (SUCCESS_PTR (
-                 current_kctx->kc_vm_space = kernel_object_create (&vm_space_class, kernel_space)
-                 )
-      );
-
-    hw_vm_init ();
-    
-    set_current_task (old_task);
-  }
 }
 
 struct task *
@@ -363,27 +341,15 @@ user_task_new_from_exec (const void *data, busword_t size)
   struct vm_space *space;
   loader_handle *handler;
 
-  DECLARE_CRITICAL_SECTION (vm_space_load);
-  
   void (*entry) (void);
   tid_t tid;
 
   if ((task = __alloc_task ()) == NULL)
     return NULL;
 
-  CRITICAL_ENTER (vm_space_load);
-
-  old_task = get_current_task ();
-
-  set_current_task (task);
-  
   if ((space = vm_space_load_from_exec (data, size, (busword_t *) &entry)) == KERNEL_INVALID_POINTER)
   {
     task_destroy (task);
-
-    set_current_task (old_task);
-    
-    CRITICAL_LEAVE (vm_space_load);
 
     return KERNEL_INVALID_POINTER;
   }
@@ -394,10 +360,6 @@ user_task_new_from_exec (const void *data, busword_t size)
 
     task_destroy (task);
 
-    set_current_task (old_task);
-    
-    CRITICAL_LEAVE (vm_space_load);
-  
     return NULL;
   }
 
@@ -409,17 +371,9 @@ user_task_new_from_exec (const void *data, busword_t size)
 
     task_destroy (task);
 
-    set_current_task (old_task);
-    
-    CRITICAL_LEAVE (vm_space_load);
-  
     return KERNEL_INVALID_POINTER;
   }
 
-  set_current_task (old_task);
-  
-  CRITICAL_LEAVE (vm_space_load);
-  
   if (UNLIKELY_TO_FAIL (vm_space_add_region (space, stack)))
   {
     error ("couldn't add stack to new space (bottom = %p)\n", stack->vr_virt_end);

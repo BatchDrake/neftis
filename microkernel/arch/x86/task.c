@@ -110,12 +110,10 @@ __alloc_task (void)
   if ((new_task = page_alloc (KERNEL_MODE_STACK_PAGES)) == NULL)
     return NULL;
 
-  /* If this is the first task being created, create a kernel space */
-  preload_kernel_space (new_task);
-
   if ((stack_vaddr = kernel_vremap_ensure (KERNEL_MODE_STACK_PAGES)) == -1)
   {
     page_free (new_task, KERNEL_MODE_STACK_PAGES);
+    
     return NULL;
   }
 
@@ -124,6 +122,7 @@ __alloc_task (void)
     page_free (new_task, KERNEL_MODE_STACK_PAGES);
     
     (void) kernel_vremap_release (stack_vaddr, KERNEL_MODE_STACK_PAGES);
+    
     return NULL;
   }
 

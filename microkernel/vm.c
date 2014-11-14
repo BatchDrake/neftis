@@ -574,7 +574,6 @@ vm_handle_page_fault (struct task *task, busword_t addr, int access)
 }
 
 /* Page set functions */
-
 struct vm_page_set *
 vm_page_set_new (void)
 {
@@ -698,8 +697,23 @@ class_t vm_page_set_class =
 void
 vm_init (void)
 {
+  struct vm_space *kernel_space;
+  struct task *old_task;
+
   kernel_class_register (&vm_space_class);
   kernel_class_register (&vm_page_set_class);
+  
+  MANDATORY (SUCCESS_PTR (
+               kernel_space = vm_kernel_space ()
+               )
+    );
+
+  MANDATORY (SUCCESS_PTR (
+               current_kctx->kc_vm_space = kernel_object_create (&vm_space_class, kernel_space)
+               )
+    );
+
+  hw_vm_init ();
 }
 
 int

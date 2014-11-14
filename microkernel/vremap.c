@@ -194,8 +194,9 @@ vm_region_vremap_new (busword_t virt, busword_t pages, DWORD perms)
 
   new->vr_type     = VREGION_TYPE_PAGEMAP;
   new->vr_ops_data = data;
-  
-  if ((new->vr_page_set = kernel_object_instance (&vm_page_set_class, pageset)) == NULL)
+
+  /* Non-shared page sets are owned by kernel */
+  if ((new->vr_page_set = kernel_object_instance_task (&vm_page_set_class, pageset, NULL)) == NULL)
     goto fail;
   
   return new;

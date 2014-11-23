@@ -113,3 +113,62 @@ kernel_option_enabled (const char *param, int def)
   else
     return def;
 }
+
+int
+isprint (int c)
+{
+  return c >= ' ' && c < 128;
+}
+
+void
+hexdump (const void *data, uint32_t size)
+{
+  const uint8_t *bytes = (const uint8_t *) data;
+
+  int i, j;
+
+  for (i = 0; i < size; ++i)
+  {
+    if ((i & 0xf) == 0)
+      printk ("%w  ", i + bytes);
+
+    printk ("%s%b ", (i & 0xf) == 8 ? " " : "", bytes[i]);
+
+    if ((i & 0xf) == 0xf)
+    {
+      printk (" |");
+
+      printk (" ");
+
+      for (j = i - 15; j <= i; ++j)
+        printk ("%c", isprint (bytes[j]) ? bytes[j] : '.');
+
+      printk ("\n");
+    }
+  }
+
+  if ((i & 0xf) != 0)
+  {
+    for (j = i; j < __ALIGN (size, 16); ++j)
+      printk ("   %s", (j & 0xf) == 8 ? " " : "");
+
+    printk (" |");
+
+    printk (" ");
+
+    for (j = i & ~0xf; j < size; ++j)
+      printk ("%c", isprint (bytes[j]) ? bytes[j] : '.');
+
+    printk ("\n");
+  }
+
+  printk ("%w  \n", i + bytes);
+}
+
+DEBUG_FUNC (panic);
+DEBUG_FUNC (kernel_halt);
+DEBUG_FUNC (kernel_pause);
+DEBUG_FUNC (kernel_get_param);
+DEBUG_FUNC (kernel_option_enabled);
+DEBUG_FUNC (isprint);
+DEBUG_FUNC (hexdump);

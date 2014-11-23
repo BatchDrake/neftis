@@ -100,6 +100,8 @@ void vprintk (const char *, va_list);
 void kernel_halt (void);
 void kernel_pause (void);
 
+void hexdump (const void *data, uint32_t size);
+
 const char *kernel_command_line (void);
 int kernel_get_param (const char *, char *, size_t);
 int kernel_option_enabled (const char *, int);

@@ -24,12 +24,23 @@
 
 #define KERNEL_MODE_STACK_PAGES 4
 
+/* WARNING WARNING WARNING
+
+   This structure is used by __task_switch_from_current_asm
+   directly from assembly (this means, it only knows about
+   offsets). Dont change the order of the following fields,
+   as the assembly routines depending on this structure will
+   fail.
+
+   If more fields are required, append them to the end instead
+*/
+   
 struct task_ctx_stack_info
 {
   DWORD stack_bottom;
+  DWORD esp; /* This must be the SECOND field. Mandatory */
   DWORD stack_bottom_virtual;
   DWORD stack_vaddr;
-  DWORD esp;
 };
 
 struct task_ctx_data

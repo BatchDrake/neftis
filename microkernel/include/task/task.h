@@ -75,10 +75,13 @@ struct sched_buffer
   
   void *sb_misc_data[SCHED_BUFFER_PTRS];
 };
- 
+
+struct msgq;
+
 struct task
 {
   struct sched_buffer ts_sched_info;
+  struct msgq        *ts_msgq;
   objref_t           *ts_vm_space;
   tid_t               ts_tid;
   int                 ts_state;

@@ -398,7 +398,7 @@ x86_isr_handler (struct x86_stack_frame *frame)
       
       kernel_halt ();
     }
-      
+
     switch (frame->int_no)
     {
     case KERNEL_SYSCALL_MICROKERNEL:

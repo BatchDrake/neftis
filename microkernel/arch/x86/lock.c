@@ -17,6 +17,7 @@
  */
  
 #include <lock/lock.h>
+#include <asm/regs.h>
 
 /* Proberen */
 void spin_lock (spin_t *lock);
@@ -60,6 +61,12 @@ spin_unlock (spin_t *lock)
   #endif
 }
 
+int
+critical_is_inside (busword_t flags)
+{
+  return flags & EFLAGS_INTERRUPT;
+}
+
 /* This must be a per-CPU variable. */
 void
 critical_enter (spin_t *lock, busword_t *flags)
@@ -90,6 +97,19 @@ critical_leave (spin_t *lock, busword_t flags)
   /* Restore processor state */
   __asm__ __volatile__ ("pushl %0\n"
                         "popf" :: "g" (flags));
+
+#endif  
+}
+
+void
+critical_abort (void)
+{
+#if NR_MAXCPUS > 1
+#error Multi-CPU configuration not supported (yet)
+#else
+
+  /* Restore processor state */
+  __asm__ __volatile__ ("sti");
 
 #endif  
 }

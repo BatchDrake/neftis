@@ -47,7 +47,7 @@ kernel_class_lookup_by_name (const char *name)
   return NULL;
 }
 
-static struct kernel_object_ref *
+struct kernel_object_ref *
 __kernel_object_open (struct kernel_object *object, struct task *who)
 {
   struct kernel_object_ref *ref;
@@ -67,7 +67,7 @@ __kernel_object_open (struct kernel_object *object, struct task *who)
   return ref;
 }
 
-static struct kernel_object *
+struct kernel_object *
 __kernel_object_create (struct kernel_class *class, void *ptr)
 {
   struct kernel_object *new;
@@ -134,7 +134,7 @@ kernel_object_open_task (struct kernel_object *object, struct task *task)
   return ref;
 }
 
-static struct kernel_object *
+struct kernel_object *
 __kernel_object_dup (struct kernel_object *object)
 {
   void *copy;
@@ -180,7 +180,7 @@ __kernel_object_destroy (struct kernel_object *object)
   sfree (object);
 }
 
-static struct kernel_object_ref *
+struct kernel_object_ref *
 __kernel_object_instance (struct kernel_class *class, void *ptr, struct task *owner)
 {
   struct kernel_object *object;
@@ -232,7 +232,7 @@ kernel_object_instance (struct kernel_class *class, void *ptr)
 }
 
 
-static void
+void
 __kernel_object_ref_close (struct kernel_object_ref *ref)
 {
   struct kernel_object *object = ref->object;

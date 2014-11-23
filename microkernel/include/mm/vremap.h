@@ -19,8 +19,7 @@
 #ifndef _MM_VREMAP_H
 #define _MM_VREMAP_H
 
-#define KERNEL_VREMAP_AREA_START 0xe0000000
-#define KERNEL_VREMAP_AREA_SIZE  0x10000
+#include <asm/layout.h>
 
 /* Sorted in size */
 struct vremap_free_chunk
@@ -52,4 +51,6 @@ void vremap_data_debug (struct vremap_data *);
 int vm_kernel_space_init_vremap (struct vm_space *);
 int kernel_vremap_map_pages (busword_t, busword_t, busword_t, DWORD);
 void kernel_vremap_update_kernel (void);
+int vm_region_is_vremap (struct vm_region *);
+
 #endif /* _MM_VREMAP_H */

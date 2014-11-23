@@ -28,6 +28,7 @@
 #define OBJECT(ptr) ((ptr)->KERNEL_OBJECT_INSTANCE_FIELD)
 #define OBJCAST(type, obj) ((type *) (obj->ptr))
 #define REFCAST(type, ref) OBJCAST (type, ref->object)
+#define REFOBJ(ref) (ref)->object
 
 struct kernel_object;
 struct kernel_object_list;
@@ -80,6 +81,13 @@ struct kernel_object
 typedef struct kernel_class      class_t;
 typedef struct kernel_object     object_t;
 typedef struct kernel_object_ref objref_t;
+
+/* Low level operations (non locked) */
+struct kernel_object *__kernel_object_create (struct kernel_class *, void *);
+struct kernel_object_ref *__kernel_object_open (struct kernel_object *, struct task *);
+struct kernel_object *__kernel_object_dup (struct kernel_object *);
+struct kernel_object_ref *__kernel_object_instance (struct kernel_class *, void *, struct task *);
+void __kernel_object_ref_close (struct kernel_object_ref *);
 
 void kernel_class_register (struct kernel_class *);
 struct kernel_class *kernel_class_lookup_by_name (const char *);

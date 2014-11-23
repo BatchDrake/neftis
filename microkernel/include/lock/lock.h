@@ -29,7 +29,9 @@
 
 #define CRITICAL_ENTER(name) critical_enter (&name.lock, &name.flags)
 #define CRITICAL_LEAVE(name) critical_leave (&name.lock, name.flags)
+#define CRITICAL_IS_INSIDE(name) critical_is_inside (name.flags)
 
+#define CRITICAL_ABORT() critical_abort ()
 /*
  * To make this "task atomic", we first save the scheduler state.
  * Now, some interrupts may happen, but it's ok if they change
@@ -72,6 +74,14 @@
   }                                     \
   while (0)
 
+#define TASK_ATOMIC_ABORT()             \
+  do                                    \
+  {                                     \
+    CRITICAL_ABORT ();                  \
+    resume ();                          \
+  }                                     \
+  while (0)
+
 
 typedef volatile int spin_t;
 
@@ -88,6 +98,8 @@ void spin_unlock (spin_t *lock);
 
 void critical_enter (spin_t *, busword_t *);
 void critical_leave (spin_t *, busword_t);
+void critical_abort (void);
+int  critical_is_inside (busword_t);
 
 #endif /* _LOCK_H */
 

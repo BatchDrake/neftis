@@ -36,70 +36,132 @@
 #include <task/task.h>
 #include <task/sched.h>
 #include <task/loader.h>
+#include <task/msg.h>
+
 #include <lock/event.h>
 #include <lock/mutex.h>
 
 #include <misc/radix_tree.h>
+#include <misc/errno.h>
 
 #include <arch.h>
 #include <kctx.h>
 
 extern struct console *syscon;
 
-static char bin2c_test_data [] = {
-  "\x7f"  "ELF"  "\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x03\x00"
-  "\x01\x00\x00\x00\xb8\x80\x04\x08"  "4"  "\x00\x00\x00"  "T"  "\x01\x00\x00\x00\x00"
-  "\x00\x00"  "4"  "\x00"  " "  "\x00\x03\x00"  "("  "\x00\x06\x00\x05\x00\x01\x00\x00"
-  "\x00\x00\x00\x00\x00\x00\x80\x04\x08\x00\x80\x04\x08\x00\x01\x00\x00\x00\x01"
-  "\x00\x00\x05\x00\x00\x00\x00\x10\x00\x00\x04\x00\x00\x00\x94\x00\x00\x00\x94"
-  "\x80\x04\x08\x94\x80\x04\x08"  "$"  "\x00\x00\x00"  "$"  "\x00\x00\x00\x04\x00\x00"
-  "\x00\x04\x00\x00\x00"  "Q"  "\xe5"  "td"  "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-  "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x06\x00\x00\x00\x10\x00\x00\x00\x04"
-  "\x00\x00\x00\x14\x00\x00\x00\x03\x00\x00\x00"  "GNU"  "\x00\xd4\xd3\x1a\xc4\x10"
-  "\x8c\x1d\x98"  "$@"  "\xdc"  "Yr"  "\xcd\xc7\x09\xbd"  ")"  "\x03"  "@U"  "\x89\xe5\xb8"
-  "\x01\x00\x00\x00\xcd\xa0\xcd\xff"  "]"  "\xc3\x00\x00\x14\x00\x00\x00\x00\x00\x00"
-  "\x00\x01"  "zR"  "\x00\x01"  "|"  "\x08\x01\x1b\x0c\x04\x04\x88\x01\x00\x00\x1c\x00"
-  "\x00\x00\x1c\x00\x00\x00\xd0\xff\xff\xff\x0e\x00\x00\x00\x00"  "A"  "\x0e\x08\x85"
-  "\x02"  "B"  "\x0d\x05"  "J"  "\xc5\x0c\x04\x04\x00\x00"  "GCC: (Debian 4.8.2-14) "
-  "4.8.2"  "\x00\x00"  ".shstrtab"  "\x00"  ".note.gnu.build-id"  "\x00"  ".text"  "\x00"
-  ".eh_frame"  "\x00"  ".comment"  "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-  "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-  "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x0b\x00\x00\x00\x07\x00\x00\x00\x02"
-  "\x00\x00\x00\x94\x80\x04\x08\x94\x00\x00\x00"  "$"  "\x00\x00\x00\x00\x00\x00\x00"
-  "\x00\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00\x1e\x00\x00\x00\x01\x00\x00"
-  "\x00\x06\x00\x00\x00\xb8\x80\x04\x08\xb8\x00\x00\x00\x0e\x00\x00\x00\x00\x00"
-  "\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00"  "$"  "\x00\x00\x00\x01"
-  "\x00\x00\x00\x02\x00\x00\x00\xc8\x80\x04\x08\xc8\x00\x00\x00"  "8"  "\x00\x00\x00"
-  "\x00\x00\x00\x00\x00\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00"  "."  "\x00\x00"
-  "\x00\x01\x00\x00\x00"  "0"  "\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x1d\x00"
-  "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x01"
-  "\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x1d\x01\x00\x00"
-  "7"  "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00"
-  "\x00"};
-static const long bin2c_test_size = 580;
+int tid_1;
+int tid_2;
+
+struct task *t1, *t2;
+
+static int flag = 0;
+
+void
+task_1 (void)
+{
+  int id, ret;
+  volatile int i;
+  int counter = 0;
+  busword_t addr;
+  
+  for (i = 0; i < 1000000; ++i);
+  
+  printk ("[S] Creating a message...\n");
+  
+  if ((id = sys_msg_request (0)) < 0)
+    printk ("[S] Cannot create message (%d)\n", id);
+  else if ((int) (addr = sys_msg_map (id)) & 0xfff)
+    printk ("[S] Cannot map: %d\n", addr);
+  else
+  {
+    sys_msg_write_micro (id, "Hello world", sizeof ("Hello world"));
+    
+    while (counter < 7500)
+    {
+      if ((ret = sys_msg_send (id, tid_2)) < 0)
+      {
+	printk ("[S] Cannot send message (%d)\n", id);
+	break;
+      }
+
+      if ((++counter % 100) == 0)
+	printk ("[S] Sent %d messages so far\n", counter);
+    }
+
+    if (!flag)
+    {
+      ++flag;
+      printk ("[S] I won!\n");
+    }
+    else
+      printk ("[S] I lost :(\n");
+  }
+  
+
+  for (;;);
+}
+
+void
+task_2 (void)
+{
+  int id;
+  int count = 0;
+  busword_t addr;
+  char buf[256];
+  int size;
+  
+  wake_up (t1, TASK_STATE_RUNNING, WAKEUP_EXPLICIT);
+  
+  printk ("[R] Waiting for a message...\n");
+
+  while (count < 7500)
+  {
+    if ((id = sys_msg_recv (MSG_RECV_BLOCK)) >= 0)
+    {
+      if ((++count % 100) == 0)
+      {
+	printk ("[R]  Received %d messages so far\n", count);
+        if ((size = sys_msg_read_micro (id, buf, sizeof (buf))) < 0)
+          printk ("[R] Read micro failed (%d)!\n", size);
+        else
+          printk ("[R]   Received string: \"%s\" (%d)\n", buf, size);
+      }
+      
+      sys_msg_release (id);
+    }
+    else
+    {
+      error ("[R] Error recv: %d\n", id);
+      kernel_halt ();
+    }
+  }
+
+  if (!flag)
+  {
+    ++flag;
+    printk ("[R] I won!\n");
+  }
+  else
+    printk ("[R] I lost :(\n");
+  
+  for (;;);
+}
 
 void
 test_kthreads (void)
 {
-  struct task *tasks[4];
+  t2 = kernel_task_new (task_2);
 
-  int i;
+  tid_2 = t2->ts_tid;
 
-  for (i = 0; i < 4; ++i)
-  {
-    if ((tasks[i] = user_task_new_from_exec (bin2c_test_data, bin2c_test_size)) == NULL)
-      FAIL ("Cannot allocate task!\n");
-    
-    wake_up (tasks[i], TASK_STATE_RUNNING | WAKEUP_DELAYED, 0);
-  }
+  t1 = kernel_task_new (task_1);
 
-  kernel_debug_all_classes ();
+  wake_up (t2, TASK_STATE_RUNNING, WAKEUP_EXPLICIT);
   
   schedule ();
 }
 
 DEBUG_FUNC (test_kthreads);
-
 
 static char banner[] =
   "                                                                        \n"
@@ -155,6 +217,8 @@ main (void)
 
   early_timers_init ();
 
+  init_msg_queues ();
+  
   test_kthreads ();
   
   enable_interrupts ();

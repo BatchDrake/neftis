@@ -107,8 +107,11 @@ struct vm_page_set
   KERNEL_OBJECT;
 
   busword_t vp_pages; /* Count of allocated pages */
+  busword_t vp_limit; /* Page limit */
   
   struct radix_tree_node *vp_page_tree; /* Radix tree of pages */
+
+  objref_t *vp_template; /* Template (for copy-on-write) */
 };
 
 /* I don't care too much about this. I don't expect a process to
@@ -122,6 +125,8 @@ struct vm_region
   
   int                   vr_type;
   int                   vr_role;
+  int                   vr_unlinked_remap; /* Underlying physical pages are not mapped to kernel space */
+  
   struct vm_region_ops *vr_ops;
   void                 *vr_ops_data; /* Opaque data */
   
@@ -183,6 +188,7 @@ void vm_page_set_destroy (struct vm_page_set *set);
 /* Misc operations */
 busword_t virt2phys (const struct vm_space *space, busword_t virt);
 int copy2virt (const struct vm_space *, busword_t, const void *, busword_t);
+int copy2phys (const struct vm_space *, void *, busword_t, busword_t);
 int vm_handle_page_fault (struct task *, busword_t, int);
 void vm_init (void);
 

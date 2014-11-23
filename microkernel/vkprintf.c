@@ -249,7 +249,7 @@ vkprintf (struct vkprintf_stream *stream, const char *fmt, va_list ap)
           break;
           
         case 'c':
-          console_putchar (stream, va_arg (ap, unsigned int));
+          vkputchar (stream, va_arg (ap, unsigned int));
           break;
         
         case 'C':

@@ -17,8 +17,12 @@
  */
 #include <types.h>
 
+#include <asm/layout.h>
+
 #include <task/task.h>
 #include <task/loader.h>
+#include <task/msg.h>
+
 #include <mm/anon.h>
 
 #include <util.h>
@@ -222,7 +226,9 @@ void
 switch_to (struct task *task)
 {
   struct task *old;
-  
+
+  ASSERT (task->ts_state != TASK_STATE_EXITED);
+
   switch (get_current_context ())
   {
     case KERNEL_CONTEXT_BOOT_TIME:
@@ -243,7 +249,7 @@ switch_to (struct task *task)
         break;
 
       switch_lock ();
-      
+
       set_current_task (task);
 
       ++task->ts_switch_count;
@@ -293,6 +299,9 @@ task_destroy (struct task *task)
 {
   if (task->ts_vm_space != NULL)
     kernel_object_ref_close (task->ts_vm_space);
+
+  if (task->ts_msgq != NULL)
+    msgq_destroy (task->ts_msgq);
   
   __free_task (task);
 }
@@ -315,13 +324,19 @@ kernel_task_new (void (*entry) (void))
 
   task->ts_state = TASK_STATE_NEW;
   task->ts_type  = TASK_TYPE_KERNEL_THREAD;
-
+  
   if ((task->ts_vm_space = kernel_object_open_task (current_kctx->kc_vm_space, task)) == NULL)
   {
     task_destroy (task);
     return NULL;
   }
 
+  if ((task->ts_msgq = msgq_new (task, current_kctx->kc_msgq_vremap)) == NULL)
+  {
+    task_destroy (task);
+    return NULL;
+  }
+  
   __task_config_start (task, entry);
 
   if (register_task (task) == -1)

@@ -171,6 +171,8 @@ vm_kernel_space_map_image (struct vm_space *space)
   image_size = __UNITS ((busword_t) &kernel_end - (busword_t) &kernel_start, PAGE_SIZE);
 
   RETURN_ON_PTR_FAILURE (region = vm_region_remap ((busword_t) &text_start, (busword_t) &kernel_start, image_size, VREGION_ACCESS_READ | VREGION_ACCESS_WRITE | VREGION_ACCESS_EXEC | VM_PAGE_KERNEL));
+
+  region->vr_unlinked_remap = 1;
   
   MANDATORY (SUCCESS (vm_space_add_region (space, region)));
 

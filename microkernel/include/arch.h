@@ -19,6 +19,8 @@
 #ifndef _ARCH_H
 #define _ARCH_H
 
+#include <asm/layout.h>
+
 /* Misc functions */
 void __halt (void);
 void __pause (void);

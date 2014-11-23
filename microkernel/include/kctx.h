@@ -47,7 +47,8 @@ struct kernel_context
   int                kc_context;
   struct mm_regions *kc_numa_regions[MAX_NUMA_REGIONS];
   object_t          *kc_vm_space;
-
+  struct vm_region  *kc_msgq_vremap;
+  
   struct task       *kc_current;
   struct sched      *kc_scheduler;
   void              *kc_intr_frame;

@@ -50,15 +50,28 @@ task_trigger_exception (struct task *task, int exception, busword_t textaddr, bu
     /* Process shall be killed */
 
     TASK_ATOMIC_ENTER (except);
+
+    if (CRITICAL_IS_INSIDE (except))
+      panic ("exception while atomic!\n");
     
     (void) wake_up (task, TASK_STATE_EXITED, 0);
 
     task_destroy (task);
 
     schedule ();
-    
-    TASK_ATOMIC_LEAVE (except);
+
+    /* Attention: if interrupt happened in atomic context, the following call
+       
+       TASK_ATOMIC_LEAVE (except);
+
+       won't trigger a task switch, as the scheduler is paused. We need to
+       force it to resume */
+
+    TASK_ATOMIC_ABORT ();
   }
   else
     (task->ts_ex_handlers[exception]) (task, exception, textaddr, data, code);
 }
+
+DEBUG_FUNC (task_set_exception_handler);
+DEBUG_FUNC (task_trigger_exception);

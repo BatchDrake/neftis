@@ -133,7 +133,7 @@ defsched_wake_up (struct task *task, int op, int reason)
 
   if (task->ts_state == op)
   {
-    FAIL ("already in state %d\n", op);
+    FAIL ("task %d (%p) already in state %d \n", task->ts_tid, task, op);
     return 0;
   }
   
@@ -165,7 +165,7 @@ defsched_wake_up (struct task *task, int op, int reason)
         FAIL ("not in runqueue but running. how?\n");
     
     task->ts_state = op;
-      
+
     break;
     
   default:

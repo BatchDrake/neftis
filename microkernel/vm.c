@@ -18,6 +18,8 @@
  
 #include <types.h>
 
+#include <asm/layout.h>
+
 #include <mm/regions.h>
 #include <mm/coloring.h>
 #include <mm/vm.h>
@@ -98,6 +100,9 @@ busword_t
 vm_region_translate_page (struct vm_region *region, busword_t virt, DWORD *flags)
 {
   busword_t addr;
+
+  if (region->vr_unlinked_remap)
+    return virt;
   
   if (region->vr_type == VREGION_TYPE_RANGEMAP)
   {
@@ -255,7 +260,7 @@ virt2phys (const struct vm_space *space, busword_t virt)
 
   while (curr)
   {
-    if (virt >= curr->vr_virt_start && virt <= curr->vr_virt_end)
+    if (curr->vr_virt_start <= virt && virt <= curr->vr_virt_end)
     {
       if ((phys = vm_region_translate_page (curr, page, NULL)) != (busword_t) KERNEL_ERROR_VALUE)
         return phys | off;
@@ -276,18 +281,24 @@ copy2virt (const struct vm_space *space, busword_t virt, const void *orig, buswo
   busword_t offset = virt &  PAGE_MASK; 
   busword_t page   = virt & ~PAGE_MASK;
   busword_t phys, len;
+  busword_t size_copy = size;
   
   /* TODO: implement this faster */
 
   while (size)
   {
     if (!(phys = virt2phys (space, page)))
+    {
+      error ("untranslatable address %p\n", page);
       break;
+    }
     
     if ((len = PAGE_SIZE - offset) > size)
       len = size;
 
     memcpy (phys + offset, orig, len);
+
+    __vm_flush_pages (page, 1);
 
     orig += len;
     page += PAGE_SIZE;
@@ -296,7 +307,40 @@ copy2virt (const struct vm_space *space, busword_t virt, const void *orig, buswo
     offset = 0;
   }
 
-  return size;
+  return size_copy - size;
+}
+
+int
+copy2phys (const struct vm_space *space, void *dest, busword_t virt, busword_t size)
+{
+  busword_t offset = virt &  PAGE_MASK; 
+  busword_t page   = virt & ~PAGE_MASK;
+  busword_t phys, len;
+  busword_t size_copy = size;
+  
+  /* TODO: implement this faster */
+
+  while (size)
+  {
+    if (!(phys = virt2phys (space, page)))
+    {
+      error ("untranslatable address %p\n", page);
+      break;
+    }
+    
+    if ((len = PAGE_SIZE - offset) > size)
+      len = size;
+
+    memcpy (dest, phys + offset, len);
+
+    dest += len;
+    page += PAGE_SIZE;
+    size -= len;
+    
+    offset = 0;
+  }
+
+  return size_copy - size;
 }
 
 struct vm_space_region
@@ -311,6 +355,8 @@ __map_pages (radixkey_t virt, void **phys, radixtag_t *perms, void *data)
   struct vm_space_region *spaceregion = data;
   radixtag_t actual_perms = (spaceregion->region->vr_access & ~VM_PAGE_PRESENT) | (*perms & VM_PAGE_PRESENT);
 
+  /* TODO: check whether it's present or not. If it is, map it with all perms. If it is not, call __map_pages with a copy of actual perms with no write permission */
+  
   return __vm_map_to (spaceregion->space->vs_pagetable, (busword_t) virt + spaceregion->region->vr_virt_start, (busword_t) *phys, 1, actual_perms);
 }
 
@@ -599,7 +645,8 @@ vm_page_set_put (struct vm_page_set *set, busword_t pageno, busword_t phys)
     FAIL ("Cannot set tag on existing mapped page?\n");
 
   ++set->vp_pages;
-  
+
+  /* Check whether vp_pages == vp_limit. In that case, and if vp_template != NULL, close reference */
   return KERNEL_SUCCESS_VALUE;
 }
 
@@ -634,6 +681,21 @@ vm_page_set_translate (struct vm_page_set *set, busword_t pageno, busword_t *phy
 int
 vm_page_set_walk (struct vm_page_set *set, int (*callback) (radixkey_t virt, void **phys, radixtag_t *perms, void *data), void *data)
 {
+  /* We have two possible approaches here:
+
+     D := Max depth
+     N := Number of pages
+     A := Number of allocated pages
+     
+     - Walk from lowest level to highest level each radix tree and remap everything.
+       Best case: A
+       Worst case: N * D
+       
+     - Visit all pages from 0 to N.
+       Best case: N
+       Worst case: N * (D + log (N))
+  */
+  
   if (set->vp_page_tree != NULL)
     return radix_tree_walk (set->vp_page_tree, callback, data);
 }
@@ -664,6 +726,9 @@ vm_page_set_destroy (struct vm_page_set *set)
   if (set->vp_page_tree != NULL)
     radix_tree_destroy (set->vp_page_tree, __vm_page_set_page_free);
 
+  if (set->vp_template != NULL)
+    __kernel_object_ref_close (set->vp_template);
+  
   sfree (set);
 }
 
@@ -711,6 +776,16 @@ vm_init (void)
   MANDATORY (SUCCESS_PTR (
                current_kctx->kc_vm_space = kernel_object_create (&vm_space_class, kernel_space)
                )
+    );
+
+  MANDATORY (SUCCESS_PTR (
+	       current_kctx->kc_msgq_vremap = vm_region_vremap_new (KERNEL_MSGQ_VREMAP_START, __UNITS (KERNEL_MSGQ_VREMAP_SIZE, PAGE_SIZE), 0)
+	       )
+    );
+
+  MANDATORY (SUCCESS (
+	       vm_space_add_region (OBJCAST (struct vm_space, current_kctx->kc_vm_space), current_kctx->kc_msgq_vremap)
+	       )
     );
 
   hw_vm_init ();

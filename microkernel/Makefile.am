@@ -14,7 +14,7 @@ neftis_LDFLAGS=-Wl,-Tarch/x86/kernel.lds
 
 neftis_CFLAGS=-fstrength-reduce \
 		-finline-functions -nostdinc -nostdlib -fno-builtin -I. -ggdb \
-    -Iinclude -march=i686 -D__386__ @AM_CFLAGS@
+    -Iinclude -march=i686 -D__386__ @AM_CFLAGS@ -Iarch/x86/include
     
 neftis_CCASFLAGS=-I../include -Iarch/x86/include @AM_CFLAGS@
 
@@ -31,6 +31,7 @@ neftis_SOURCES=arch/x86/boot.S \
                list.c          \
                loader.c        \
                main.c          \
+	       msg.c           \
                mutex.c         \
 	       object.c        \
                printk.c        \
@@ -77,8 +78,10 @@ neftis_SOURCES=arch/x86/boot.S \
                include/task/exception.h \
                include/task/sched.h \
                include/task/loader.h \
+               include/task/msg.h \
                include/stdarg.h \
                include/util.h \
+               include/misc/errno.h \
                include/misc/msgsink.h \
                include/misc/vkprintf.h \
                include/misc/list.h \

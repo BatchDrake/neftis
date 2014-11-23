@@ -65,6 +65,8 @@ struct vm_region_ops vremap_region_ops =
 static int
 vremap_pagefault (struct task *task, struct vm_region *region, busword_t failed_addr)
 {
+  /* TODO: perform allocation here by setting all bytes of the requested page to zero */
+  
   error ("vremap region fault: %p not present\n", failed_addr);
  
   return -1;
@@ -97,7 +99,7 @@ vm_kernel_space_init_vremap (struct vm_space *space)
 
   if (vremap_kernel_region == NULL)
   {
-    if (FAILED_PTR (vremap_kernel_region = vm_region_vremap_new (KERNEL_VREMAP_AREA_START, KERNEL_VREMAP_AREA_SIZE, VREGION_ACCESS_READ | VREGION_ACCESS_WRITE)))
+    if (FAILED_PTR (vremap_kernel_region = vm_region_vremap_new (KERNEL_VREMAP_AREA_START, __UNITS (KERNEL_VREMAP_AREA_SIZE, PAGE_SIZE) , VREGION_ACCESS_READ | VREGION_ACCESS_WRITE)))
       result = -1;
     else
       vremap_kernel_region->vr_ops = &vremap_region_ops_persistent;
@@ -175,6 +177,14 @@ vremap_data_destroy (struct vremap_data *data)
 }
 
 class_t vm_page_set_class;
+
+int
+vm_region_is_vremap (struct vm_region *region)
+{
+  return region->vr_ops == &vremap_region_ops ||  region->vr_ops == &vremap_region_ops_persistent;
+}
+
+/* XXX: Perms is unused. Remove */
 
 struct vm_region *
 vm_region_vremap_new (busword_t virt, busword_t pages, DWORD perms)
@@ -376,7 +386,7 @@ kernel_vremap_update_kernel (void)
 int
 kernel_vremap_map_pages (busword_t virt, busword_t phys, busword_t pages, DWORD flags)
 {
-  return vm_region_map_pages (vremap_kernel_region, virt, phys, flags, pages);
+  return vm_region_map_pages (vremap_kernel_region, virt, phys, flags, pages | VM_PAGE_PRESENT);
 }
 
 void

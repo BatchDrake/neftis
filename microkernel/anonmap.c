@@ -154,7 +154,7 @@ vm_region_physmap (busword_t phys, busword_t pages, DWORD perms)
    at stack_bottom - 1. This means that if we want a stack bottom at
    0xcfffffff (Linux-x86 style), we need to call:
 
-   vm_region_stack (0xd0000000, 16)
+   vm_region_stack (KERNEL_BASE, 16)
 
    Which, under x86, allocates 64 KiB of stack right below of the
    kernel space

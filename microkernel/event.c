@@ -30,7 +30,7 @@
 void
 init_event (event_t *ev)
 {
-  memset (&ev, 0, sizeof (event_t));
+  memset (ev, 0, sizeof (event_t));
   
   ev->lock = 1;
   ev->wq.wq_lock = 1; 
@@ -129,3 +129,10 @@ event_set_auto_reset (event_t *ev, int flag)
   TASK_ATOMIC_LEAVE (section);
 }
 
+DEBUG_FUNC (init_event);
+DEBUG_FUNC (event_new);
+DEBUG_FUNC (event_destroy);
+DEBUG_FUNC (event_wait);
+DEBUG_FUNC (event_signal);
+DEBUG_FUNC (event_clear);
+DEBUG_FUNC (event_set_auto_reset);

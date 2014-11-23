@@ -220,7 +220,6 @@ void
 __task_perform_switch (struct task *task)
 {
   struct task_ctx_data *data;
-  int i;
 
   data = get_task_ctx_data (task);
 
@@ -228,6 +227,8 @@ __task_perform_switch (struct task *task)
   
   x86_set_kernel_stack (data->stack_info.stack_bottom_virtual);
 
+/*  hexdump (data->stack_info.esp, __ALIGN (data->stack_info.esp, PAGE_SIZE) - data->stack_info.esp); */
+  
   __asm__ __volatile__ (".extern __restore_context\n"
                         "movl %0, %%esp           \n"
                         "jmp __restore_context    \n"
@@ -243,7 +244,7 @@ __task_switch_from_current (struct task *current, struct task *next)
 
   data = get_task_ctx_data (next);
 
-  x86_set_kernel_stack (data->stack_info.stack_bottom);
+  x86_set_kernel_stack (data->stack_info.stack_bottom_virtual);
   
   __task_switch_from_current_asm (current, next);
 }

@@ -110,7 +110,7 @@ salloc_task (size_t size)
 {
   void *result;
 
-  down (&salloc_mutex);
+  down (&salloc_mutex); /* Salloc should acquire it's pool mutex */
 
   result = __salloc (size, "taskpool-");
 

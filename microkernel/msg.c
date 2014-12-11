@@ -38,7 +38,7 @@ msg_body_new (busword_t size)
   struct msg_body *new;
   busword_t pages;
   
-  if ((new = salloc (sizeof (struct msg_body))) == NULL)
+  if ((new = salloc_irq (sizeof (struct msg_body))) == NULL)
     return NULL;
 
   memset (new, 0, sizeof (struct msg));
@@ -387,7 +387,7 @@ msg_new (void)
 {
   struct msg *new;
 
-  if ((new = salloc (sizeof (struct msg))) == NULL)
+  if ((new = salloc_irq (sizeof (struct msg))) == NULL)
     return NULL;
 
   memset (new, 0, sizeof (struct msg));
@@ -448,7 +448,7 @@ msgq_new (struct task *task, struct vm_region *region)
 
   ASSERT (vm_region_is_vremap (region));
   
-  if ((new = salloc (sizeof (struct msgq))) == NULL)
+  if ((new = salloc_irq (sizeof (struct msgq))) == NULL)
     return NULL;
 
   memset (new, 0, sizeof (struct msgq));
@@ -470,7 +470,7 @@ fail:
   if (new->mq_incoming_ready != NULL)
     event_destroy (new->mq_incoming_ready);
   
-  sfree (new);
+  sfree_irq (new);
   
   return NULL;
 }
@@ -500,7 +500,7 @@ msgq_destroy (struct msgq *msgq)
 
   /* Region is not freed as it must be allocated prior to any message queue allocation */
   
-  sfree (msgq);
+  sfree_irq (msgq);
 }
 
 int

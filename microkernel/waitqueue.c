@@ -147,7 +147,7 @@ __signal_all (struct wait_queue *wq, int reason)
   
   while ((task = wait_queue_pop_task (wq)) != NULL)
   {
-    wake_up (task, WAKEUP_DELAYED | TASK_STATE_RUNNING, reason);
+    wake_up (task, WAKEUP_AGAIN | WAKEUP_DELAYED | TASK_STATE_RUNNING, reason);
     ++count;
   }
 

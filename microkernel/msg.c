@@ -63,6 +63,8 @@ msg_body_new (busword_t size)
 void
 msg_body_destroy (struct msg_body *body)
 {
+  printk ("Removing body...\n");
+  
   if (body->mb_size > 0)
     page_free (body->mb_pages, __UNITS (body->mb_size, PAGE_SIZE));
 
@@ -254,7 +256,7 @@ __msg_send (struct msgq *msgq, struct task *recipient_task, struct msgq *recipie
     return -ENOMEM;
 
   new_msg->m_ro = 1;
-  
+
   circular_list_insert_tail ((void **) &recipient_msgq->mq_incoming, new_msg);
 
   event_signal (recipient_msgq->mq_incoming_ready);
@@ -373,6 +375,8 @@ __msg_write_micro (struct task *task, struct msgq *msgq, int id, busword_t virt,
 static void
 msg_body_dtor (void *ptr)
 {
+  printk ("Calling dtor on %p\n", ptr);
+  
   msg_body_destroy ((struct msg_body *) ptr);
 }
 
@@ -400,7 +404,7 @@ msg_destroy (struct msg *msg)
 {
   if (msg->m_msg != NULL)
     kernel_object_ref_close (msg->m_msg);
-
+  
   sfree (msg);
 }
 
@@ -478,26 +482,27 @@ fail:
 void
 msgq_destroy (struct msgq *msgq)
 {
-  struct msg *this, *next;
+  struct msg *this, *next, *first;
   int i;
   
   event_destroy (msgq->mq_incoming_ready);
 
-  this = msgq->mq_incoming;
+  first = this = msgq->mq_incoming;
 
   while (this != NULL)
   {
     next = LIST_NEXT (this);
-
+    
     msg_destroy (next);
     
-    this = next;
+    if ((this = next) == first)
+      break;
   }
 
   for (i = 0; i < MSG_PENDING_COUNT; ++i)
     if (MSG_PTR_IS_VALID (msgq->mq_pending[i]))
       msg_destroy (msgq->mq_pending[i]);
-
+  
   /* Region is not freed as it must be allocated prior to any message queue allocation */
   
   sfree_irq (msgq);

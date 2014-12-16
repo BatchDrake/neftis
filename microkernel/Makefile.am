@@ -41,6 +41,9 @@ neftis_SOURCES=arch/x86/boot.S \
                salloc.c        \
 	       serial.c        \
                stdlib.c        \
+               syscall.c       \
+               sysipc.c        \
+               syskrn.c        \
                task.c          \
                timer.c         \
                util.c          \
@@ -79,6 +82,9 @@ neftis_SOURCES=arch/x86/boot.S \
                include/task/sched.h \
                include/task/loader.h \
                include/task/msg.h \
+               include/task/syscall.h \
+               include/task/sysipc.h \
+               include/task/syskrn.h \
                include/stdarg.h \
                include/util.h \
                include/misc/errno.h \

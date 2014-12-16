@@ -25,30 +25,37 @@
 
 #include <kctx.h>
 
+#include <misc/errno.h>
+#include <task/syscall.h>
+
+extern syscall_entry_t krn_syscall_list[SYS_KRN_COUNT];
+
+extern syscall_entry_t ipc_syscall_list[SYS_IPC_COUNT];
+
 void
 x86_sys_microkernel (struct x86_stack_frame *frame)
 {
-  DECLARE_CRITICAL_SECTION (sys);
+  syscall_entry_t entry;
 
-  TASK_ATOMIC_ENTER (sys);
+  busword_t args[5] = {frame->regs.ebx, frame->regs.ecx, frame->regs.edx, frame->regs.esi, frame->regs.edi};
   
-  printk ("Microkernel system call (called from userland address %p), function %d - stack@%p\n", frame->priv.eip, frame->regs.eax, frame);
-
-  printk ("Task about to be destroyed\n");
-
-  (void) wake_up (get_current_task (), TASK_STATE_EXITED, 0);
-
-  task_destroy (get_current_task ());
-
-  schedule ();
-
-  TASK_ATOMIC_LEAVE (sys);
+  if (frame->regs.eax >= SYS_KRN_COUNT || (entry = krn_syscall_list[frame->regs.eax]) == NULL)
+    frame->regs.eax = -ENOSYS;
+  else
+    frame->regs.eax = (entry) (args);
 }
 
 void
 x86_sys_ipc (struct x86_stack_frame *frame)
 {
-  printk ("IPC subsystem call, function %d\n", frame->regs.eax);
+  syscall_entry_t entry;
+  
+  busword_t args[5] = {frame->regs.ebx, frame->regs.ecx, frame->regs.edx, frame->regs.esi, frame->regs.edi};
+  
+  if (frame->regs.eax >= SYS_IPC_COUNT || (entry = ipc_syscall_list[frame->regs.eax]) == NULL)
+    frame->regs.eax = -ENOSYS;
+  else
+    frame->regs.eax = (entry) (args);
 }
 
 void

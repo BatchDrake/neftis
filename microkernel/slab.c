@@ -573,7 +573,7 @@ __small_kmem_cache_free (struct kmem_cache *cache, void *ptr)
 {
   struct small_slab_header *small_slab = (struct small_slab_header *) PAGE_START (ptr);
   int block;
-  
+
   /* Sanity check */
   ASSERT (small_slab->object_used > 0);
   ASSERT (cache == small_slab->header);
@@ -581,8 +581,9 @@ __small_kmem_cache_free (struct kmem_cache *cache, void *ptr)
   ASSERT (ptr >= small_slab->data && ptr < (void *) PAGE_START (ptr) + MM_SMALL_SLAB_PAGES * PAGE_SIZE);
 
   block = (busword_t) (ptr - small_slab->data) / cache->object_size;
+ 
 
-  /* Check whether the pointer is the beginning of a block */
+  /* Check whether the pointer is at the beginning of a block */
   ASSERT (ptr == small_slab->data + block * cache->object_size);
   ASSERT (bitmap_get (small_slab->bitmap, block));
 

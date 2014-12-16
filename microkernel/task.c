@@ -24,6 +24,7 @@
 #include <task/msg.h>
 
 #include <mm/anon.h>
+#include <mm/vremap.h>
 
 #include <util.h>
 #include <arch.h>
@@ -302,6 +303,8 @@ task_destroy (struct task *task)
 
   if (task->ts_msgq != NULL)
     msgq_destroy (task->ts_msgq);
+
+  set_task (task->ts_tid, NULL);
   
   __free_task (task);
 }
@@ -352,7 +355,7 @@ struct task *
 user_task_new_from_exec (const void *data, busword_t size)
 {
   struct task *task, *old_task;
-  struct vm_region *stack;
+  struct vm_region *stack, *vremap;
   struct vm_space *space;
   loader_handle *handler;
 
@@ -369,6 +372,24 @@ user_task_new_from_exec (const void *data, busword_t size)
     return KERNEL_INVALID_POINTER;
   }
 
+  if ((vremap = vm_region_vremap_new (USER_MSGQ_VREMAP_START, __UNITS (USER_MSGQ_VREMAP_SIZE, PAGE_SIZE), VREGION_ACCESS_READ | VREGION_ACCESS_WRITE | VREGION_ACCESS_USER)) == NULL)
+  {
+    task_destroy (task);
+
+    return KERNEL_INVALID_POINTER;
+  }
+
+  if (vm_space_add_region (space, vremap) != KERNEL_SUCCESS_VALUE)
+  {
+    error ("Executable overlaps vremap region\n");
+
+    vm_region_destroy (vremap, NULL);
+
+    task_destroy (task);
+    
+    return KERNEL_INVALID_POINTER;
+  }
+  
   if ((task->ts_vm_space = kernel_object_instance_task (&vm_space_class, space, task)) == NULL)
   {
     vm_space_destroy (space);
@@ -378,6 +399,13 @@ user_task_new_from_exec (const void *data, busword_t size)
     return NULL;
   }
 
+  if ((task->ts_msgq = msgq_new (task, vremap)) == NULL)
+  {
+    task_destroy (task);
+    
+    return NULL;
+  }
+  
   /* From now on, we can forget about task->ts_vm_space */
   /* Use space data to look for free space */
   if (PTR_UNLIKELY_TO_FAIL (stack = vm_region_stack (__task_get_user_stack_bottom (task), TASK_USR_STACK_PAGES)))

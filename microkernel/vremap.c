@@ -99,7 +99,7 @@ vm_kernel_space_init_vremap (struct vm_space *space)
 
   if (vremap_kernel_region == NULL)
   {
-    if (FAILED_PTR (vremap_kernel_region = vm_region_vremap_new (KERNEL_VREMAP_AREA_START, __UNITS (KERNEL_VREMAP_AREA_SIZE, PAGE_SIZE) , VREGION_ACCESS_READ | VREGION_ACCESS_WRITE)))
+    if (FAILED_PTR (vremap_kernel_region = vm_region_vremap_new (KERNEL_VREMAP_AREA_START, __UNITS (KERNEL_VREMAP_AREA_SIZE, PAGE_SIZE), VREGION_ACCESS_READ | VREGION_ACCESS_WRITE)))
       result = -1;
     else
       vremap_kernel_region->vr_ops = &vremap_region_ops_persistent;

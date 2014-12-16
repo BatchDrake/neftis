@@ -415,6 +415,7 @@ x86_isr_handler (struct x86_stack_frame *frame)
     
     case KERNEL_BUGCHECK_INTERRUPT:
       panic ("microkernel bugcheck");
+
       kernel_halt ();
 	    
       break;

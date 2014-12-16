@@ -52,8 +52,7 @@ vm_region_new (busword_t start, busword_t end, struct vm_region_ops *ops, void *
 void
 vm_region_destroy (struct vm_region *region, struct task *task)
 {
-  /* Check whether region can be destroyed. Usual scenarios
-     where it cannot can be a systemwide vregion */
+  /* Check whether region can be destroyed. */
   if (region->vr_ops->destroy != NULL)
     if ((region->vr_ops->destroy) (task, region) == -1)
       return;
@@ -500,7 +499,7 @@ __load_segment_cb (struct vm_space *space, int type, int flags, busword_t virt, 
   busword_t start_page;
   busword_t actual_size;
   busword_t actual_page_count;
-  busword_t pending;
+  busword_t copied;
 
   start_page = PAGE_START (virt);
   actual_size = size + (virt - start_page);
@@ -525,8 +524,8 @@ __load_segment_cb (struct vm_space *space, int type, int flags, busword_t virt, 
     return -1;
   }
   
-  if ((pending = copy2virt (space, virt, data, datasize)) != 0)
-    FAIL ("unexpected segment overrun when copying data to user\n");
+  if ((copied = copy2virt (space, virt, data, datasize)) != datasize)
+    FAIL ("unexpected segment overrun when copying data to user (total: %d/%d)\n", copied, datasize);
 
   return 0;
 }

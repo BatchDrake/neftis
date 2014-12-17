@@ -40,6 +40,7 @@ neftis_SOURCES=arch/x86/boot.S \
                slab.c          \
                salloc.c        \
 	       serial.c        \
+               srvrd.c         \
                stdlib.c        \
                syscall.c       \
                sysipc.c        \

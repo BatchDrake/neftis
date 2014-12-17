@@ -82,6 +82,9 @@ int  hook_timer (int (*) (int, void *, void *));
 /* Serial port functions */
 void hw_serial_init (void);
 
+/* Server functions */
+void load_servers (void);
+
 # endif /* _IRQ_TIMER_H */
 #endif /* _ARCH_H */
 

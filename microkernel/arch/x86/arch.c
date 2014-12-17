@@ -48,6 +48,8 @@ static int got_interrupts_working = 0;
 extern int kernel_start;
 extern int kernel_end;
 extern int text_start;
+extern void *initrd_start;
+extern DWORD initrd_size;
 
 extern struct console *syscon;
 
@@ -115,7 +117,7 @@ hw_memory_init (void)
         (mbi->mmap_addr + i * sizeof (memory_map_t));
 
       if (mmap_info->type == 1)
-      {
+      {	
         if (addr_in_range ((busword_t) &kernel_end,
                            mmap_info->base_addr_low,
                            mmap_info->base_addr_low + 
@@ -125,8 +127,7 @@ hw_memory_init (void)
           mmap_info->length_low   -= 
            (busword_t) __free_start - mmap_info->base_addr_low;
             
-          mmap_info->base_addr_low = __free_start;
-           
+          mmap_info->base_addr_low = __free_start;;
         }
          
         if (mmap_info->base_addr_low == 0)
@@ -149,13 +150,17 @@ hw_memory_init (void)
   gdt_init ();
 }
 
-extern char bootstack[4 * PAGE_SIZE];
-
 busword_t
 vm_get_prefered_stack_bottom (void)
 {
   return (busword_t) &text_start;
 }
+
+
+extern char bootstack[4 * PAGE_SIZE];
+extern void *initrd_start;
+extern void *initrd_phys;
+extern DWORD initrd_size;
 
 int
 vm_kernel_space_map_image (struct vm_space *space)
@@ -176,10 +181,22 @@ vm_kernel_space_map_image (struct vm_space *space)
   
   MANDATORY (SUCCESS (vm_space_add_region (space, region)));
 
-  /* Register stack address. THIS MUST DISAPPEAR */
-  RETURN_ON_PTR_FAILURE (region = vm_region_physmap (PAGE_BITS & (DWORD) bootstack, 5, VREGION_ACCESS_READ | VREGION_ACCESS_WRITE | VM_PAGE_KERNEL));
+  if (get_current_context () == KERNEL_CONTEXT_BOOT_TIME)
+  {
+    /* Relevant only in boot time */
+    RETURN_ON_PTR_FAILURE (region = vm_region_physmap (PAGE_BITS & (DWORD) bootstack, 5, VREGION_ACCESS_READ | VREGION_ACCESS_WRITE | VM_PAGE_KERNEL));
+    
+    MANDATORY (SUCCESS (vm_space_add_region (space, region)));
+  }
 
-  MANDATORY (SUCCESS (vm_space_add_region (space, region)));
+  if (initrd_size > 0)
+  {
+    RETURN_ON_PTR_FAILURE (region = vm_region_remap ((busword_t) initrd_start, (busword_t) initrd_phys, initrd_size, VREGION_ACCESS_READ | VM_PAGE_KERNEL));
+    
+    region->vr_unlinked_remap = 1;
+    
+    MANDATORY (SUCCESS (vm_space_add_region (space, region)));
+  }
   
   return KERNEL_SUCCESS_VALUE;
 }
@@ -421,6 +438,14 @@ debug_ascii_table (void)
   }
 }
 
+void
+load_servers (void)
+{
+  if (initrd_size > 0)
+    MANDATORY (SUCCESS (srvrd_load (initrd_start, initrd_size)));
+}
+
+DEBUG_FUNC (load_servers);
 DEBUG_FUNC (addr_in_range);
 DEBUG_FUNC (boot_console_init);
 DEBUG_FUNC (hw_interrupt_init);

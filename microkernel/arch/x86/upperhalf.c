@@ -44,6 +44,10 @@ extern int text_start;
 
 /* Symbols required by extern files */
 BOOT_SYMBOL (DWORD __free_start);
+BOOT_SYMBOL (void *initrd_phys) = NULL;
+BOOT_SYMBOL (void *initrd_start) = NULL;
+BOOT_SYMBOL (DWORD initrd_size) = 0;
+
 BOOT_SYMBOL (char bootstack[4 * PAGE_SIZE]); /* Boot stack, as used by _start */
 BOOT_SYMBOL (char cmdline_copy[128]);
 
@@ -300,7 +304,9 @@ boot_prepare_paging_early (void)
   DWORD i;
   DWORD mmap_count;
   char errmsg[] = "No memory maps in MBI!";
- 
+
+  struct module *mod;
+  
   mbi = multiboot_location ();
 
   if (!(mbi->flags & (1 << 6)))
@@ -309,6 +315,18 @@ boot_prepare_paging_early (void)
     boot_halt ();
   }
 
+  if (mbi->mods_count)
+  {
+    mod = (struct module *) mbi->mods_addr;
+    
+    initrd_phys  = (void *) mod->mod_start;
+    initrd_size  = mod->mod_end - mod->mod_start;
+  }
+  
+  if (mod->mod_end > free_mem)
+    free_mem = __ALIGN (mod->mod_end, PAGE_SIZE);
+
+  
   page_dir = (struct page_table *) free_mem;
   page_table_list = page_dir + 1;
   page_table_count = 0;
@@ -318,8 +336,15 @@ boot_prepare_paging_early (void)
 
   mmap_count = mbi->mmap_length / sizeof (memory_map_t);
 
-  boot_setup_vregion ((DWORD) &kernel_start >> 12, (DWORD) &text_start >> 12, __UNITS ((DWORD) &kernel_end - (DWORD) &kernel_start, PAGE_SIZE));
+  /* Map microkernel to upperhalf */
+  boot_setup_vregion ((DWORD) &kernel_start >> 12, (DWORD) &text_start >> 12, __UNITS (free_mem - (DWORD) &kernel_start, PAGE_SIZE));
+
+  /* Map video memory */
   boot_setup_vregion ((DWORD) VIDEO_BASE >> 12, (DWORD) VIDEO_BASE >> 12, 1);
+
+  /* Remap initrd to upperhalf aswell (if any) */
+  if (initrd_size > 0)
+    initrd_start = initrd_phys + PAGE_START ((DWORD) &text_start) - PAGE_START ((DWORD) &kernel_start);
   
   for (i = 0; i < mmap_count; ++i)
   {    
@@ -394,7 +419,6 @@ boot_entry (void)
   
   SET_REGISTER ("%cr0", cr0);
 
-  
   boot_screen_clear (0x07);
   
   main ();

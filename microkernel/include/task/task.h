@@ -124,5 +124,7 @@ void task_destroy (struct task *);
 
 void preload_kernel_space (struct task *);
 
+int srvrd_load (const void *, uint32_t);
+
 #endif /* _TASK_TASK_H */
 

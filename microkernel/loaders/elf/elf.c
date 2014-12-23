@@ -54,7 +54,7 @@ elf32_open (const void *base, uint32_t size)
   if (ehdr->e_ident[EI_DATA] != ELFDATA2LSB)
     goto FAIL_MISERABLY;
 
-  if (ehdr->e_type != ET_EXEC)
+  if (ehdr->e_type != ET_EXEC && ehdr->e_type != ET_DYN)
     goto FAIL_MISERABLY;
 
   /* We must change this according to architecture */
@@ -76,6 +76,8 @@ elf32_open (const void *base, uint32_t size)
   state->header = ehdr;
   state->phdrs  = (Elf32_Phdr *) (base + ehdr->e_phoff);
   state->size   = size;
+  state->dyn    = ehdr->e_type == ET_DYN;
+  state->addr   = 0;
   
   return state;
   
@@ -123,8 +125,16 @@ elf32_walkseg (void *opaque, struct vm_space *space, int (*callback) (struct vm_
 
       if (state->phdrs[i].p_flags & PF_R)
         flags |= VREGION_ACCESS_READ;
-      
-      if ((callback) (space, VREGION_ROLE_USERMAP, flags, state->phdrs[i].p_vaddr, state->phdrs[i].p_memsz, ((void *) state->header) + state->phdrs[i].p_offset, zeropg ? 0 : state->phdrs[i].p_filesz) == -1)
+
+      if ((callback) (space,
+		      VREGION_ROLE_USERMAP,
+		      flags,
+		      state->dyn ?
+		        state->phdrs[i].p_vaddr + state->addr :
+		        state->phdrs[i].p_vaddr,
+		      state->phdrs[i].p_memsz,
+		      ((void *) state->header) + state->phdrs[i].p_offset,
+		      zeropg ? 0 : state->phdrs[i].p_filesz) == -1)
         return KERNEL_ERROR_VALUE;
 
       ++count;
@@ -133,10 +143,40 @@ elf32_walkseg (void *opaque, struct vm_space *space, int (*callback) (struct vm_
   return count;
 }
 
+int
+elf32_rebase (void *opaque, busword_t base)
+{
+  struct elf32_state *state = (struct elf32_state *) opaque;
+
+  if (base & (PAGE_SIZE - 1))
+    return -1;
+
+  state->addr = base;
+  
+  return 0;
+}
+
 void
 elf32_close (void *opaque)
 {
   sfree (opaque);
+}
+
+size_t
+elf32_get_abi (void *opaque, char *buf, size_t size)
+{
+  const char *abi;
+
+  struct elf32_state *state = (struct elf32_state *) opaque;
+
+  if (state->header->e_ident[EI_OSABI] == ELFOSABI_LINUX)
+    abi = "elf32-linux-gnu";
+  else
+    abi = "agnostic";
+
+  strncpy (buf, abi, size);
+
+  return strlen (abi);
 }
 
 void
@@ -153,5 +193,6 @@ elf_init (void)
   elfloader->entry   = elf32_entry;
   elfloader->walkseg = elf32_walkseg;
   elfloader->close   = elf32_close;
-
+  elfloader->rebase  = elf32_rebase;
+  elfloader->get_abi = elf32_get_abi;
 }

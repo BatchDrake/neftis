@@ -535,7 +535,11 @@ vm_space_load_from_exec (const void *exec_start, busword_t exec_size, busword_t 
 {
   struct vm_space  *space;
   loader_handle    *handle;
-
+  const void *abi_vdso_start;
+  uint32_t    abi_vdso_size;
+  
+  char abi[64];
+  
   PTR_RETURN_ON_PTR_FAILURE (space = vm_bare_sysproc_space ());
 
   if ((handle = loader_open_exec (space, exec_start, exec_size)) == KERNEL_INVALID_POINTER)
@@ -544,6 +548,13 @@ vm_space_load_from_exec (const void *exec_start, busword_t exec_size, busword_t 
     return KERNEL_INVALID_POINTER;
   }
 
+  loader_get_abi (handle, abi, sizeof (abi) - 1);
+
+  if (get_abi_vdso (abi, &abi_vdso_start, &abi_vdso_size) == -1)
+    warning ("Cannot load abi `%s'\n", abi);
+  else
+    debug ("ABI: %s (%p, %d)\n", abi, abi_vdso_start, abi_vdso_size);
+  
   if (loader_walk_exec (handle, __load_segment_cb) == KERNEL_ERROR_VALUE)
   {
     vm_space_destroy (space);

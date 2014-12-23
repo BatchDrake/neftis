@@ -86,6 +86,9 @@ void hw_serial_init (void);
 /* Server functions */
 void load_servers (void);
 
+/* ABI functions */
+int get_abi_vdso (const char *, const void **, uint32_t *);
+
 # endif /* _IRQ_TIMER_H */
 #endif /* _ARCH_H */
 

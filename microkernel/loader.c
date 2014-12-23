@@ -80,11 +80,32 @@ loader_get_exec_entry (loader_handle *handle)
   return (handle->loader->entry) (handle->opaque);
 }
 
+size_t
+loader_get_abi (loader_handle *handle, char *buf, size_t size)
+{
+  if (handle->loader->get_abi == NULL)
+  {
+    strncpy (buf, "agnostic", size);
+    return 8;
+  }
+
+  return (handle->loader->get_abi) (handle->opaque, buf, size);
+}
+
 /* Walk exec gives information about type & flags of the computed segment */
 int
 loader_walk_exec (loader_handle *handle, int (*callback) (struct vm_space *, int, int, busword_t, busword_t, const void *, busword_t))
 {
   return (handle->loader->walkseg) (handle->opaque, handle->target_space, callback);
+}
+
+int
+loader_rebase (loader_handle *handle, busword_t addr)
+{
+  if (handle->loader->rebase != NULL)
+    return (handle->loader->rebase) (handle->opaque, addr);
+
+  return 0;
 }
 
 void

@@ -19,6 +19,8 @@
 #include <types.h>
 #include <ctype.h>
 
+#include <misc/tar.h>
+
 size_t 
 strlen (const char *s)
 {
@@ -229,6 +231,114 @@ do_nothing (void)
 {
 }
 
+int
+tar_file_walk (const void *base, uint32_t size, const char *path_prefix, int (*cb) (const char *path, const void *base, uint32_t size, uint32_t mode, void *opaque), void *opaque)
+{
+  uint32_t p = 0;
+  char c;
+  struct posix_header *hdr;
+  uint32_t fsize;
+  uint32_t fact;
+  uint32_t mode;
+  int i;
+
+  while (p + TAR_BLKSIZE <= size)
+  {
+    hdr = (struct posix_header *) (base + p);
+
+    if (!hdr->name[0])
+      break;
+    
+    p += TAR_BLKSIZE;
+    
+    fsize = 0;
+    fact  = 1;
+    mode  = 0;
+
+    for (i = 0; i < 11; ++i)
+    {
+      if (!isodigit (c = hdr->size[10 - i]))
+      {
+	error ("offset 0x%x: corrupt header (%s)\n", p, hdr->size);
+	return -1;
+      }
+      else
+      {
+	fsize += (c - '0') * fact;
+	fact <<= 3;
+      }
+    }
+
+    fact = 1;
+    
+    for (i = 0; i < 7; ++i)
+    {
+      if (!isodigit (c = hdr->mode[6 - i]))
+      {
+	error ("offset 0x%x: corrupt header\n", p);
+	return -1;
+      }
+      else
+      {
+	mode += (c - '0') * fact;
+	fact <<= 3;
+      }
+    }
+
+    if ((hdr->typeflag == 0 || hdr->typeflag == '0') &&
+	strncmp (hdr->name, path_prefix, strlen (path_prefix)) == 0)
+      if ((cb) (hdr->name, base + p, fsize, mode, opaque) == -1)
+	return -1;
+    
+    p += ((fsize / TAR_BLKSIZE) + !!(fsize & (TAR_BLKSIZE - 1))) * TAR_BLKSIZE;
+  }
+
+  return 0;
+}
+
+struct found_file
+{
+  const char *file;
+  const void *base;
+  uint32_t size;
+};
+
+static int
+__file_lookup (const char *name, const void *base, uint32_t size, uint32_t mode, void *opaque)
+{
+  struct found_file *ff = (struct found_file *) opaque;
+
+  if (ff->base == NULL && strcmp (name, ff->file) == 0)
+  {
+    ff->base = base;
+    ff->size = size;
+    return -1;
+  }
+
+  return 0;
+}
+
+int
+tar_file_lookup (const void *base, uint32_t size, const char *file, const void ** pbase, uint32_t *psize)
+{
+  struct found_file ff = {file, NULL, 0};
+
+  /*
+    const void *base, uint32_t size, const char *path_prefix, int (*cb) (const char *path, const void *base, uint32_t size, uint32_t mode, void *opaque), void *opaque */
+  
+  if (tar_file_walk (base, size, file, __file_lookup, &ff) == 0)
+    return -1;
+
+  if (ff.base == NULL)
+    return -1;
+
+  *pbase = ff.base;
+  *psize = ff.size;
+
+  return 0;
+}
+
+DEBUG_FUNC (tar_file_walk);
 DEBUG_FUNC (strlen);
 DEBUG_FUNC (umax);
 DEBUG_FUNC (max);

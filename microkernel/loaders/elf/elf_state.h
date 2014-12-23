@@ -24,6 +24,8 @@ struct elf32_state
   Elf32_Ehdr *header;
   Elf32_Phdr *phdrs;
   uint32_t    size;
+  int         dyn;
+  uint32_t    addr;
 };
 
 #endif /* _ELF_STATE_H */

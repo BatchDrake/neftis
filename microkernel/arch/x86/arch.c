@@ -467,6 +467,19 @@ load_servers (void)
     MANDATORY (SUCCESS (srvrd_load (initrd_start, initrd_size)));
 }
 
+int
+get_abi_vdso (const char *abi, const void **base, uint32_t *size)
+{
+  char path[64] = "abi/";
+
+  strncpy (path + 4, abi, 59);
+  
+  if (initrd_size > 0)
+    return tar_file_lookup (initrd_start, initrd_size, path, base, size);
+  else
+    return -1;
+}
+
 DEBUG_FUNC (load_servers);
 DEBUG_FUNC (addr_in_range);
 DEBUG_FUNC (boot_console_init);

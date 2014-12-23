@@ -544,8 +544,6 @@ vm_space_load_abi_vdso (struct vm_space *target, const char *abi, busword_t *abi
 
     return -1;
   }
-  else
-    debug ("ABI: %s (%p, %d)\n", abi, abi_vdso_start, abi_vdso_size);
   
   if ((handle = loader_open_exec (target, abi_vdso_start, abi_vdso_size)) == KERNEL_INVALID_POINTER)
   {

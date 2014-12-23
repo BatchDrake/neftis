@@ -90,7 +90,9 @@ elf32_entry (void *opaque)
 {
   struct elf32_state *state = (struct elf32_state *) opaque;
 
-  return state->header->e_entry;
+  return state->dyn ?
+    state->addr + state->header->e_entry :
+    state->header->e_entry;
 }
 
 int

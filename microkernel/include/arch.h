@@ -62,7 +62,7 @@ int   __vm_flush_pages (busword_t, busword_t);
 struct task *__alloc_task (void);
 void         __free_task (struct task *);
 
-void __task_config_start (struct task *, void (*) ());
+void __task_config_start (struct task *, void (*) (), void (*) ());
 void __task_perform_switch (struct task *);
 void __task_switch_from_current (struct task *, struct task *);
 void __task_switch_from_interrupt (struct task *, struct task *);

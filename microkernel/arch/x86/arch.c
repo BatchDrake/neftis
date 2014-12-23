@@ -195,13 +195,13 @@ vm_kernel_space_map_image (struct vm_space *space)
 
   if (initrd_size > 0)
   {
-    RETURN_ON_PTR_FAILURE (region = vm_region_remap ((busword_t) initrd_start, (busword_t) initrd_phys, initrd_size, VREGION_ACCESS_READ | VM_PAGE_KERNEL));
+    RETURN_ON_PTR_FAILURE (region = vm_region_remap ((busword_t) initrd_start, (busword_t) initrd_phys, __UNITS (initrd_size, PAGE_SIZE), VREGION_ACCESS_READ | VM_PAGE_KERNEL));
     
     region->vr_unlinked_remap = 1;
     
     MANDATORY (SUCCESS (vm_space_add_region (space, region)));
   }
-  
+
   return KERNEL_SUCCESS_VALUE;
 }
 

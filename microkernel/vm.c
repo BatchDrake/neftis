@@ -530,13 +530,61 @@ __load_segment_cb (struct vm_space *space, int type, int flags, busword_t virt, 
   return 0;
 }
 
+int
+vm_space_load_abi_vdso (struct vm_space *target, const char *abi, busword_t *abi_entry)
+{
+  loader_handle *handle;
+
+  const void *abi_vdso_start;
+  uint32_t    abi_vdso_size;
+
+  if (get_abi_vdso (abi, &abi_vdso_start, &abi_vdso_size) == -1)
+  {
+    warning ("Cannot load abi `%s'\n", abi);
+
+    return -1;
+  }
+  else
+    debug ("ABI: %s (%p, %d)\n", abi, abi_vdso_start, abi_vdso_size);
+  
+  if ((handle = loader_open_exec (target, abi_vdso_start, abi_vdso_size)) == KERNEL_INVALID_POINTER)
+  {
+    error ("Cannot load ABI `%s': invalid ABI in initrd\n", abi);
+
+    return -1;
+  }
+
+  if (loader_rebase (handle, USER_ABI_VDSO) == -1)
+  {
+    error ("Cannot rebase ABI `%s'\n", abi);
+
+    loader_close_exec (handle);
+    
+    return -1;
+  }
+
+  if (loader_walk_exec (handle, __load_segment_cb) == KERNEL_ERROR_VALUE)
+  {
+    error ("Cannot load ABI segments\n");
+
+    loader_close_exec (handle);
+    
+    return -1;
+  }
+
+  if (abi_entry != NULL)
+    *abi_entry = loader_get_exec_entry (handle);
+  
+  loader_close_exec (handle);
+
+  return 0;
+}
+
 struct vm_space *
-vm_space_load_from_exec (const void *exec_start, busword_t exec_size, busword_t *entry)
+vm_space_load_from_exec (const void *exec_start, busword_t exec_size, busword_t *entry, busword_t *abi_entry)
 {
   struct vm_space  *space;
   loader_handle    *handle;
-  const void *abi_vdso_start;
-  uint32_t    abi_vdso_size;
   
   char abi[64];
   
@@ -550,10 +598,13 @@ vm_space_load_from_exec (const void *exec_start, busword_t exec_size, busword_t 
 
   loader_get_abi (handle, abi, sizeof (abi) - 1);
 
-  if (get_abi_vdso (abi, &abi_vdso_start, &abi_vdso_size) == -1)
-    warning ("Cannot load abi `%s'\n", abi);
-  else
-    debug ("ABI: %s (%p, %d)\n", abi, abi_vdso_start, abi_vdso_size);
+  if (vm_space_load_abi_vdso (space, abi, abi_entry) == -1)
+  {
+    vm_space_destroy (space);
+    loader_close_exec (handle);
+
+    return KERNEL_INVALID_POINTER;
+  }
   
   if (loader_walk_exec (handle, __load_segment_cb) == KERNEL_ERROR_VALUE)
   {

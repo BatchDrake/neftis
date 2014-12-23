@@ -149,6 +149,7 @@ struct vm_region
 struct vm_space
 {
   struct vm_region *vs_regions;
+
   /* This is hardware dependant */
   void *vs_pagetable;
 };
@@ -174,7 +175,7 @@ void vm_space_destroy (struct vm_space *);
 
 struct vm_space *vm_kernel_space (void);
 struct vm_space *vm_bare_sysproc_space (void);
-struct vm_space *vm_space_load_from_exec (const void *, busword_t, busword_t *);
+struct vm_space *vm_space_load_from_exec (const void *, busword_t, busword_t *, busword_t *);
 
 void vm_space_debug (struct vm_space *);
 

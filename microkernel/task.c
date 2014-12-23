@@ -340,7 +340,7 @@ kernel_task_new (void (*entry) (void))
     return NULL;
   }
   
-  __task_config_start (task, entry);
+  __task_config_start (task, entry, NULL);
 
   if (register_task (task) == -1)
   {
@@ -358,14 +358,15 @@ user_task_new_from_exec (const void *data, busword_t size)
   struct vm_region *stack, *vremap;
   struct vm_space *space;
   loader_handle *handler;
-
   void (*entry) (void);
+  void (*abi_entry) (void);
+
   tid_t tid;
 
   if ((task = __alloc_task ()) == NULL)
     return NULL;
 
-  if ((space = vm_space_load_from_exec (data, size, (busword_t *) &entry)) == KERNEL_INVALID_POINTER)
+  if ((space = vm_space_load_from_exec (data, size, (busword_t *) &entry, (busword_t *) &abi_entry)) == KERNEL_INVALID_POINTER)
   {
     task_destroy (task);
 
@@ -432,7 +433,7 @@ user_task_new_from_exec (const void *data, busword_t size)
   task->ts_state = TASK_STATE_NEW;
   task->ts_type  = TASK_TYPE_USER_THREAD;
   
-  __task_config_start (task, entry);
+  __task_config_start (task, entry, abi_entry);
 
   if (register_task (task) == -1)
   {
@@ -473,7 +474,7 @@ init_kernel_threads (void)
 
   MANDATORY (new->ts_vm_space = kernel_object_open_task (current_kctx->kc_vm_space, new));
   
-  __task_config_start (new, idle_task);
+  __task_config_start (new, idle_task, NULL);
 
   if (__register_task_with_tid (new, KERNEL_THREAD_IDLE) == KERNEL_ERROR_VALUE)
     FAIL ("Cannot allocate idle task!\n");

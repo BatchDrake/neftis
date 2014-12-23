@@ -182,7 +182,7 @@ __task_find_stack_bottom (struct task *task)
 }
 
 void
-__task_config_start (struct task *task, void (*start) ())
+__task_config_start (struct task *task, void (*start) (), void (*abi_entry) ())
 {
   struct x86_stack_frame *frameptr;
   struct task_ctx_data *data;
@@ -211,8 +211,15 @@ __task_config_start (struct task *task, void (*start) ())
     FAIL ("Don't know how to build start frame for this type of task!\n");
 
   /* Return address goes where? */
+
+  if (abi_entry == NULL)
+    frameptr->priv.eip = (busword_t) start;
+  else
+  {
+    frameptr->regs.eax = (busword_t) start;
+    frameptr->priv.eip = (busword_t) abi_entry;
+  }
   
-  frameptr->priv.eip = (physptr_t) start;
   frameptr->cr3 = (busword_t) (REFCAST (struct vm_space, task->ts_vm_space)->vs_pagetable);
 }
 

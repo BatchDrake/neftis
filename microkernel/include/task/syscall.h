@@ -21,7 +21,7 @@
 
 #include <types.h>
 
-typedef int (*syscall_entry_t) (const busword_t *);
+typedef int (*syscall_entry_t) (busword_t, const busword_t *);
 
 #define SYS_KRN_exit     0
 
@@ -31,11 +31,15 @@ typedef int (*syscall_entry_t) (const busword_t *);
 
 #define SYS_VMO_COUNT    1
 
+#define SYS_KRN_PRIVATE  0x80000000
+
 #define SYSPROTO(name) \
-  int name (const busword_t *args)
+  int name (busword_t syscall, const busword_t *args)
 
 #include <task/syskrn.h>
 
 #include <task/sysipc.h>
+
+SYSPROTO (arch_private_syscall);
 
 #endif /* _TASK_SYSCALL_H */

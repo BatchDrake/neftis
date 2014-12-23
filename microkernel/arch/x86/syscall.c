@@ -38,11 +38,16 @@ x86_sys_microkernel (struct x86_stack_frame *frame)
   syscall_entry_t entry;
 
   busword_t args[5] = {frame->regs.ebx, frame->regs.ecx, frame->regs.edx, frame->regs.esi, frame->regs.edi};
-  
+
   if (frame->regs.eax >= SYS_KRN_COUNT || (entry = krn_syscall_list[frame->regs.eax]) == NULL)
-    frame->regs.eax = -ENOSYS;
+  {
+    if (frame->regs.eax >= SYS_KRN_PRIVATE)
+      frame->regs.eax = arch_private_syscall (frame->regs.eax, args);
+    else
+      frame->regs.eax = -ENOSYS;
+  }
   else
-    frame->regs.eax = (entry) (args);
+    frame->regs.eax = (entry) (frame->regs.eax, args);
 }
 
 void
@@ -55,7 +60,7 @@ x86_sys_ipc (struct x86_stack_frame *frame)
   if (frame->regs.eax >= SYS_IPC_COUNT || (entry = ipc_syscall_list[frame->regs.eax]) == NULL)
     frame->regs.eax = -ENOSYS;
   else
-    frame->regs.eax = (entry) (args);
+    frame->regs.eax = (entry) (frame->regs.eax, args);
 }
 
 void

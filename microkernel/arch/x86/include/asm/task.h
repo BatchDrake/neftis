@@ -46,6 +46,8 @@ struct task_ctx_stack_info
 struct task_ctx_data
 {
   struct task_ctx_stack_info stack_info;
+
+  uint32_t uisr_eip[256]; /* User-defined ISRs */
 };
 
 INLINE DWORD

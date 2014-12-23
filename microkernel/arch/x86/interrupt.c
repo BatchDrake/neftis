@@ -17,10 +17,12 @@
  */
 #include <string.h>
 
+#include <task/task.h>
 #include <misc/hook.h>
 #include <irq/irq.h>
- 
+
 #include <asm/interrupt.h>
+#include <asm/task.h>
 #include <asm/regs.h>
 #include <asm/seg.h>
 #include <asm/io.h>
@@ -96,6 +98,112 @@ extern void isr52 (void);
 extern void isr53 (void); 
 extern void isr54 (void); 
 extern void isr55 (void); 
+
+/* User-defined gates */
+extern void isr56 (void);
+extern void isr57 (void);
+extern void isr58 (void);
+extern void isr59 (void);
+extern void isr60 (void);
+extern void isr61 (void);
+extern void isr62 (void);
+extern void isr63 (void);
+extern void isr64 (void);
+extern void isr65 (void);
+extern void isr66 (void);
+extern void isr67 (void);
+extern void isr68 (void);
+extern void isr69 (void);
+extern void isr70 (void);
+extern void isr71 (void);
+extern void isr72 (void);
+extern void isr73 (void);
+extern void isr74 (void);
+extern void isr75 (void);
+extern void isr76 (void);
+extern void isr77 (void);
+extern void isr78 (void);
+extern void isr79 (void);
+extern void isr80 (void);
+extern void isr81 (void);
+extern void isr82 (void);
+extern void isr83 (void);
+extern void isr84 (void);
+extern void isr85 (void);
+extern void isr86 (void);
+extern void isr87 (void);
+extern void isr88 (void);
+extern void isr89 (void);
+extern void isr90 (void);
+extern void isr91 (void);
+extern void isr92 (void);
+extern void isr93 (void);
+extern void isr94 (void);
+extern void isr95 (void);
+extern void isr96 (void);
+extern void isr97 (void);
+extern void isr98 (void);
+extern void isr99 (void);
+extern void isr100 (void);
+extern void isr101 (void);
+extern void isr102 (void);
+extern void isr103 (void);
+extern void isr104 (void);
+extern void isr105 (void);
+extern void isr106 (void);
+extern void isr107 (void);
+extern void isr108 (void);
+extern void isr109 (void);
+extern void isr110 (void);
+extern void isr111 (void);
+extern void isr112 (void);
+extern void isr113 (void);
+extern void isr114 (void);
+extern void isr115 (void);
+extern void isr116 (void);
+extern void isr117 (void);
+extern void isr118 (void);
+extern void isr119 (void);
+extern void isr120 (void);
+extern void isr121 (void);
+extern void isr122 (void);
+extern void isr123 (void);
+extern void isr124 (void);
+extern void isr125 (void);
+extern void isr126 (void);
+extern void isr127 (void);
+extern void isr128 (void);
+extern void isr129 (void);
+extern void isr130 (void);
+extern void isr131 (void);
+extern void isr132 (void);
+extern void isr133 (void);
+extern void isr134 (void);
+extern void isr135 (void);
+extern void isr136 (void);
+extern void isr137 (void);
+extern void isr138 (void);
+extern void isr139 (void);
+extern void isr140 (void);
+extern void isr141 (void);
+extern void isr142 (void);
+extern void isr143 (void);
+extern void isr144 (void);
+extern void isr145 (void);
+extern void isr146 (void);
+extern void isr147 (void);
+extern void isr148 (void);
+extern void isr149 (void);
+extern void isr150 (void);
+extern void isr151 (void);
+extern void isr152 (void);
+extern void isr153 (void);
+extern void isr154 (void);
+extern void isr155 (void);
+extern void isr156 (void);
+extern void isr157 (void);
+extern void isr158 (void);
+extern void isr159 (void);
 
 /* Microkernel services */
 extern void isr160 (void);
@@ -325,6 +433,320 @@ x86_init_all_gates (void)
   x86_idt_set_gate  (55, isr55, GDT_SEGMENT_KERNEL_CODE,
     IDT_PRESENT | I386_INTERRUPT_GATE);
 
+  /* User-defined interrupt gates */
+  x86_idt_set_gate  (56, isr56, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (57, isr57, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (58, isr58, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (59, isr59, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (60, isr60, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (61, isr61, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (62, isr62, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (63, isr63, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (64, isr64, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (65, isr65, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (66, isr66, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (67, isr67, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (68, isr68, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (69, isr69, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (70, isr70, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (71, isr71, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (72, isr72, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (73, isr73, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (74, isr74, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (75, isr75, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (76, isr76, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (77, isr77, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (78, isr78, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (79, isr79, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (80, isr80, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (81, isr81, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (82, isr82, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (83, isr83, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (84, isr84, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (85, isr85, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (86, isr86, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (87, isr87, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (88, isr88, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (89, isr89, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (90, isr90, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (91, isr91, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (92, isr92, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (93, isr93, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (94, isr94, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (95, isr95, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (96, isr96, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (97, isr97, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (98, isr98, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (99, isr99, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (100, isr100, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (101, isr101, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (102, isr102, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (103, isr103, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (104, isr104, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (105, isr105, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (106, isr106, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (107, isr107, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (108, isr108, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (109, isr109, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (110, isr110, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (111, isr111, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (112, isr112, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (113, isr113, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (114, isr114, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (115, isr115, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (116, isr116, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (117, isr117, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (118, isr118, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (119, isr119, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (120, isr120, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (121, isr121, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (122, isr122, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (123, isr123, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (124, isr124, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (125, isr125, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (126, isr126, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (127, isr127, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (128, isr128, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (129, isr129, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (130, isr130, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (131, isr131, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (132, isr132, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (133, isr133, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (134, isr134, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (135, isr135, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (136, isr136, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (137, isr137, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (138, isr138, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (139, isr139, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (140, isr140, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (141, isr141, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (142, isr142, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (143, isr143, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (144, isr144, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (145, isr145, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (146, isr146, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (147, isr147, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (148, isr148, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (149, isr149, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (150, isr150, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (151, isr151, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (152, isr152, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (153, isr153, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (154, isr154, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (155, isr155, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (156, isr156, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (157, isr157, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (158, isr158, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+  x86_idt_set_gate  (159, isr159, GDT_SEGMENT_KERNEL_CODE, 
+    IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
+
+
   /* System calls. These are trap gates as they don't need to disable interrupts. */
   x86_idt_set_gate  (160, isr160, GDT_SEGMENT_KERNEL_CODE,
     IDT_PRESENT | I386_TRAP_GATE | IDT_PRIV (3));
@@ -352,12 +774,34 @@ interrupt_is_fatal (unsigned int interrupt)
   
 }
 
+int
+x86_user_interrupt (struct task *task, struct x86_stack_frame *frame, busword_t eip)
+{
+  /* To make things easier, instead of pushing all general purpose registers, I'll push the return address. It will be up to userland to save all the possibly clobbered registers.
+
+     This is a good idea, as we don't need anything like linux's sigreturn */
+
+  frame->unpriv.old_esp   -= 4;
+  
+  if (copy2virt (REFCAST (struct vm_space, task->ts_vm_space), frame->unpriv.old_esp, &frame->unpriv.eip, sizeof (busword_t)) != sizeof (busword_t))
+    return -1;
+
+  
+  printk ("Going to %p, coming back to %p\n", eip, frame->unpriv.eip);
+  
+  frame->unpriv.eip = (void *) eip;
+
+  return 0;
+}
+
 void
 x86_isr_handler (struct x86_stack_frame *frame)
 {
   int old_ctx;
   void *old_frame;
   struct task *task;
+  struct task_ctx_data *ctx_data;
+  
   DWORD cr2;
 
   old_ctx   = get_current_context ();
@@ -439,16 +883,22 @@ x86_isr_handler (struct x86_stack_frame *frame)
     case X86_INT_PAGE_FAULT:
       if (task->ts_type == TASK_TYPE_KERNEL_THREAD)
         x86_regdump (frame);
-    
+      
       if (vm_handle_page_fault (task, cr2, VREGION_ACCESS_READ) == -1)
 	task_trigger_exception (task, EX_SEGMENT_VIOLATION, (busword_t) frame->priv.eip, cr2, 0);
       
       break;
 
     default:
-      panic ("int %d, code %d", frame->int_no, frame->priv.error);
-  
-      kernel_halt ();
+      /* User-defined interrupts. This will help porting foreign
+	 ABIs to Atomik directly from userland */
+      
+      ctx_data = get_task_ctx_data (task);
+
+      if (ctx_data->uisr_eip[frame->int_no] == 0)
+	task_trigger_exception (task, EX_ILL_INSTRUCTION, (busword_t) frame->priv.eip, 0, 0);
+      else if (x86_user_interrupt (task, frame, ctx_data->uisr_eip[frame->int_no]) == -1)
+	task_trigger_exception (task, EX_SEGMENT_VIOLATION, (busword_t) frame->priv.eip, ctx_data->uisr_eip[frame->int_no], 0);
     }
   }
 

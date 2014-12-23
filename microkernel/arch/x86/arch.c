@@ -20,6 +20,9 @@
 
 #include <multiboot.h>
 
+#include <task/task.h>
+
+#include <asm/task.h>
 #include <asm/interrupt.h>
 #include <asm/8259-pic.h>
 #include <asm/irq.h>
@@ -34,6 +37,7 @@
 #include <mm/anon.h>
 
 #include <misc/hook.h>
+#include <misc/errno.h>
 
 #include <vga/crtc.h>
 
@@ -408,6 +412,24 @@ hook_timer (int (*func) (int, void *, void *))
   RETURN_ON_FAILURE (hook_register (sys_irq_bucket, IRQ_TIMER, func, NULL));
   
   return KERNEL_SUCCESS_VALUE;
+}
+
+SYSPROTO (arch_private_syscall)
+{
+  struct task *task = get_current_task ();
+  struct task_ctx_data *ctx_data;
+
+  if (syscall != 0x80000000)
+    return -ENOSYS;
+
+  ctx_data = get_task_ctx_data (task);
+
+  if (args[0] > 255)
+    return -EINVAL;
+
+  ctx_data->uisr_eip[args[0]] = args[1];
+
+  return 0;
 }
 
 void

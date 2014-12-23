@@ -20,6 +20,7 @@
 #define _ARCH_H
 
 #include <asm/layout.h>
+#include <task/syscall.h>
 
 /* Misc functions */
 void __halt (void);

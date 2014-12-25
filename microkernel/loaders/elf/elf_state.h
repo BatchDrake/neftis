@@ -19,13 +19,42 @@
 #ifndef _ELF_STATE_H
 #define _ELF_STATE_H
 
+#define OFFADDR(state, off) ((void *) (state)->header + (off))
+
 struct elf32_state
 {
   Elf32_Ehdr *header;
   Elf32_Phdr *phdrs;
+  Elf32_Shdr *shdrs;
+
+  Elf32_Rel  *rel;
+  uint32_t    rel_count;
+  
+  Elf32_Rela *rela;
+  uint32_t    rela_count;
+
+  int jmprel_type;
+  
+  union
+  {
+    Elf32_Rel  *jmprel;
+    Elf32_Rela *jmprela;
+  };
+  
+  uint32_t    jmprel_count;
+
+  
+  Elf32_Sym  *symtab;
+  uint32_t    symtab_size;
+  uint32_t    symtab_first;
+  
+  char       *strtab;
+  uint32_t    strtab_size;
+ 
   uint32_t    size;
   int         dyn;
   uint32_t    addr;
+
   const char *abi_string; /* Static string */
 };
 
@@ -36,6 +65,11 @@ struct elf32_note
   uint32_t type;
   char     data[0];
 };
+
+int elf32_parse_dyn (struct elf32_state *, Elf32_Phdr *);
+int elf32_setup_abi (struct elf32_state *, Elf32_Phdr *);
+int elf32_parse_rel (struct elf32_state *, struct vm_space *, Elf32_Rel *, uint32_t);
+int elf32_parse_rela (struct elf32_state *, struct vm_space *, Elf32_Rela *, uint32_t);
 
 #endif /* _ELF_STATE_H */
 

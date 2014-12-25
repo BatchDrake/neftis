@@ -127,7 +127,7 @@ defsched_wake_up (struct task *task, int op, int reason)
 {
   int delayed = op & WAKEUP_DELAYED;
   int again   = op & WAKEUP_AGAIN;
-  
+
   op &= TASK_STATE_MASK;
   
   ASSERT (task != NULL);

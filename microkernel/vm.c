@@ -273,7 +273,7 @@ virt2phys (const struct vm_space *space, busword_t virt)
   return 0;
 }
 
-
+/* Returns the number of transfered bytes */
 int
 copy2virt (const struct vm_space *space, busword_t virt, const void *orig, busword_t size)
 {
@@ -570,6 +570,13 @@ vm_space_load_abi_vdso (struct vm_space *target, const char *abi, busword_t *abi
     return -1;
   }
 
+  if (loader_relocate (handle) == -1)
+  {
+    loader_close_exec (handle);
+    
+    return -1;
+  }
+
   if (abi_entry != NULL)
     *abi_entry = loader_get_exec_entry (handle);
   
@@ -599,6 +606,7 @@ vm_space_load_from_exec (const void *exec_start, busword_t exec_size, busword_t 
   if (vm_space_load_abi_vdso (space, abi, abi_entry) == -1)
   {
     vm_space_destroy (space);
+    
     loader_close_exec (handle);
 
     return KERNEL_INVALID_POINTER;
@@ -607,9 +615,23 @@ vm_space_load_from_exec (const void *exec_start, busword_t exec_size, busword_t 
   if (loader_walk_exec (handle, __load_segment_cb) == KERNEL_ERROR_VALUE)
   {
     vm_space_destroy (space);
+
+    loader_close_exec (handle);
+    
     return KERNEL_INVALID_POINTER;
   }
 
+  /* Once all segments are properly loaded, we can perform a relocation */
+
+  if (loader_relocate (handle) == -1)
+  {
+    vm_space_destroy (space);
+
+    loader_close_exec (handle);
+    
+    return KERNEL_INVALID_POINTER;
+  }
+  
   if (entry != NULL)
     *entry = loader_get_exec_entry (handle);
   

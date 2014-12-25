@@ -31,74 +31,23 @@
 #include "elf_state.h"
 
 static int
-elf32_setup_abi (struct elf32_state *state)
+elf32_preload_info (struct elf32_state *state)
 {
-  void *base = (void *) state->header;
-  int i, p = 0;
-  unsigned long size;
-  struct elf32_note *note;
-
-  const char *name;
-  const char *desc;
-
-  state->abi_string = "agnostic";
-  
+  int i = 0;
   for (i = 0; i < state->header->e_phnum; ++i)
-    if (state->phdrs[i].p_type == PT_NOTE)
+    switch (state->phdrs[i].p_type)
     {
-      size = state->phdrs[i].p_filesz;
-      p = 0;
+    case PT_NOTE:
+      if (elf32_setup_abi (state, &state->phdrs[i]) == -1)
+	return -1;
+      break;
 
-      while (p < size)
-      {
-	if (OVERFLOW (p + state->phdrs[i].p_offset + size - 1,
-		      state->size))
-	  return -1;
-      
-	note = (struct elf32_note *) (base + p + state->phdrs[i].p_offset);
-
-	p += sizeof (struct elf32_note) + __ALIGN (note->namesz, 4) + note->descsz;
-	
-	if (OVERFLOW (p - 1, size))
-	  return -1;
-
-	name = (const char *) note->data;
-	desc = (const char *) (note->data + __ALIGN (note->namesz, 4));
-
-	if (note->type == 1)
-	{
-	  /* GNU eabi */
-	  if (note->namesz == 4 && strncmp (name, "GNU", 3) == 0)
-	  {
-	    switch (desc[3])
-	    {
-	    case 0:
-	      state->abi_string = "elf32-linux-gnu";
-	      break;
-
-	    case 1:
-	      state->abi_string = "elf32-hurd-gnu";
-	      break;
-
-	    case 2:
-	      state->abi_string = "elf32-solaris-gnu";
-	      break;
-
-	    default:
-	      state->abi_string = "elf32-unknown-gnu";
-	  
-	    }
-	  }
-	  else if (note->namesz == 4 && strncmp (name, "PaX", 3) == 0)
-	    state->abi_string = "elf32-netbsd";
-	  else if (note->namesz == 7 && strncmp (name, "NetBSD", 7) == 0)
-	    state->abi_string = "elf32-netbsd";
-
-	  return 0;
-	}
-      }
+    case PT_DYNAMIC:
+      if (elf32_parse_dyn (state, &state->phdrs[i]) == -1)
+	return -1;
+      break;
     }
-
+  
   return 0;
 }
 
@@ -143,15 +92,22 @@ elf32_open (const void *base, uint32_t size)
   if (OVERFLOW (ehdr->e_phoff + sizeof (Elf32_Phdr) * ehdr->e_phnum - 1, size))
     goto FAIL_MISERABLY;
 
+  if (OVERFLOW (ehdr->e_shoff, size))
+    goto FAIL_MISERABLY;
+
+  if (OVERFLOW (ehdr->e_shoff + sizeof (Elf32_Shdr) * ehdr->e_shnum - 1, size))
+    goto FAIL_MISERABLY;
+
   CONSTRUCT_STRUCT (elf32_state, state);
   
   state->header = ehdr;
   state->phdrs  = (Elf32_Phdr *) (base + ehdr->e_phoff);
+  state->shdrs  = (Elf32_Shdr *) (base + ehdr->e_shoff);
   state->size   = size;
   state->dyn    = ehdr->e_type == ET_DYN;
   state->addr   = 0;
 
-  if (elf32_setup_abi (state) == -1)
+  if (elf32_preload_info (state) == -1)
   {
     sfree (state);
     
@@ -237,6 +193,37 @@ elf32_rebase (void *opaque, busword_t base)
   return 0;
 }
 
+int
+elf32_relocate (void *opaque, struct vm_space *space)
+{
+  struct elf32_state *state = (struct elf32_state *) opaque;
+
+  if (state->rel_count > 0)
+    if (elf32_parse_rel (state, space, state->rel, state->rel_count) == -1)
+      return -1;
+
+  if (state->rela_count > 0)
+    if (elf32_parse_rela (state, space, state->rela, state->rela_count) == -1)
+      return -1;
+
+  if (state->jmprel_count > 0)
+  {
+    if (state->jmprel_type == DT_REL)
+    {
+      if (elf32_parse_rel (state, space, state->jmprel, state->jmprel_count) == -1)
+	return -1;
+    }
+    else
+    {
+      if (elf32_parse_rela (state, space, state->jmprela, state->jmprel_count) == -1)
+	return -1;
+
+    }
+  }
+  
+  return 0;
+}
+
 void
 elf32_close (void *opaque)
 {
@@ -263,12 +250,14 @@ elf_init (void)
   if (PTR_UNLIKELY_TO_FAIL (elfloader = loader_register ("elf32", "Executable and Linking Format (ELF) - 32 bit")))
     FAIL ("Couldn't initialize ELF 32\n");
 
-  elfloader->open    = elf32_open;
-  elfloader->entry   = elf32_entry;
-  elfloader->walkseg = elf32_walkseg;
-  elfloader->close   = elf32_close;
-  elfloader->rebase  = elf32_rebase;
-  elfloader->get_abi = elf32_get_abi;
+  elfloader->open     = elf32_open;
+  elfloader->entry    = elf32_entry;
+  elfloader->walkseg  = elf32_walkseg;
+  elfloader->close    = elf32_close;
+  elfloader->rebase   = elf32_rebase;
+  elfloader->get_abi  = elf32_get_abi;
+  elfloader->relocate = elf32_relocate;
+  
 }
 
 DEBUG_FUNC (elf32_setup_abi);

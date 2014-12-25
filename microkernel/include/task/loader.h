@@ -34,6 +34,7 @@ struct loader
   size_t        (*get_abi) (void *, char *, size_t);
   int           (*rebase)  (void *, busword_t);
   int           (*walkseg) (void *, struct vm_space *, int (*) (struct vm_space *, int, int, busword_t, busword_t, const void *, busword_t));
+  int           (*relocate) (void *, struct vm_space *);
   void          (*close)   (void *);
 };
 
@@ -61,6 +62,7 @@ loader_handle *loader_open_exec (struct vm_space *, const void *, uint32_t);
 busword_t loader_get_exec_entry (loader_handle *);
 size_t loader_get_abi (loader_handle *handle, char *buf, size_t size);
 int loader_rebase (loader_handle *, busword_t);
+int loader_relocate (loader_handle *);
 int loader_walk_exec (loader_handle *, int (*) (struct vm_space *, int, int, busword_t, busword_t, const void *, busword_t));
 void loader_close_exec (loader_handle *);
 void loader_init (void);

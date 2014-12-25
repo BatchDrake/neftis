@@ -108,6 +108,15 @@ loader_rebase (loader_handle *handle, busword_t addr)
   return 0;
 }
 
+int
+loader_relocate (loader_handle *handle)
+{
+  if (handle->loader->relocate != NULL)
+    return (handle->loader->relocate) (handle->opaque, handle->target_space);
+
+  return 0;
+}
+
 void
 loader_close_exec (loader_handle *handle)
 {

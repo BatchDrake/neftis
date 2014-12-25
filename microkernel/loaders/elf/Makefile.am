@@ -9,4 +9,4 @@ libelf_a_CFLAGS=-fstrength-reduce \
 
 libelf_a_CCASFLAGS=-DASM -D__386__ @AM_CCASFLAGS@
 
-libelf_a_SOURCES=elf.c elf.h elf_state.h
+libelf_a_SOURCES=abi.c dyn.c elf.c elf.h elf_state.h

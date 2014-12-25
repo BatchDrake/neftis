@@ -41,18 +41,26 @@ SYSPROTO (syscall_krn_debug_int)
   printk ("%d", args[0]);
 }
 
+SYSPROTO (syscall_krn_debug_pointer)
+{
+  printk ("%p", args[0]);
+}
+
 SYSPROTO (syscall_krn_debug_string)
 {
   char *p;
   busword_t addr = args[0];
   struct task *task = get_current_task ();
   int i;
-  
+
   while ((p = (char *) virt2phys (REFCAST (struct vm_space, task->ts_vm_space), addr)) != NULL && *p != '\0')
   {
     do
       putchar (*p++);
     while ((busword_t) p & PAGE_MASK && *p != '\0');
+
+    if (*p == '\0')
+      break;
     
     addr = PAGE_START (addr) + PAGE_SIZE;
   }

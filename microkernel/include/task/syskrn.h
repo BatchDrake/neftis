@@ -4,5 +4,6 @@
 SYSPROTO (syscall_krn_exit);
 SYSPROTO (syscall_krn_debug_int);
 SYSPROTO (syscall_krn_debug_string);
+SYSPROTO (syscall_krn_debug_pointer);
 
 #endif /* _TASK_SYSKRN_H */

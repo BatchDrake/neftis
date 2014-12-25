@@ -49,66 +49,9 @@
 
 extern struct console *syscon;
 
-
-struct task *t1;
-int tid_2;
-
-static int flag = 0;
-
-void
-task_1 (void)
-{
-  int id, ret;
-  volatile int i;
-  int counter = 0;
-  busword_t addr;
-
-  for (i = 0; i < 1000000; ++i);
-  
-  printk ("[S] Creating a message...\n");
-  
-  if ((id = sys_msg_request (0)) < 0)
-    printk ("[S] Cannot create message (%d)\n", id);
-  else if ((int) (addr = sys_msg_map (id)) & 0xfff)
-    printk ("[S] Cannot map: %d\n", addr);
-  else
-  {
-    sys_msg_write_micro (id, "Hello world", sizeof ("Hello world"));
-    
-    while (counter < 7500)
-    {
-      if ((ret = sys_msg_send (id, tid_2)) < 0)
-      {
-	printk ("[S] Cannot send message (%d)\n", id);
-	break;
-      }
-
-      if ((++counter % 100) == 0)
-	printk ("[S] Sent %d messages so far\n", counter);
-    }
-
-    if (!flag)
-    {
-      ++flag;
-      printk ("[S] I won!\n");
-    }
-    else
-      printk ("[S] I lost :(\n");
-  }
-  
-
-  for (;;);
-}
-
 void
 test_kthreads (void)
 {
-  tid_2 = 1;
-
-  t1 = kernel_task_new (task_1);
-
-  wake_up (t1, TASK_STATE_RUNNING, WAKEUP_EXPLICIT);
-  
   schedule ();
 
   resume ();

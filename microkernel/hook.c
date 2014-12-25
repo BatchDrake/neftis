@@ -1,5 +1,5 @@
 /*
- *    <one line to give the program's name and a brief idea of what it does.>
+ *    <One line to give the program's name and a brief idea of what it does.>
  *    Copyright (C) <year>  <name of author>
  *
  *    This program is free software: you can redistribute it and/or modify
@@ -71,7 +71,7 @@ hook_register (struct hook_bucket *bucket, int code,
 {
   struct hook_func *cb;
   
-  if (IN_BOUNDS (code, bucket->hb_hook_count))
+  if (OVERFLOW (code, bucket->hb_hook_count))
   {
     debug ("code (%d) out of bounds!\n", code);
     return KERNEL_ERROR_VALUE;
@@ -93,7 +93,7 @@ hook_func_free (struct hook_bucket *bucket, int code)
 {
   struct hook_func *func, *next;
   
-  if (IN_BOUNDS (code, bucket->hb_hook_count))
+  if (OVERFLOW (code, bucket->hb_hook_count))
   {
     debug ("code (%d) out of bounds!\n", code);
     return;
@@ -127,7 +127,7 @@ trigger_hook (struct hook_bucket *bucket, int code, void *data)
   int acum;
   struct hook_func *func;
     
-  if (IN_BOUNDS (code, bucket->hb_hook_count))
+  if (OVERFLOW (code, bucket->hb_hook_count))
   {
     debug ("code (%d) out of bounds!\n", code);
     return KERNEL_ERROR_VALUE;

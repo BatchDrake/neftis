@@ -433,7 +433,7 @@ console_switch (int con)
   schar *videobuf;
 
   
-  if (IN_BOUNDS (con, SYSCON_NUM))
+  if (OVERFLOW (con, SYSCON_NUM))
     return KERNEL_ERROR_VALUE;
 
   if (&syscon_list[con] == syscon)

@@ -92,7 +92,7 @@
   if (PTR_UNLIKELY_TO_FAIL (x))                               \
     return KERNEL_INVALID_POINTER
 
-#define IN_BOUNDS(x, higher)                                  \
+#define OVERFLOW(x, higher)                                  \
   unlikely ((x) < 0 || (x) >= (higher))
 
 void printk (const char *, ...);

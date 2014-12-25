@@ -26,6 +26,15 @@ struct elf32_state
   uint32_t    size;
   int         dyn;
   uint32_t    addr;
+  const char *abi_string; /* Static string */
+};
+
+struct elf32_note
+{
+  uint32_t namesz;
+  uint32_t descsz;
+  uint32_t type;
+  char     data[0];
 };
 
 #endif /* _ELF_STATE_H */

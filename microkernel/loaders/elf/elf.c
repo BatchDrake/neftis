@@ -30,6 +30,78 @@
 #include "elf.h"
 #include "elf_state.h"
 
+static int
+elf32_setup_abi (struct elf32_state *state)
+{
+  void *base = (void *) state->header;
+  int i, p = 0;
+  unsigned long size;
+  struct elf32_note *note;
+
+  const char *name;
+  const char *desc;
+
+  state->abi_string = "agnostic";
+  
+  for (i = 0; i < state->header->e_phnum; ++i)
+    if (state->phdrs[i].p_type == PT_NOTE)
+    {
+      size = state->phdrs[i].p_filesz;
+      p = 0;
+
+      while (p < size)
+      {
+	if (OVERFLOW (p + state->phdrs[i].p_offset + size - 1,
+		      state->size))
+	  return -1;
+      
+	note = (struct elf32_note *) (base + p + state->phdrs[i].p_offset);
+
+	p += sizeof (struct elf32_note) + __ALIGN (note->namesz, 4) + note->descsz;
+	
+	if (OVERFLOW (p - 1, size))
+	  return -1;
+
+	name = (const char *) note->data;
+	desc = (const char *) (note->data + __ALIGN (note->namesz, 4));
+
+	if (note->type == 1)
+	{
+	  /* GNU eabi */
+	  if (note->namesz == 4 && strncmp (name, "GNU", 3) == 0)
+	  {
+	    switch (desc[3])
+	    {
+	    case 0:
+	      state->abi_string = "elf32-linux-gnu";
+	      break;
+
+	    case 1:
+	      state->abi_string = "elf32-hurd-gnu";
+	      break;
+
+	    case 2:
+	      state->abi_string = "elf32-solaris-gnu";
+	      break;
+
+	    default:
+	      state->abi_string = "elf32-unknown-gnu";
+	  
+	    }
+	  }
+	  else if (note->namesz == 4 && strncmp (name, "PaX", 3) == 0)
+	    state->abi_string = "elf32-netbsd";
+	  else if (note->namesz == 7 && strncmp (name, "NetBSD", 7) == 0)
+	    state->abi_string = "elf32-netbsd";
+
+	  return 0;
+	}
+      }
+    }
+
+  return 0;
+}
+
 void *
 elf32_open (const void *base, uint32_t size)
 {
@@ -41,7 +113,7 @@ elf32_open (const void *base, uint32_t size)
   /* XXX: rename this macro, it means exactly the opposite it
      is intended for */
   
-  if (IN_BOUNDS (sizeof (Elf32_Ehdr), size))
+  if (OVERFLOW (sizeof (Elf32_Ehdr), size))
     goto FAIL_MISERABLY;
 
   if (memcmp (ehdr->e_ident, ELFMAG, SELFMAG))
@@ -65,12 +137,12 @@ elf32_open (const void *base, uint32_t size)
   if (ehdr->e_phentsize != sizeof (Elf32_Phdr))
     goto FAIL_MISERABLY;
   
-  if (IN_BOUNDS (ehdr->e_phoff, size))
+  if (OVERFLOW (ehdr->e_phoff, size))
     goto FAIL_MISERABLY;
 
-  if (IN_BOUNDS (ehdr->e_phoff + sizeof (Elf32_Phdr) * ehdr->e_phnum - 1, size))
+  if (OVERFLOW (ehdr->e_phoff + sizeof (Elf32_Phdr) * ehdr->e_phnum - 1, size))
     goto FAIL_MISERABLY;
-  
+
   CONSTRUCT_STRUCT (elf32_state, state);
   
   state->header = ehdr;
@@ -78,7 +150,14 @@ elf32_open (const void *base, uint32_t size)
   state->size   = size;
   state->dyn    = ehdr->e_type == ET_DYN;
   state->addr   = 0;
-  
+
+  if (elf32_setup_abi (state) == -1)
+  {
+    sfree (state);
+    
+    goto FAIL_MISERABLY;
+  }
+
   return state;
   
 FAIL_MISERABLY:
@@ -110,8 +189,8 @@ elf32_walkseg (void *opaque, struct vm_space *space, int (*callback) (struct vm_
   for (i = 0; i < phnum; ++i)
     if (state->phdrs[i].p_type == PT_LOAD)
     {
-      if (IN_BOUNDS (state->phdrs[i].p_offset, state->size) ||
-          IN_BOUNDS (state->phdrs[i].p_offset + state->phdrs[i].p_filesz - 1, state->size))
+      if (OVERFLOW (state->phdrs[i].p_offset, state->size) ||
+          OVERFLOW (state->phdrs[i].p_offset + state->phdrs[i].p_filesz - 1, state->size))
       {
 	warning ("program header %d maps outside executable, assuming zero page\n", i);
         zeropg = TRUE;
@@ -167,18 +246,11 @@ elf32_close (void *opaque)
 size_t
 elf32_get_abi (void *opaque, char *buf, size_t size)
 {
-  const char *abi;
-
   struct elf32_state *state = (struct elf32_state *) opaque;
 
-  if (state->header->e_ident[EI_OSABI] == ELFOSABI_LINUX)
-    abi = "elf32-linux-gnu";
-  else
-    abi = "agnostic";
+  strncpy (buf, state->abi_string, size);
 
-  strncpy (buf, abi, size);
-
-  return strlen (abi);
+  return strlen (state->abi_string);
 }
 
 void
@@ -198,3 +270,12 @@ elf_init (void)
   elfloader->rebase  = elf32_rebase;
   elfloader->get_abi = elf32_get_abi;
 }
+
+DEBUG_FUNC (elf32_setup_abi);
+DEBUG_FUNC (elf32_open);
+DEBUG_FUNC (elf32_entry);
+DEBUG_FUNC (elf32_walkseg);
+DEBUG_FUNC (elf32_rebase);
+DEBUG_FUNC (elf32_close);
+DEBUG_FUNC (elf32_get_abi);
+DEBUG_FUNC (elf_init);

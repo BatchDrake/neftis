@@ -213,11 +213,11 @@ __task_config_start (struct task *task, void (*start) (), void (*abi_entry) ())
   /* Return address goes where? */
 
   if (abi_entry == NULL)
-    frameptr->priv.eip = (busword_t) start;
+    frameptr->priv.eip = (void *)    start;
   else
   {
     frameptr->regs.eax = (busword_t) start;
-    frameptr->priv.eip = (busword_t) abi_entry;
+    frameptr->priv.eip = (void *)    abi_entry;
   }
   
   frameptr->cr3 = (busword_t) (REFCAST (struct vm_space, task->ts_vm_space)->vs_pagetable);

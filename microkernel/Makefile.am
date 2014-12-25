@@ -36,6 +36,7 @@ neftis_SOURCES=arch/x86/boot.S \
 	       object.c        \
                printk.c        \
                radix_tree.c    \
+               rbtree.c        \
                sched.c         \
                slab.c          \
                salloc.c        \
@@ -94,6 +95,7 @@ neftis_SOURCES=arch/x86/boot.S \
                include/misc/list.h \
 	       include/misc/object.h \
                include/misc/radix_tree.h \
+               include/misc/rbtree.h \
                include/misc/hook.h \
                include/arch.h \
                include/debug.h \

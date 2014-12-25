@@ -163,19 +163,22 @@ __free_task (struct task *task)
 busword_t
 __task_find_stack_bottom (struct task *task)
 {
-  struct vm_region *curr;
-
+  struct vm_region *region;
+  struct rbtree_node *this;
+  
   if (task->ts_vm_space == NULL)
     return KERNEL_ERROR_VALUE;
 
-  curr = REFCAST (struct vm_space, task->ts_vm_space)->vs_regions;
-
-  while (curr)
+  this = rbtree_get_first (REFCAST (struct vm_space, task->ts_vm_space)->vs_region_tree);
+  
+  while (this)
   {
-    if (curr->vr_role == VREGION_ROLE_STACK)
-      return curr->vr_virt_end - sizeof (busword_t) + 1;
+    region = (struct vm_region *) rbtree_node_data (this);
+    
+    if (region->vr_role == VREGION_ROLE_STACK)
+      return region->vr_virt_end - sizeof (busword_t) + 1;
 
-    curr = LIST_NEXT (curr);
+    this = rbtree_node_next (this);
   }
 
   return KERNEL_ERROR_VALUE;

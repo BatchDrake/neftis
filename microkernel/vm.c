@@ -122,7 +122,27 @@ vm_region_translate_page (struct vm_region *region, busword_t virt, DWORD *flags
 struct vm_space *
 vm_space_new (void)
 {
-  CONSTRUCTOR_BODY_OF_STRUCT (vm_space);
+  struct vm_space *new;
+  
+  if ((new = salloc (sizeof (struct vm_space))) == NULL)
+    return NULL;
+
+  if ((new->vs_region_tree = rbtree_new ()) == NULL)
+  {
+    sfree (new);
+
+    return NULL;
+  }
+
+  new->vs_pagetable = NULL;
+
+  return new;
+}
+
+static void
+__rbtree_vm_region_dtor (void *region, void *dtor_data)
+{
+  vm_region_destroy ((struct vm_region *) region, NULL);
 }
 
 void
@@ -130,16 +150,9 @@ vm_space_destroy (struct vm_space *space)
 {
   struct vm_region *region, *next;
 
-  region = space->vs_regions;
-  
-  while (region)
-  {
-    next = LIST_NEXT (region);
-    
-    vm_region_destroy (region, NULL);
-    
-    region = next;
-  }
+  rbtree_set_dtor (space->vs_region_tree, __rbtree_vm_region_dtor, NULL);
+
+  rbtree_destroy (space->vs_region_tree);
   
   __vm_free_page_table (space->vs_pagetable);
 
@@ -152,16 +165,17 @@ vm_space_destroy (struct vm_space *space)
 struct vm_region *
 vm_space_find_first_in_range (struct vm_space *space, busword_t start, busword_t pages)
 {
-  struct vm_region *region_prev, *region_next;
-  
-  region_prev = 
-    sorted_list_get_previous ((void **) &space->vs_regions, start);
-    
-  region_next = 
-    sorted_list_get_next ((void **) &space->vs_regions, start);
-  
+  struct rbtree_node *leftwards, *rightwards;
+  struct vm_region *region_prev = NULL, *region_next = NULL;
+
+  if ((leftwards = rbtree_search (space->vs_region_tree, start, RB_LEFTWARDS)) != NULL)
+    region_prev = rbtree_node_data (leftwards);
+
+  if ((rightwards = rbtree_search (space->vs_region_tree, start, RB_RIGHTWARDS)) != NULL)
+    region_next = rbtree_node_data (rightwards);
+
   if (region_prev != NULL)
-    if (region_prev->vr_virt_end >= start)
+    if (start <= region_prev->vr_virt_end)
       return region_prev;
   
   if (region_next != NULL)
@@ -174,7 +188,11 @@ vm_space_find_first_in_range (struct vm_space *space, busword_t start, busword_t
 INLINE int
 vm_test_range (struct vm_space *space, busword_t start, busword_t pages)
 {
-  return vm_space_find_first_in_range (space, start, pages) == NULL;
+  struct vm_region *region;
+  
+  region = vm_space_find_first_in_range (space, start, pages);
+  
+  return region == NULL;
 }
 
 static int
@@ -203,12 +221,13 @@ vm_space_add_region (struct vm_space *space, struct vm_region *region)
     error ("Map region %p-%p: overlapping regions!\n", region->vr_virt_start, region->vr_virt_end);
     return KERNEL_ERROR_VALUE;
   }
+
+  if (rbtree_insert (space->vs_region_tree, region->vr_virt_start, region) == -1)
+  {
+    error ("Out of memory while inserting region\n");
+    return KERNEL_ERROR_VALUE;
+  }
   
-  sorted_list_insert ((void *) &space->vs_regions,
-                      region,
-                      region->vr_virt_start);
-
-
   vm_update_region (space, region);
   
   return KERNEL_SUCCESS_VALUE;
@@ -217,9 +236,11 @@ vm_space_add_region (struct vm_space *space, struct vm_region *region)
 int
 vm_space_overlap_region (struct vm_space *space, struct vm_region *region)
 {
-  sorted_list_insert ((void *) &space->vs_regions,
-                      region,
-                      region->vr_virt_start);
+  if (rbtree_insert (space->vs_region_tree, region->vr_virt_start, region) == -1)
+  {
+    error ("Out of memory while inserting region\n");
+    return KERNEL_ERROR_VALUE;
+  }
 
   vm_update_region (space, region);
   
@@ -229,46 +250,31 @@ vm_space_overlap_region (struct vm_space *space, struct vm_region *region)
 struct vm_region *
 vm_space_find_region (const struct vm_space *space, busword_t virt)
 {
-  struct vm_region *curr;
-  busword_t off  = virt &  PAGE_MASK;
-  busword_t page = virt & ~PAGE_MASK;
-  busword_t phys;
+  struct vm_region *region;
+  struct rbtree_node *node;
   
-  curr = space->vs_regions;
-
-  while (curr)
+  if ((node = rbtree_search (space->vs_region_tree, virt, RB_LEFTWARDS)) != NULL)
   {
-    if (virt >= curr->vr_virt_start && virt <= curr->vr_virt_end)
-      return curr;
-    
-    curr = LIST_NEXT (curr);
+    region = (struct vm_region *) rbtree_node_data (node);
+
+    if (region->vr_virt_start <= virt && virt <= region->vr_virt_end)
+      return region;
   }
 
-  return KERNEL_INVALID_POINTER;
+  return NULL;
 }
 
 busword_t
 virt2phys (const struct vm_space *space, busword_t virt)
 {
-  struct vm_region *curr;
+  struct vm_region *region;
   busword_t off  = virt &  PAGE_MASK;
   busword_t page = virt & ~PAGE_MASK;
   busword_t phys;
-  
-  curr = space->vs_regions;
 
-  while (curr)
-  {
-    if (curr->vr_virt_start <= virt && virt <= curr->vr_virt_end)
-    {
-      if ((phys = vm_region_translate_page (curr, page, NULL)) != (busword_t) KERNEL_ERROR_VALUE)
-        return phys | off;
-      else
-        return 0;
-    }
-    
-    curr = LIST_NEXT (curr);
-  }
+  if ((region = vm_space_find_region (space, virt)) != NULL)
+    if ((phys = vm_region_translate_page (region, page, NULL)) != (busword_t) KERNEL_ERROR_VALUE)
+      return phys | off;
 
   return 0;
 }
@@ -380,17 +386,20 @@ vm_update_region (struct vm_space *space, struct vm_region *region)
 int
 vm_update_tables (struct vm_space *space)
 {
-  struct vm_region *this;
+  struct rbtree_node *this;
+  struct vm_region *region;
   int ret;
   
-  this = space->vs_regions;
+  this = rbtree_get_first (space->vs_region_tree);
   
   while (this)
   {
-    if ((ret = vm_update_region (space, this)) != KERNEL_SUCCESS_VALUE)
+    region = (struct vm_region *) rbtree_node_data (this);
+    
+    if ((ret = vm_update_region (space, region)) != KERNEL_SUCCESS_VALUE)
       return ret;
     
-    this = LIST_NEXT (this);
+    this = rbtree_node_next (this);
   }
   
   return KERNEL_SUCCESS_VALUE;
@@ -643,21 +652,24 @@ vm_space_load_from_exec (const void *exec_start, busword_t exec_size, busword_t 
 void
 vm_space_debug (struct vm_space *space)
 {
-  struct vm_region *this;
+  struct vm_region *region;
+  struct rbtree_node *this;
   
-  this = space->vs_regions;
+  this = rbtree_get_first (space->vs_region_tree);
   
   while (this)
   {
+    region = (struct vm_region *) rbtree_node_data (this);
+    
     printk ("%y-%y: %s %H [0x%x]\n",
-            this->vr_virt_start,
-            this->vr_virt_end,
-            this->vr_ops->name,
-            this->vr_virt_end - this->vr_virt_start + 1,
-            this->vr_access
+            region->vr_virt_start,
+            region->vr_virt_end,
+            region->vr_ops->name,
+            region->vr_virt_end - region->vr_virt_start + 1,
+            region->vr_access
       );
       
-    this = (struct vm_region *) LIST_NEXT (this);
+    this = rbtree_node_next (this);
   }
 }
 
@@ -669,7 +681,6 @@ vm_handle_page_fault (struct task *task, busword_t addr, int access)
   if (region == KERNEL_INVALID_POINTER)
   {
     /* Send a signal, or whatever */
-    panic ("task %d: segment violation (%p)\n", task->ts_tid, addr);
     return -1;
   }
   
@@ -677,20 +688,28 @@ vm_handle_page_fault (struct task *task, busword_t addr, int access)
   {
   case VREGION_ACCESS_READ:
     if (region->vr_ops->read_fault == NULL)
-      panic ("task %d: region has no read page fault handler registered!\n", task->ts_tid);
-
+    {
+      debug ("task %d: region has no read page fault handler registered!\n", task->ts_tid);
+      return -1;
+    }
+    
     return (region->vr_ops->read_fault) (task, region, addr);
 
   case VREGION_ACCESS_WRITE:
     if (region->vr_ops->write_fault == NULL)
-      panic ("task %d: region has no write page fault handler registered!\n", task->ts_tid);
-
+    {
+      debug ("task %d: region has no write page fault handler registered!\n", task->ts_tid);
+      return -1;
+    }
     return (region->vr_ops->write_fault) (task, region, addr);
 
   case VREGION_ACCESS_EXEC:
     if (region->vr_ops->exec_fault == NULL)
-      panic ("task %d: region has no exec page fault handler registered!\n", task->ts_tid);
-
+    {
+      debug ("task %d: region has no exec page fault handler registered!\n", task->ts_tid);
+      return -1;
+    }
+    
     return (region->vr_ops->exec_fault) (task, region, addr);
 
   default:

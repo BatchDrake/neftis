@@ -54,7 +54,7 @@ task_trigger_exception (struct task *task, int exception, busword_t textaddr, bu
     if (CRITICAL_IS_INSIDE (except))
       panic ("exception while atomic!\n");
 
-    debug ("Task %d: killed by exception %d in %p (data: %p, code: %d)\n", task->ts_tid, exception, textaddr, data, code);
+    debug ("task %d: killed by exception %d in %p (data: %p, code: %d)\n", task->ts_tid, exception, textaddr, data, code);
     
     (void) wake_up (task, TASK_STATE_EXITED, 0);
 

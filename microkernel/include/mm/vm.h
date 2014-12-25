@@ -23,6 +23,7 @@
 #include <misc/list.h>
 #include <misc/object.h>
 #include <misc/radix_tree.h>
+#include <misc/rbtree.h>
 #include <mm/regions.h>
 
 #define VREGION_TYPE_RANGEMAP    0
@@ -148,7 +149,7 @@ struct vm_region
 
 struct vm_space
 {
-  struct vm_region *vs_regions;
+  rbtree_t *vs_region_tree;
 
   /* This is hardware dependant */
   void *vs_pagetable;

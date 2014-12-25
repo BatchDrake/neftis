@@ -44,7 +44,7 @@ anonmap_pagefault (struct task *task, struct vm_region *region, busword_t failed
 static int
 kmap_pagefault (struct task *task, struct vm_region *region, busword_t failed_addr)
 {
-  error ("Kernel region fault: %p\n", failed_addr);
+  error ("kernel region fault: %p\n", failed_addr);
  
   return -1;
 }

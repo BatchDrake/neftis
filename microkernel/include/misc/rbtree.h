@@ -106,6 +106,7 @@ rbtree_node_data (struct rbtree_node *node)
 
 rbtree_t *rbtree_new (void);
 void rbtree_set_dtor (rbtree_t *, void (*) (void *, void *), void *);
+int rbtree_insert_ex (rbtree_t *, int64_t, void *, struct rbtree_node **);
 int  rbtree_insert (rbtree_t *, int64_t, void *);
 void rbtree_clear (rbtree_t *);
 void rbtree_destroy (rbtree_t *);

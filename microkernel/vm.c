@@ -119,6 +119,59 @@ vm_region_translate_page (struct vm_region *region, busword_t virt, DWORD *flags
   return addr;
 }
 
+int
+vm_region_resize (struct vm_region *region, busword_t start, busword_t pages)
+{
+  struct rbtree_node *prev_node, *next_node;
+  struct vm_region   *prev, *next;
+  
+  start = PAGE_START (start);
+
+  if (region->vr_ops->resize == NULL)
+  {
+    error ("region doesn't support resizing\n");
+    return -1;
+  }
+  
+  if (start + pages * PAGE_SIZE < start)
+  {
+    error ("region rollover\n");
+    return -1;
+  }
+  
+  ASSERT (region->vr_node != NULL);
+			   
+  if ((prev_node = rbtree_node_prev (region->vr_node)) != NULL)
+  {
+    prev = (struct vm_region *) rbtree_node_data (prev_node);
+
+    if (start <= prev->vr_virt_end)
+    {
+      error ("refusing to move: overlapping regions\n");
+      return -1;
+    }
+  }
+
+  if ((next_node = rbtree_node_next (region->vr_node)) != NULL)
+  {
+    next = (struct vm_region *) rbtree_node_data (next_node);
+    
+    if (next->vr_virt_start < start + pages * PAGE_SIZE)
+    {
+      error ("refusing to grow: overlapping regions\n");
+      return -1;
+    }
+  }
+  
+  if ((region->vr_ops->resize) (get_current_task (), region, start, pages) == -1)
+    return -1;
+
+  region->vr_virt_start = start;
+  region->vr_virt_end   = start + pages * PAGE_SIZE - 1;
+
+  return 0;
+}
+
 struct vm_space *
 vm_space_new (void)
 {
@@ -185,6 +238,25 @@ vm_space_find_first_in_range (struct vm_space *space, busword_t start, busword_t
   return NULL;
 }
 
+int
+vm_space_walk (struct vm_space *space, int (*callback) (struct vm_space *, struct vm_region *, void *), void *data)
+{
+  struct rbtree_node *this;
+  int ret;
+  
+  this = rbtree_get_first (space->vs_region_tree);
+
+  while (this != NULL)
+  {
+    if ((ret = (callback) (space, (struct vm_region *) rbtree_node_data (this), data)) != 0)
+      return ret;
+
+    this = rbtree_node_next (this);
+  }
+
+  return 0;
+}
+
 INLINE int
 vm_test_range (struct vm_space *space, busword_t start, busword_t pages)
 {
@@ -213,6 +285,8 @@ vm_region_invalidate (struct vm_region *region)
 int
 vm_space_add_region (struct vm_space *space, struct vm_region *region)
 {
+  struct rbtree_node *node;
+  
   if (!vm_test_range (space, 
                       region->vr_virt_start,
                       (region->vr_virt_end + 1 - region->vr_virt_start) /
@@ -222,11 +296,13 @@ vm_space_add_region (struct vm_space *space, struct vm_region *region)
     return KERNEL_ERROR_VALUE;
   }
 
-  if (rbtree_insert (space->vs_region_tree, region->vr_virt_start, region) == -1)
+  if (rbtree_insert_ex (space->vs_region_tree, region->vr_virt_start, region, &node) == -1)
   {
     error ("Out of memory while inserting region\n");
     return KERNEL_ERROR_VALUE;
   }
+
+  region->vr_node = node;
   
   vm_update_region (space, region);
   
@@ -245,6 +321,27 @@ vm_space_overlap_region (struct vm_space *space, struct vm_region *region)
   vm_update_region (space, region);
   
   return 0;
+}
+
+struct vm_region *
+vm_space_find_region_by_role (const struct vm_space *space, int role)
+{
+  struct vm_region *region;
+  struct rbtree_node *node;
+
+  node = rbtree_get_first (space->vs_region_tree);
+  
+  while (node != NULL)
+  {
+    region = (struct vm_region *) rbtree_node_data (node);
+
+    if (region->vr_role == role)
+      return region;
+
+    node = rbtree_node_next (node);
+  }
+
+  return NULL;
 }
 
 struct vm_region *
@@ -502,7 +599,7 @@ vm_bare_sysproc_space (void)
 }
 
 static int
-__load_segment_cb (struct vm_space *space, int type, int flags, busword_t virt, busword_t size, const void *data, busword_t datasize)
+__load_segment_cb (struct vm_space *space, int type, int flags, busword_t virt, busword_t size, const void *data, busword_t datasize, void *opaque)
 {
   struct vm_region *region;
   busword_t start_page;
@@ -532,6 +629,8 @@ __load_segment_cb (struct vm_space *space, int type, int flags, busword_t virt, 
     
     return -1;
   }
+
+  region->vr_role = type;
   
   if ((copied = copy2virt (space, virt, data, datasize)) != datasize)
     FAIL ("unexpected segment overrun when copying data to user (total: %d/%d)\n", copied, datasize);
@@ -570,7 +669,7 @@ vm_space_load_abi_vdso (struct vm_space *target, const char *abi, busword_t *abi
     return -1;
   }
 
-  if (loader_walk_exec (handle, __load_segment_cb) == KERNEL_ERROR_VALUE)
+  if (loader_walk_exec (handle, __load_segment_cb, NULL) == KERNEL_ERROR_VALUE)
   {
     error ("Cannot load ABI segments\n");
 
@@ -621,7 +720,7 @@ vm_space_load_from_exec (const void *exec_start, busword_t exec_size, busword_t 
     return KERNEL_INVALID_POINTER;
   }
   
-  if (loader_walk_exec (handle, __load_segment_cb) == KERNEL_ERROR_VALUE)
+  if (loader_walk_exec (handle, __load_segment_cb, NULL) == KERNEL_ERROR_VALUE)
   {
     vm_space_destroy (space);
 
@@ -629,6 +728,8 @@ vm_space_load_from_exec (const void *exec_start, busword_t exec_size, busword_t 
     
     return KERNEL_INVALID_POINTER;
   }
+
+  space->vs_image_top = loader_get_top_addr (handle);
 
   /* Once all segments are properly loaded, we can perform a relocation */
 
@@ -925,8 +1026,6 @@ fail:
       page_free ((physptr_t) virt, 1);
   }
   
-  spin_unlock (&from->mr_lock);
-
   return KERNEL_ERROR_VALUE;
 }
 

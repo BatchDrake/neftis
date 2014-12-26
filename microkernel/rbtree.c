@@ -421,14 +421,17 @@ rbtree_insert_case_5 (struct rbtree_node *node)
 }
 
 int
-rbtree_insert (rbtree_t *tree, int64_t key, void *data)
+rbtree_insert_ex (rbtree_t *tree, int64_t key, void *data, struct rbtree_node **pnode)
 {
   struct rbtree_node *node;
   
   if ((node = rbtree_node_new (tree, key, data)) == NULL)
     return -1;
-
+  else if (pnode != NULL)
+    *pnode = node;
+  
   rbtree_invalidate_cache (tree);
+
   
   if (tree->root == NULL)
     tree->first = tree->last = tree->root = node;
@@ -438,6 +441,12 @@ rbtree_insert (rbtree_t *tree, int64_t key, void *data)
   rbtree_insert_case_1 (node);
   
   return 0;
+}
+
+int
+rbtree_insert (rbtree_t *tree, int64_t key, void *data)
+{
+  return rbtree_insert_ex (tree, key, data, NULL);
 }
 
 void

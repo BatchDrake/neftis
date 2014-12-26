@@ -32,6 +32,7 @@
 #define VREGION_ROLE_USERMAP     0
 #define VREGION_ROLE_STACK       1
 #define VREGION_ROLE_KERNEL      2
+#define VREGION_ROLE_DATASEG     3
 
 #define VREGION_ACCESS_READ      (1 << 1)
 #define VREGION_ACCESS_WRITE     (1 << 2)
@@ -115,14 +116,9 @@ struct vm_page_set
   objref_t *vp_template; /* Template (for copy-on-write) */
 };
 
-/* I don't care too much about this. I don't expect a process to
-   have thousands of regions, but if it ends up becoming like that,
-   vm_region will be inside a tree in future versions */
 struct vm_region
 {
-  SORTED_LIST;
-
-  KERNEL_OBJECT;
+  struct rbtree_node   *vr_node; /* Backpointer to the tree node */
   
   int                   vr_type;
   int                   vr_role;
@@ -150,7 +146,8 @@ struct vm_region
 struct vm_space
 {
   rbtree_t *vs_region_tree;
-
+  busword_t vs_image_top; /* When created from executable, the top address of the executable */
+  
   /* This is hardware dependant */
   void *vs_pagetable;
 };
@@ -160,6 +157,8 @@ struct vm_region *vm_region_new (busword_t, busword_t, struct vm_region_ops *, v
 int vm_region_map_page (struct vm_region *, busword_t, busword_t, DWORD);
 int vm_region_unmap_page (struct vm_region *, busword_t);
 int vm_region_map_pages (struct vm_region *, busword_t, busword_t, DWORD, busword_t);
+int vm_region_resize (struct vm_region *, busword_t, busword_t);
+
 busword_t vm_region_translate_page (struct vm_region *, busword_t, DWORD *);
 
 void vm_region_invalidate (struct vm_region *);
@@ -168,8 +167,12 @@ void vm_region_destroy (struct vm_region *, struct task *);
 /* Space operations */
 struct vm_space *vm_space_new (void);
 struct vm_region *vm_space_find_first_in_range (struct vm_space *, busword_t, busword_t);
+struct vm_region *vm_space_find_region_by_role (const struct vm_space *, int);
+
 int vm_space_add_region (struct vm_space *, struct vm_region *);
 int vm_space_overlap_region (struct vm_space *, struct vm_region *);
+int vm_space_walk (struct vm_space *, int (*) (struct vm_space *, struct vm_region *, void *), void *);
+
 int vm_update_region (struct vm_space *, struct vm_region *);
 int vm_update_tables (struct vm_space *);
 void vm_space_destroy (struct vm_space *);

@@ -171,15 +171,8 @@ __task_find_stack_bottom (struct task *task)
 
   this = rbtree_get_first (REFCAST (struct vm_space, task->ts_vm_space)->vs_region_tree);
   
-  while (this)
-  {
-    region = (struct vm_region *) rbtree_node_data (this);
-    
-    if (region->vr_role == VREGION_ROLE_STACK)
-      return region->vr_virt_end - sizeof (busword_t) + 1;
-
-    this = rbtree_node_next (this);
-  }
+  if ((region = vm_space_find_region_by_role (REFCAST (struct vm_space, task->ts_vm_space), VREGION_ROLE_STACK)) != NULL)
+    return region->vr_virt_end - sizeof (busword_t) + 1;
 
   return KERNEL_ERROR_VALUE;
 }

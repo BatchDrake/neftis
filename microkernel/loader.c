@@ -94,9 +94,34 @@ loader_get_abi (loader_handle *handle, char *buf, size_t size)
 
 /* Walk exec gives information about type & flags of the computed segment */
 int
-loader_walk_exec (loader_handle *handle, int (*callback) (struct vm_space *, int, int, busword_t, busword_t, const void *, busword_t))
+loader_walk_exec (loader_handle *handle, int (*callback) (struct vm_space *, int, int, busword_t, busword_t, const void *, busword_t, void *), void *data)
 {
-  return (handle->loader->walkseg) (handle->opaque, handle->target_space, callback);
+  return (handle->loader->walkseg) (handle->opaque, handle->target_space, callback, data);
+}
+
+static int
+__find_top_cb (struct vm_space *space, int type, int flags, busword_t virt, busword_t size, const void *data, busword_t datasize, void *private)
+{
+  busword_t *max = (busword_t *) private;
+ 
+  size = __ALIGN (size, PAGE_SIZE);
+
+  
+  if (*max < virt + size - 1)
+    *max = PAGE_START (virt + size - 1) | (PAGE_SIZE - 1);
+    
+    
+  return 0;
+}
+
+busword_t
+loader_get_top_addr (loader_handle *handle)
+{
+  busword_t top = 0;
+
+  (void) loader_walk_exec (handle, __find_top_cb, &top);
+
+  return top;
 }
 
 int

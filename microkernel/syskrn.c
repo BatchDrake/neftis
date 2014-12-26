@@ -65,3 +65,26 @@ SYSPROTO (syscall_krn_debug_string)
     addr = PAGE_START (addr) + PAGE_SIZE;
   }
 }
+
+SYSPROTO (syscall_krn_brk)
+{
+  struct task *task = get_current_task ();
+  struct vm_region *dataseg;
+  busword_t ret;
+  
+  DECLARE_CRITICAL_SECTION (grow);
+
+  CRITICAL_ENTER (grow);
+
+  if ((dataseg = vm_space_find_region_by_role (REFCAST (struct vm_space, task->ts_vm_space), VREGION_ROLE_DATASEG)) == NULL)
+  {
+    error ("No data segment found\n");
+    ret = -1;
+  }
+  else
+    ret = dataseg->vr_virt_end;
+  
+  CRITICAL_LEAVE (grow);
+
+  return ret;
+}

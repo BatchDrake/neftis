@@ -131,9 +131,11 @@ elf32_entry (void *opaque)
 }
 
 int
-elf32_walkseg (void *opaque, struct vm_space *space, int (*callback) (struct vm_space *, int, int, busword_t, busword_t, const void *, busword_t))
+elf32_walkseg (void *opaque, struct vm_space *space, int (*callback) (struct vm_space *, int, int, busword_t, busword_t, const void *, busword_t, void *data), void *data)
 {
   unsigned int i, phnum;
+  unsigned int dataseg = 0;
+  
   int flags;
   int count = 0;
   BOOL zeropg = FALSE;
@@ -141,6 +143,11 @@ elf32_walkseg (void *opaque, struct vm_space *space, int (*callback) (struct vm_
   struct elf32_state *state = (struct elf32_state *) opaque;
 
   phnum = state->header->e_phnum;
+
+  for (i = 0; i < phnum; ++i)
+    if (state->phdrs[i].p_type == PT_LOAD)
+      if (!dataseg || (state->phdrs[i].p_vaddr > state->phdrs[dataseg].p_vaddr && (~state->phdrs[i].p_flags & PF_X)))
+	dataseg = i;
   
   for (i = 0; i < phnum; ++i)
     if (state->phdrs[i].p_type == PT_LOAD)
@@ -164,6 +171,8 @@ elf32_walkseg (void *opaque, struct vm_space *space, int (*callback) (struct vm_
         flags |= VREGION_ACCESS_READ;
 
       if ((callback) (space,
+		      i == dataseg && !state->dyn ?
+		      VREGION_ROLE_DATASEG :
 		      VREGION_ROLE_USERMAP,
 		      flags,
 		      state->dyn ?
@@ -171,7 +180,8 @@ elf32_walkseg (void *opaque, struct vm_space *space, int (*callback) (struct vm_
 		        state->phdrs[i].p_vaddr,
 		      state->phdrs[i].p_memsz,
 		      ((void *) state->header) + state->phdrs[i].p_offset,
-		      zeropg ? 0 : state->phdrs[i].p_filesz) == -1)
+		      zeropg ? 0 : state->phdrs[i].p_filesz,
+		      data) == -1)
         return KERNEL_ERROR_VALUE;
 
       ++count;

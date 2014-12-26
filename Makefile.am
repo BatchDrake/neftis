@@ -1,4 +1,5 @@
 AUTOMAKE_OPTIONS = subdir-objects
 ACLOCAL_AMFLAGS = -I m4
-SUBDIRS=microkernel
+SUBDIRS=microkernel osabi/elf32-linux-gnu
+
 

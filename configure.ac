@@ -63,6 +63,7 @@ AC_CONFIG_FILES([Makefile
                  microkernel/scheds/default/Makefile
                  microkernel/arch/x86/Makefile
                  microkernel/Makefile
+		 osabi/elf32-linux-gnu/Makefile
 ])
 AC_OUTPUT
 

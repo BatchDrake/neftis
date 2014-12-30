@@ -43,6 +43,7 @@
 
 #include <misc/radix_tree.h>
 #include <misc/errno.h>
+#include <misc/object.h>
 
 #include <arch.h>
 #include <kctx.h>
@@ -116,6 +117,8 @@ main (void)
   init_msg_queues ();
 
   load_servers ();
+
+  vm_space_debug (OBJCAST (struct vm_space, current_kctx->kc_vm_space));
   
   test_kthreads ();
   

@@ -33,9 +33,11 @@ char *strncpy (char *, const char *, size_t);
 
 char *strchr (const char *, int);
 
-int memcmp (const char *, const char *, size_t);
+char *strdup (const char *str);
 
-void *memcpy (void *, void *, size_t);
+int memcmp (const void *, const void *, size_t);
+
+void *memcpy (void *, const void *, size_t);
 
 void *memset (void *, int, size_t);
 

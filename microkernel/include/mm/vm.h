@@ -119,7 +119,7 @@ struct vm_page_set
 struct vm_region
 {
   struct rbtree_node   *vr_node; /* Backpointer to the tree node */
-  
+  char                 *vr_desc;
   int                   vr_type;
   int                   vr_role;
   int                   vr_unlinked_remap; /* Underlying physical pages are not mapped to kernel space */

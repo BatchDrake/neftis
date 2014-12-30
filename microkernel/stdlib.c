@@ -19,6 +19,7 @@
 #include <types.h>
 #include <ctype.h>
 
+#include <mm/salloc.h>
 #include <misc/tar.h>
 
 size_t 
@@ -105,16 +106,16 @@ strchr (const char *s, int c)
 }
 
 int 
-memcmp (const char * s1, const char * s2, size_t n)
+memcmp (const void * s1, const void * s2, size_t n)
 {
-  for (; *s1 == *s2; ++s1, ++s2)
+  for (; *(unsigned char *) s1 == *(unsigned char *) s2; ++s1, ++s2)
     if (!--n)
       return 0;
   return *(unsigned char *) s1 < *(unsigned char *) s2 ? -1 : 1;
 }
 
 void *
-memcpy (void *dest, void *src, size_t n)
+memcpy (void *dest, const void *src, size_t n)
 {
   size_t i;
   
@@ -135,6 +136,19 @@ memset (void *s, int c, size_t n)
   return s;
 }
 
+char *
+strdup (const char *str)
+{
+  char *copy;
+  size_t len = strlen (copy);
+
+  if ((copy = salloc_irq (len + 1)) == NULL)
+    return NULL;
+
+  memcpy (copy, str, len + 1);
+
+  return copy;
+}
 
 int 
 strtoi (const char *start, int *err)

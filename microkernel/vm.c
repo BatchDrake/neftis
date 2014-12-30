@@ -31,6 +31,7 @@
 #include <misc/object.h>
 #include <task/loader.h>
 
+#include <string.h>
 #include <arch.h>
 #include <kctx.h>
 
@@ -49,6 +50,22 @@ vm_region_new (busword_t start, busword_t end, struct vm_region_ops *ops, void *
   return new;
 }
 
+int
+vm_region_set_desc (struct vm_region *region, const char *desc)
+{
+  char *new_desc;
+
+  if ((new_desc = strdup (desc)) == NULL)
+    return -1;
+  
+  if (region->vr_desc != NULL)
+    sfree_irq (region->vr_desc);
+
+  region->vr_desc = new_desc;
+
+  return 0;
+}
+
 void
 vm_region_destroy (struct vm_region *region, struct task *task)
 {
@@ -57,6 +74,9 @@ vm_region_destroy (struct vm_region *region, struct task *task)
     if ((region->vr_ops->destroy) (task, region) == -1)
       return;
 
+  if (region->vr_desc != NULL)
+    sfree_irq (region->vr_desc);
+  
   if (region->vr_type == VREGION_TYPE_PAGEMAP && region->vr_page_set != NULL)
     kernel_object_ref_close (region->vr_page_set);
   
@@ -398,7 +418,7 @@ copy2virt (const struct vm_space *space, busword_t virt, const void *orig, buswo
     if ((len = PAGE_SIZE - offset) > size)
       len = size;
 
-    memcpy (phys + offset, orig, len);
+    memcpy ((void *) phys + offset, orig, len);
 
     __vm_flush_pages (page, 1);
 
@@ -433,7 +453,7 @@ copy2phys (const struct vm_space *space, void *dest, busword_t virt, busword_t s
     if ((len = PAGE_SIZE - offset) > size)
       len = size;
 
-    memcpy (dest, phys + offset, len);
+    memcpy (dest, (const void *) phys + offset, len);
 
     dest += len;
     page += PAGE_SIZE;

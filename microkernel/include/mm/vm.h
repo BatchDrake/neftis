@@ -158,7 +158,7 @@ int vm_region_map_page (struct vm_region *, busword_t, busword_t, DWORD);
 int vm_region_unmap_page (struct vm_region *, busword_t);
 int vm_region_map_pages (struct vm_region *, busword_t, busword_t, DWORD, busword_t);
 int vm_region_resize (struct vm_region *, busword_t, busword_t);
-
+int vm_region_set_desc (struct vm_region *, const char *);
 busword_t vm_region_translate_page (struct vm_region *, busword_t, DWORD *);
 
 void vm_region_invalidate (struct vm_region *);

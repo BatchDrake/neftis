@@ -105,6 +105,8 @@ vm_kernel_space_init_vremap (struct vm_space *space)
       vremap_kernel_region->vr_ops = &vremap_region_ops_persistent;
 
   }
+
+  (void) vm_region_set_desc (vremap_kernel_region, "kernel vremap");
   
   if (result != -1)
     if (FAILED (vm_space_add_region (space, vremap_kernel_region)))

@@ -650,6 +650,8 @@ __load_segment_cb (struct vm_space *space, int type, int flags, busword_t virt, 
     return -1;
   }
 
+  (void) vm_region_set_desc (region, "exec");
+  
   region->vr_role = type;
   
   if ((copied = copy2virt (space, virt, data, datasize)) != datasize)
@@ -782,11 +784,12 @@ vm_space_debug (struct vm_space *space)
   {
     region = (struct vm_region *) rbtree_node_data (this);
     
-    printk ("%y-%y: %s %H [0x%x]\n",
+    printk ("%y-%y: %s %H (%s) [0x%x]\n",
             region->vr_virt_start,
             region->vr_virt_end,
             region->vr_ops->name,
             region->vr_virt_end - region->vr_virt_start + 1,
+	    region->vr_desc == NULL ? "no description" : region->vr_desc,
             region->vr_access
       );
       
@@ -1004,6 +1007,8 @@ vm_init (void)
 	       )
     );
 
+  (void) vm_region_set_desc (current_kctx->kc_msgq_vremap, "kernel msgq");
+  
   MANDATORY (SUCCESS (
 	       vm_space_add_region (OBJCAST (struct vm_space, current_kctx->kc_vm_space), current_kctx->kc_msgq_vremap)
 	       )

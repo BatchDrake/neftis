@@ -182,6 +182,8 @@ vm_kernel_space_map_image (struct vm_space *space)
   RETURN_ON_PTR_FAILURE (region = vm_region_remap ((busword_t) &text_start, (busword_t) &kernel_start, image_size, VREGION_ACCESS_READ | VREGION_ACCESS_WRITE | VREGION_ACCESS_EXEC | VM_PAGE_KERNEL));
 
   region->vr_unlinked_remap = 1;
+
+  (void) vm_region_set_desc (region, "kernel image");
   
   MANDATORY (SUCCESS (vm_space_add_region (space, region)));
 
@@ -189,15 +191,19 @@ vm_kernel_space_map_image (struct vm_space *space)
   {
     /* Relevant only in boot time */
     RETURN_ON_PTR_FAILURE (region = vm_region_physmap (PAGE_BITS & (DWORD) bootstack, 5, VREGION_ACCESS_READ | VREGION_ACCESS_WRITE | VM_PAGE_KERNEL));
+
+    (void) vm_region_set_desc (region, "boot stack");
     
     MANDATORY (SUCCESS (vm_space_add_region (space, region)));
   }
-
+  
   if (initrd_size > 0)
   {
     RETURN_ON_PTR_FAILURE (region = vm_region_remap ((busword_t) initrd_start, (busword_t) initrd_phys, __UNITS (initrd_size, PAGE_SIZE), VREGION_ACCESS_READ | VM_PAGE_KERNEL));
     
     region->vr_unlinked_remap = 1;
+
+    (void) vm_region_set_desc (region, "initrd remap");
     
     MANDATORY (SUCCESS (vm_space_add_region (space, region)));
   }
@@ -232,7 +238,9 @@ vm_kernel_space_map_io (struct vm_space *space)
         );
         
         region->vr_access = VREGION_ACCESS_READ | VREGION_ACCESS_WRITE;
-        
+
+	(void) vm_region_set_desc (region, "i/o");
+	
         if (FAILED (vm_space_add_region (space, region)))
         {
           warning ("region @ %y overlaps to existing kernel map!\n",
@@ -256,6 +264,7 @@ vm_kernel_space_map_io (struct vm_space *space)
   )
     FAIL ("can't map video memory\n");
   
+  (void) vm_region_set_desc (region, "ega");
   
   MANDATORY (SUCCESS (vm_space_add_region (space, region)));
   

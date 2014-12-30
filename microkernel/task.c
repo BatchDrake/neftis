@@ -380,6 +380,8 @@ user_task_new_from_exec (const void *data, busword_t size)
     return KERNEL_INVALID_POINTER;
   }
 
+  (void) vm_region_set_desc (vremap, "msgq");
+  
   if (vm_space_add_region (space, vremap) != KERNEL_SUCCESS_VALUE)
   {
     error ("Executable overlaps vremap region\n");

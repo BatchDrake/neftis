@@ -140,7 +140,7 @@ char *
 strdup (const char *str)
 {
   char *copy;
-  size_t len = strlen (copy);
+  size_t len = strlen (str);
 
   if ((copy = salloc_irq (len + 1)) == NULL)
     return NULL;

@@ -1,55 +1,49 @@
 # Makefile para neftis kernel
 AUTOMAKE_OPTIONS = subdir-objects
-SUBDIRS=arch/x86 loaders/elf scheds/default
+SUBDIRS=loaders/elf scheds/default
 noinst_PROGRAMS=neftis
 
 OBJCOPYFLAGS=-R .note -R .note.gnu.build-id -R .comment
 
-neftis_LDADD=arch/x86/libx86.a loaders/elf/libelf.a scheds/default/libdefsched.a
+neftis_LDADD=../common/libcommon.a ../arch/@AM_ARCH@/lib@AM_ARCH@.a loaders/elf/libelf.a scheds/default/libdefsched.a
             
-neftis_LDFLAGS=-Wl,-Tarch/x86/kernel.lds 
+neftis_LDFLAGS=-Wl,-T../arch/@AM_ARCH@/kernel.lds 
 
 # con -fomit-frame-pointer me quedo sin punteros en EBP
 # para un volcado de pila. Pff.
 
 neftis_CFLAGS=-fstrength-reduce \
-		-finline-functions -nostdinc -nostdlib -fno-builtin -I. -ggdb \
-    -Iinclude -march=i686 -D__386__ @AM_CFLAGS@ -Iarch/x86/include
+              -finline-functions -nostdinc -nostdlib -fno-builtin -I. -ggdb \
+              -Iinclude -march=i686 -D__386__ @AM_CFLAGS@ -I../arch/include \
+              -I../arch/include-@AM_ARCH@ -I../common/include
     
-neftis_CCASFLAGS=-I../include -Iarch/x86/include @AM_CFLAGS@
+neftis_CCASFLAGS=-Iinclude -I../arch/@AM_ARCH@/include @AM_CCASFLAGS@
 
-neftis_SOURCES=arch/x86/boot.S \
+neftis_SOURCES=../arch/@AM_ARCH@/boot.S \
                anonmap.c       \
                buddy.c         \
                console.c       \
                event.c         \
                exception.c     \
-               hook.c          \
                irq.c           \
                kctx.c          \
-               kmalloc.c       \
-               list.c          \
                loader.c        \
                main.c          \
 	       msg.c           \
                mutex.c         \
 	       object.c        \
                printk.c        \
-               radix_tree.c    \
-               rbtree.c        \
                sched.c         \
                slab.c          \
                salloc.c        \
 	       serial.c        \
                srvrd.c         \
-               stdlib.c        \
                syscall.c       \
                sysipc.c        \
                syskrn.c        \
                task.c          \
                timer.c         \
                util.c          \
-               vkprintf.c      \
                vremap.c        \
                vm.c            \
                waitqueue.c     \

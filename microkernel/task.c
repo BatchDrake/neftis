@@ -17,7 +17,7 @@
  */
 #include <types.h>
 
-#include <asm/layout.h>
+#include <layout.h>
 
 #include <task/task.h>
 #include <task/loader.h>

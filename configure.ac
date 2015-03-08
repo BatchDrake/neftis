@@ -5,9 +5,11 @@ AC_PREREQ(2.61)
 AC_INIT(neftis, 0.0.0)
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_AUX_DIR([build-aux])
-AC_CONFIG_HEADER([microkernel/include/config.h])
+AC_CONFIG_HEADER([common/include/config.h])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE
+
+AM_ARCH=x86
 
 cflags_were_set=false
 if test "${CFLAGS+set}" = set; then
@@ -42,6 +44,7 @@ fi
 
 AC_SUBST(AM_CCASFLAGS)
 AC_SUBST(AM_CFLAGS)
+AC_SUBST(AM_ARCH)
 
 # Checks for libraries.
 
@@ -59,9 +62,10 @@ fi
 # Checks for library functions.
 
 AC_CONFIG_FILES([Makefile
+                 common/Makefile
+                 arch/x86/Makefile
                  microkernel/loaders/elf/Makefile
                  microkernel/scheds/default/Makefile
-                 microkernel/arch/x86/Makefile
                  microkernel/Makefile
 		 osabi/elf32-linux-gnu/Makefile
 ])

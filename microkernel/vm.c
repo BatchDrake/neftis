@@ -18,7 +18,7 @@
  
 #include <types.h>
 
-#include <asm/layout.h>
+#include <layout.h>
 
 #include <mm/regions.h>
 #include <mm/coloring.h>

@@ -19,7 +19,10 @@
 #ifndef _MM_REGIONS_H
 #define _MM_REGIONS_H
 
+#include <memory.h>
+
 #include <types.h>
+
 #include <lock/lock.h>
 
 #define MM_REGION_BUCKETS (BUSWORD_BITS - __PAGE_BITS)

@@ -19,8 +19,6 @@
 #ifndef _MM_SLAB_H
 #define _MM_SLAB_H
 
-#include <types.h>
-#include <defines.h>
 #include <misc/list.h>
 
 #include <task/waitqueue.h>

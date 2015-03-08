@@ -147,6 +147,37 @@ sfree (void *ptr)
     sfree_irq (ptr);
 }
 
+void *
+kalloc (size_t size)
+{
+  return salloc (size);
+}
+
+void
+kfree (void *ptr)
+{
+  sfree (ptr);
+}
+
+
+void *
+__kalloc (size_t size)
+{
+  return salloc (size);
+}
+
+void
+__kfree (void *ptr)
+{
+  sfree (ptr);
+}
+
+DEBUG_FUNC (kalloc);
+DEBUG_FUNC (kfree);
+
+DEBUG_FUNC (__kalloc);
+DEBUG_FUNC (__kfree);
+
 DEBUG_FUNC (__salloc);
 DEBUG_FUNC (__sfree);
 

@@ -19,7 +19,7 @@
 #ifndef _MM_VREMAP_H
 #define _MM_VREMAP_H
 
-#include <asm/layout.h>
+#include <layout.h>
 
 /* Sorted in size */
 struct vremap_free_chunk

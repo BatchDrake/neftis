@@ -16,7 +16,9 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
 
-#include <types.h>
+#include <util.h>
+
+#include <brand.h>
 
 #include <misc/list.h>
 
@@ -27,7 +29,6 @@
 #include <irq/irq.h>
 #include <irq/timer.h>
 
-#include <mm/kmalloc.h>
 #include <mm/slab.h>
 #include <mm/salloc.h>
 #include <mm/vm.h>

@@ -19,12 +19,13 @@
 #ifndef _TASK_EXCEPTION_H
 #define _TASK_EXCEPTION_H
 
-#define EX_MAX               4
+#define EX_MAX               5
 
 #define EX_FPE               0
 #define EX_SEGMENT_VIOLATION 1
 #define EX_PRIV_INSTRUCTION  2
 #define EX_ILL_INSTRUCTION   3
+#define EX_DEBUGGER_TRAP     4
 
 void task_set_exception_handler (struct task *task, int exception, void (*handler) (struct task *, int, busword_t, busword_t, int));
 void task_trigger_exception (struct task *task, int exception, busword_t textaddr, busword_t data, int code);

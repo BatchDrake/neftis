@@ -19,6 +19,8 @@
 #ifndef _ATOMIK_H
 #define _ATOMIK_H
 
+#define NULL ((void *) 0)
+
 static inline int
 kernel (int syscall, int b, int c, int d, int e, int f)
 {

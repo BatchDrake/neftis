@@ -444,6 +444,10 @@ user_task_new_from_exec (const void *data, busword_t size)
     return NULL;
   }
 
+/*  printk ("Adding breakpoint...\n");
+  
+    (void) copy2virt (space, 0x8048e0d, "\xcc", 1);*/
+  
   return task;
 }
 

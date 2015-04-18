@@ -313,7 +313,7 @@ int
 elf32_parse_rel (struct elf32_state *state, struct vm_space *space, Elf32_Rel *rel, uint32_t count)
 {
   int i, symno;
-  char *sym_name;
+  char *sym_name = NULL;
   Elf32_Sym *sym;
   uint32_t P, A, S = 0;
   int type;
@@ -329,6 +329,12 @@ elf32_parse_rel (struct elf32_state *state, struct vm_space *space, Elf32_Rel *r
     else
       P   = rel[i].r_offset;
 
+    if (copy2phys (space, &A, P, sizeof (uint32_t)) != sizeof (uint32_t))
+    {
+      error ("Broken relocation on unmappable %p\n", P);
+      return -1;
+    }
+
     if (elf32_relocation_requires_symbol (state, type))
     {
       if (OVERFLOW (symno, state->symtab_size))
@@ -341,12 +347,6 @@ elf32_parse_rel (struct elf32_state *state, struct vm_space *space, Elf32_Rel *r
 	  sym_name = "<symbol name out of bounds>";
 	else
 	  sym_name = state->strtab + sym->st_name;
-      }
-      
-      if (copy2phys (space, &A, P, sizeof (uint32_t)) != sizeof (uint32_t))
-      {
-	error ("Broken relocation on unmappable %p\n", P);
-	return -1;
       }
       
       if (sym->st_shndx == SHN_UNDEF)
@@ -364,7 +364,7 @@ elf32_parse_rel (struct elf32_state *state, struct vm_space *space, Elf32_Rel *r
     }
     else
       S = -1;
-    
+
     if (elf32_reloc (state, space, P, type, S, A, 0, 0, state->addr, 0) == -1)
       return -1;
   }

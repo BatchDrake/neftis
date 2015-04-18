@@ -36,7 +36,7 @@ static int
 __srv_load_exec (const char *path, const void *base, uint32_t size, uint32_t mode, void *opaque)
 {
   struct task *task;
-  
+
   if (mode & 0100)
   {
     if ((task = user_task_new_from_exec (base, size)) != NULL)
@@ -56,7 +56,7 @@ int
 srvrd_load (const void *base, uint32_t size)
 {
   pause ();
-  
+
   return tar_file_walk (base, size, "serv/", __srv_load_exec, NULL);
 }
 

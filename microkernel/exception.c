@@ -38,7 +38,8 @@ static char *exception_description[] =
   "FPE",
   "SEGMENT_VIOLATION",
   "PRIV_INSTRUCTION",
-  "ILL_INSTRUCTION"
+  "ILL_INSTRUCTION",
+  "DEBUGGER_TRAP"
 };
 
 /* Intended to be called from interrupt context only */

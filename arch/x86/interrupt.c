@@ -272,7 +272,7 @@ x86_init_all_gates (void)
     IDT_PRESENT | I386_INTERRUPT_GATE);
 
   x86_idt_set_gate  ( 3, isr3 , GDT_SEGMENT_KERNEL_CODE,
-    IDT_PRESENT | I386_INTERRUPT_GATE);
+    IDT_PRESENT | I386_INTERRUPT_GATE | IDT_PRIV (3)); /* To make int3 work */
 
   x86_idt_set_gate  ( 4, isr4 , GDT_SEGMENT_KERNEL_CODE,
     IDT_PRESENT | I386_INTERRUPT_GATE);
@@ -786,9 +786,6 @@ x86_user_interrupt (struct task *task, struct x86_stack_frame *frame, busword_t 
   if (copy2virt (REFCAST (struct vm_space, task->ts_vm_space), frame->unpriv.old_esp, &frame->unpriv.eip, sizeof (busword_t)) != sizeof (busword_t))
     return -1;
 
-  
-  printk ("Going to %p, coming back to %p\n", eip, frame->unpriv.eip);
-  
   frame->unpriv.eip = (void *) eip;
 
   return 0;
@@ -877,11 +874,17 @@ x86_isr_handler (struct x86_stack_frame *frame)
     case X86_INT_SECURITY_EXCEPTION:
       task_trigger_exception (task, EX_PRIV_INSTRUCTION, (busword_t) frame->priv.eip, 0, 0);
       break;
-      
+
+    case X86_INT_BREAKPOINT:
+    case X86_INT_DEBUG:
+      x86_regdump (frame);
+      task_trigger_exception (task, EX_DEBUGGER_TRAP, (busword_t) frame->priv.eip, 0, 0);
+      break;
+
     case X86_INT_GENERAL_PROTECTION_FAULT:
     case X86_INT_DOUBLE_FAULT:
     case X86_INT_PAGE_FAULT:
-      if (task->ts_type == TASK_TYPE_KERNEL_THREAD)
+      if (task->ts_type == TASK_TYPE_KERNEL_THREAD || 1)
         x86_regdump (frame);
       
       if (vm_handle_page_fault (task, cr2, VREGION_ACCESS_READ) == -1)

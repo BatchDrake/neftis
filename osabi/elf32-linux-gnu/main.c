@@ -23,21 +23,25 @@ void _start (void);
 void __syscall_asm (void);
 
 void
-linux_abi_init (void (*entry) (void))
+linux_abi_init (int (*entry) ())
 {
-  setintgate (0x80, linux_syscall);
+  char *minimal_argv[] = {"dummyname", NULL};
+  char *minimal_envp[] = {"TERM=linux", "SHELL=/bin/sh", "USER=root", "HOME=/", "PWD=/", NULL};
   
-  entry ();
-}
+  setintgate (0x80, linux_syscall);
 
-asm
-(
-  "__syscall_asm:\n"
-  "pusha\n"
-  "call syscall\n"
-  "popa\n"
-  "ret\n"
-);
+  asm
+  (
+    "pushl %2\n"
+    "pushl %1\n"
+    "pushl $1\n"
+    "jmpl *%0\n"
+    ::
+     "g" (entry),
+     "g" (minimal_argv),
+     "g" (minimal_envp)
+  );
+}
 
 asm
 (

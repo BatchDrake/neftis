@@ -118,8 +118,6 @@ main (void)
   init_msg_queues ();
 
   load_servers ();
-
-  vm_space_debug (OBJCAST (struct vm_space, current_kctx->kc_vm_space));
   
   test_kthreads ();
   

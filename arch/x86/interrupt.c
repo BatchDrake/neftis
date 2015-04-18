@@ -881,7 +881,7 @@ x86_isr_handler (struct x86_stack_frame *frame)
     case X86_INT_GENERAL_PROTECTION_FAULT:
     case X86_INT_DOUBLE_FAULT:
     case X86_INT_PAGE_FAULT:
-      if (1||task->ts_type == TASK_TYPE_KERNEL_THREAD)
+      if (task->ts_type == TASK_TYPE_KERNEL_THREAD)
         x86_regdump (frame);
       
       if (vm_handle_page_fault (task, cr2, VREGION_ACCESS_READ) == -1)

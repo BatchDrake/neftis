@@ -33,6 +33,14 @@ task_set_exception_handler (struct task *task, int exception, void (*handler) (s
   task->ts_ex_handlers[exception] = handler;
 }
 
+static char *exception_description[] =
+{
+  "FPE",
+  "SEGMENT_VIOLATION",
+  "PRIV_INSTRUCTION",
+  "ILL_INSTRUCTION"
+};
+
 /* Intended to be called from interrupt context only */
 void
 task_trigger_exception (struct task *task, int exception, busword_t textaddr, busword_t data, int code)
@@ -54,7 +62,7 @@ task_trigger_exception (struct task *task, int exception, busword_t textaddr, bu
     if (CRITICAL_IS_INSIDE (except))
       panic ("exception while atomic!\n");
 
-    debug ("task %d: killed by exception %d in %p (data: %p, code: %d)\n", task->ts_tid, exception, textaddr, data, code);
+    debug ("task %d: killed by exception %s in %p (data: %p, code: %d)\n", task->ts_tid, exception_description[exception], textaddr, data, code);
     
     (void) wake_up (task, TASK_STATE_EXITED, 0);
 

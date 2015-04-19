@@ -360,7 +360,8 @@ user_task_new_from_exec (const void *data, busword_t size)
   loader_handle *handler;
   void (*entry) (void);
   void (*abi_entry) (void);
-
+  void *tls;
+  
   tid_t tid;
 
   if ((task = __alloc_task ()) == NULL)
@@ -430,6 +431,11 @@ user_task_new_from_exec (const void *data, busword_t size)
     
     return KERNEL_INVALID_POINTER;
   }
+
+  MANDATORY ((tls = virt2phys (space, USER_TLS_START)) != NULL);
+
+  /* Clear page contents to ensure all tasks start with a clean TLS */
+  memset (tls, 0, USER_TLS_PAGES * PAGE_SIZE);
   
   task->ts_tid   = tid;
   task->ts_state = TASK_STATE_NEW;

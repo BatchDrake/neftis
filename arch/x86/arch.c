@@ -49,6 +49,7 @@
 busword_t kernel_pagedir;
 
 static int got_interrupts_working = 0;
+
 extern int kernel_start;
 extern int kernel_end;
 extern int text_start;
@@ -267,7 +268,7 @@ vm_kernel_space_map_io (struct vm_space *space)
   (void) vm_region_set_desc (region, "ega");
   
   MANDATORY (SUCCESS (vm_space_add_region (space, region)));
-  
+
   return KERNEL_SUCCESS_VALUE;
 }
 

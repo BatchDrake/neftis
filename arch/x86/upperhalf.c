@@ -50,7 +50,6 @@ BOOT_SYMBOL (DWORD initrd_size) = 0;
 
 BOOT_SYMBOL (char bootstack[4 * PAGE_SIZE]); /* Boot stack, as used by _start */
 BOOT_SYMBOL (char cmdline_copy[128]);
-
 /* Inner state of boot_entry */
 BOOT_SYMBOL (static int cur_x) = 0;
 BOOT_SYMBOL (static int cur_y) = 0;
@@ -291,7 +290,7 @@ boot_setup_vregion (DWORD page_phys_start, DWORD page_virt_start, DWORD page_cou
 
 void
 boot_prepare_paging_early (void)
-{ 
+{
   DWORD free_mem = __ALIGN ((DWORD) &kernel_end, PAGE_SIZE);
   
   struct multiboot_info *mbi;
@@ -335,7 +334,7 @@ boot_prepare_paging_early (void)
     page_dir->entries[i] = 0;
 
   mmap_count = mbi->mmap_length / sizeof (memory_map_t);
-
+  
   /* Map microkernel to upperhalf */
   boot_setup_vregion ((DWORD) &kernel_start >> 12, (DWORD) &text_start >> 12, __UNITS (free_mem - (DWORD) &kernel_start, PAGE_SIZE));
 

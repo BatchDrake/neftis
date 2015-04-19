@@ -29,10 +29,11 @@
 #define GDT_SEGMENT_USER_CODE   0x18
 #define GDT_SEGMENT_USER_DATA   0x20
 #define GDT_SEGMENT_TSS         0x28
+#define GDT_SEGMENT_USER_TLS    0x30
 
 #define GDT_ENTRY(x) (&gdt[(x) >> 3])
 
-#define GDT_MAX_SEGMENTS        6
+#define GDT_MAX_SEGMENTS        7
 
 #define GDT_GRANULARITY_PAGES   0x08
 #define GDT_SELECTOR_32_BIT     0x04
@@ -104,6 +105,7 @@ void x86_get_current_gdt (struct gdt_ptr *);
 void x86_flush_gdt (struct gdt_ptr *);
 void x86_refresh_segments (void);
 void x86_flush_tss (void);
+void x86_flush_ldt (void);
 void x86_set_kernel_stack (uint32_t);
 void x86_enter_user (void);
 

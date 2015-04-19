@@ -19,6 +19,7 @@
 #include <util.h>
 #include <asm/seg.h>
 #include <asm/upperhalf.h>
+#include <layout.h>
 
 struct gdt_entry gdt[GDT_MAX_SEGMENTS];
 
@@ -47,7 +48,7 @@ INLINE void
 gdt_entry_setup_tss (struct gdt_entry *dest)
 {
   uint32_t tss_base  = (uint32_t) &tss;
-  uint32_t tss_limit = tss_base + sizeof (struct tss);
+  uint32_t tss_limit = tss_base + sizeof (struct tss) - 1;
 
   /* Kernel stack is in kernel data segment */
   
@@ -140,7 +141,11 @@ gdt_init (void)
     GDT_ACCESS_RING (3));
   
   gdt_entry_setup_tss (GDT_ENTRY (GDT_SEGMENT_TSS));
- 
+
+  gdt_entry_setup (GDT_ENTRY (GDT_SEGMENT_USER_TLS), USER_TLS_START, USER_TLS_PAGES, 
+    GDT_ACCESS_READWRITE | GDT_ACCESS_SEGMENT | GDT_ACCESS_PRESENT |
+    GDT_ACCESS_RING (3));
+
   x86_flush_gdt (&ptr);
   
   x86_flush_tss ();

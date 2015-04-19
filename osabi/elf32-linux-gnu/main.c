@@ -30,6 +30,13 @@ linux_abi_init (int (*entry) ())
   
   setintgate (0x80, linux_syscall);
 
+  /* Setup TLS. In Linux, %gs:0x0 points
+     to its virtual address (some programs that
+     cannot use segment registers -like most
+     C applications- need to know the equivalent
+     virtua address of TLS)*/
+  asm ("movl $0xcffff000, %gs:0x0");
+
   asm
   (
     "pushl %2\n"

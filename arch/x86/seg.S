@@ -31,7 +31,7 @@ x86_flush_tss:
         movw $0x2b, %ax
         ltr %ax
         ret
-        
+
 x86_get_current_gdt:
     movl 4(%esp), %eax
     sgdt (%eax)

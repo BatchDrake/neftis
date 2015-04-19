@@ -34,7 +34,7 @@ extern int text_start;
 busword_t
 __task_get_user_stack_bottom (const struct task *task)
 {
-  return (busword_t) &text_start;
+  return KERNEL_BASE;
 }
 
 struct task_ctx_data *
@@ -74,8 +74,8 @@ x86_init_stack_frame_user (struct x86_stack_frame *frame)
   frame->segs.cs = GDT_SEGMENT_USER_CODE | 3;
   frame->segs.ds = GDT_SEGMENT_USER_DATA | 3;
   frame->segs.es = GDT_SEGMENT_USER_DATA | 3;
-  frame->segs.gs = GDT_SEGMENT_USER_DATA | 3;
-  frame->segs.fs = GDT_SEGMENT_USER_DATA | 3;
+  frame->segs.gs = GDT_SEGMENT_USER_TLS  | 3;
+  frame->segs.fs = GDT_SEGMENT_USER_TLS  | 3;
   frame->segs.ss = GDT_SEGMENT_USER_DATA | 3;
 
   frame->regs.esp = 0; /* Ignored */
@@ -109,14 +109,14 @@ __alloc_task (void)
 
   if ((new_task = page_alloc (KERNEL_MODE_STACK_PAGES)) == NULL)
     return NULL;
-
+  
   if ((stack_vaddr = kernel_vremap_ensure (KERNEL_MODE_STACK_PAGES)) == -1)
   {
     page_free (new_task, KERNEL_MODE_STACK_PAGES);
     
     return NULL;
   }
-
+  
   if (kernel_vremap_map_pages (stack_vaddr, (busword_t) new_task, KERNEL_MODE_STACK_PAGES, VM_PAGE_READABLE | VM_PAGE_WRITABLE) == -1)
   {
     page_free (new_task, KERNEL_MODE_STACK_PAGES);
@@ -154,9 +154,9 @@ __free_task (struct task *task)
   struct task_ctx_data *data;
 
   data = get_task_ctx_data (task);
-
-  kernel_vremap_release (data->stack_info.stack_vaddr, KERNEL_MODE_STACK_PAGES);
   
+  kernel_vremap_release (data->stack_info.stack_vaddr, KERNEL_MODE_STACK_PAGES);
+
   page_free (task, KERNEL_MODE_STACK_PAGES);
 }
 
@@ -200,8 +200,7 @@ __task_config_start (struct task *task, void (*start) (), void (*abi_entry) ())
   {
     x86_init_stack_frame_user (frameptr);
     
-    if ((frameptr->unpriv.old_esp = __task_find_stack_bottom (task)) == KERNEL_ERROR_VALUE)
-      FAIL ("Cannot find userspace stack\n");
+    frameptr->unpriv.old_esp = USER_TLS_START;
   }
   else
     FAIL ("Don't know how to build start frame for this type of task!\n");

@@ -19,6 +19,8 @@
 #ifndef _ATOMIK_H
 #define _ATOMIK_H
 
+#include <types.h>
+#include <layout.h>
 
 #define NULL ((void *) 0)
 

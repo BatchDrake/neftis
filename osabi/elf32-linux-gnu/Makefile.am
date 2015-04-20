@@ -7,7 +7,7 @@ elf32_linux_gnu_LDFLAGS=--shared -nostdlib
 
 elf32_linux_gnu_CFLAGS=-fstrength-reduce -fPIC \
 		-finline-functions -nostdinc -nostdlib -fno-builtin -I. -ggdb \
-    -Iinclude -march=i686 -D__386__ @AM_CFLAGS@
+    -Iinclude  -I../../arch/include-x86 -I../../microkernel/loaders/elf -march=i686 -D__386__ @AM_CFLAGS@ 
     
 elf32_linux_gnu_CCASFLAGS=-I. @AM_CCASFLAGS@
 

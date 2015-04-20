@@ -884,9 +884,19 @@ x86_isr_handler (struct x86_stack_frame *frame)
     case X86_INT_GENERAL_PROTECTION_FAULT:
     case X86_INT_DOUBLE_FAULT:
     case X86_INT_PAGE_FAULT:
-      if (task->ts_type == TASK_TYPE_KERNEL_THREAD || 1)
+      if (task->ts_type == TASK_TYPE_KERNEL_THREAD)
         x86_regdump (frame);
-      
+/*
+  Uncomment the following when you need to debug the user's stack
+      uint32_t dword;
+      int i;
+
+      for (i = 0; i < 20; ++i)
+      {
+        copy2phys (REFCAST (struct vm_space, task->ts_vm_space), &dword, frame->unpriv.old_esp + i * 4, 4);
+        printk ("%w - %w\n", frame->unpriv.old_esp + i * 4, dword);
+      }
+*/    
       if (vm_handle_page_fault (task, cr2, VREGION_ACCESS_READ) == -1)
 	task_trigger_exception (task, EX_SEGMENT_VIOLATION, (busword_t) frame->priv.eip, cr2, 0);
       

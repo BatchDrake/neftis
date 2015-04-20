@@ -142,7 +142,8 @@ gdt_init (void)
   
   gdt_entry_setup_tss (GDT_ENTRY (GDT_SEGMENT_TSS));
 
-  gdt_entry_setup (GDT_ENTRY (GDT_SEGMENT_USER_TLS), USER_TLS_START, USER_TLS_PAGES, 
+  /* Please note that USER_TLS_BASE is in the middle of a page */
+  gdt_entry_setup (GDT_ENTRY (GDT_SEGMENT_USER_TLS), USER_TLS_BASE, USER_TLS_PAGES, 
     GDT_ACCESS_READWRITE | GDT_ACCESS_SEGMENT | GDT_ACCESS_PRESENT |
     GDT_ACCESS_RING (3));
 

@@ -19,7 +19,7 @@
 #ifndef _LINUX_H
 #define _LINUX_H
 
-typedef unsigned long DWORD;
+#include <types.h>
 
 struct x86_common_regs
 {

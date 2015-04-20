@@ -384,17 +384,27 @@ syscall_run (
   unsigned long eax
   )
 {
-  if (eax > 348 || syscall_names[eax] == NULL)
+  switch (eax)
   {
-    puts ("*** osabi: unknown syscall #");
-    puti (eax);
-    puts ("\n");
-  }
-  else
-  {
-    puts ("*** osabi: unimplemented syscall ");
-    puts (syscall_names[eax]);
-    puts ("()\n");
+  case __NR_open:
+    puts ("*** osabi: unimplemented call to open (\"");
+    puts ((char *) ebx);
+    puts ("\")\n");
+    break;
+    
+  default:
+    if (eax > 348 || syscall_names[eax] == NULL)
+    {
+      puts ("*** osabi: unknown syscall #");
+      puti (eax);
+      puts ("\n");
+    }
+    else
+    {
+      puts ("*** osabi: unimplemented syscall ");
+      puts (syscall_names[eax]);
+      puts ("\n");
+    }
   }
   
   return -ENOSYS;

@@ -432,6 +432,41 @@ copy2virt (const struct vm_space *space, busword_t virt, const void *orig, buswo
   return size_copy - size;
 }
 
+/* Clear memory on virtual address */
+int
+bzero2virt (const struct vm_space *space, busword_t virt, busword_t size)
+{
+  busword_t offset = virt &  PAGE_MASK; 
+  busword_t page   = virt & ~PAGE_MASK;
+  busword_t phys, len;
+  busword_t size_copy = size;
+  
+  /* TODO: implement this faster */
+
+  while (size)
+  {
+    if (!(phys = virt2phys (space, page)))
+    {
+      error ("untranslatable address %p\n", page);
+      break;
+    }
+    
+    if ((len = PAGE_SIZE - offset) > size)
+      len = size;
+
+    memset ((void *) phys + offset, 0, len);
+
+    __vm_flush_pages (page, 1);
+
+    page += PAGE_SIZE;
+    size -= len;
+    
+    offset = 0;
+  }
+
+  return size_copy - size;
+}
+
 int
 copy2phys (const struct vm_space *space, void *dest, busword_t virt, busword_t size)
 {
@@ -625,12 +660,14 @@ __load_segment_cb (struct vm_space *space, int type, int flags, busword_t virt, 
   busword_t start_page;
   busword_t actual_size;
   busword_t actual_page_count;
+  busword_t bss_size;
   busword_t copied;
 
   start_page = PAGE_START (virt);
   actual_size = size + (virt - start_page);
   actual_page_count = (actual_size >> __PAGE_BITS) + !!(actual_size & PAGE_MASK);
-
+  bss_size = size - datasize;
+  
   if (datasize > size)
   {
     error ("Segment data size overflows segment size\n");
@@ -657,6 +694,11 @@ __load_segment_cb (struct vm_space *space, int type, int flags, busword_t virt, 
   if ((copied = copy2virt (space, virt, data, datasize)) != datasize)
     FAIL ("unexpected segment overrun when copying data to user (total: %d/%d)\n", copied, datasize);
 
+  /* Clear remaining bytes (needed by .bss) */
+  if (bss_size > 0)
+    if ((copied = bzero2virt (space, virt + datasize, bss_size)) != bss_size)
+      FAIL ("unexpected segment overrung when clearing .bss (total: %d/%d)\n", copied, bss_size);
+  
   return 0;
 }
 

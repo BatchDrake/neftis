@@ -896,7 +896,7 @@ x86_isr_handler (struct x86_stack_frame *frame)
         copy2phys (REFCAST (struct vm_space, task->ts_vm_space), &dword, frame->unpriv.old_esp + i * 4, 4);
         printk ("%w - %w\n", frame->unpriv.old_esp + i * 4, dword);
       }
-*/    
+*/
       if (vm_handle_page_fault (task, cr2, VREGION_ACCESS_READ) == -1)
 	task_trigger_exception (task, EX_SEGMENT_VIOLATION, (busword_t) frame->priv.eip, cr2, 0);
       

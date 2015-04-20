@@ -372,7 +372,7 @@ char *syscall_names[] =
 };
 void linux_syscall ();
 
-unsigned long
+void
 syscall_run (
   unsigned long edi,
   unsigned long esi,
@@ -406,8 +406,10 @@ syscall_run (
       puts ("\n");
     }
   }
+
+  /* Some C magic */
   
-  return -ENOSYS;
+  eax = -ENOSYS;
 }
 
 asm
@@ -416,7 +418,7 @@ asm
   "linux_syscall:\n"
   "  pusha\n"
   "  call syscall_run\n"
-  "  addl $0x20, %esp\n"
+  "  popa\n"
   "  ret\n"
 );
 

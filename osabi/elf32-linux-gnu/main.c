@@ -71,7 +71,7 @@ linux_abi_init (int (*entry) ())
      C applications- need to know the equivalent
      virtua address of TLS)*/
   asm ("movl $0xcffff800, %gs:0x0");
-
+  
   asm
   (
     "movl %0, %%eax\n"

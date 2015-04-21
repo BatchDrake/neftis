@@ -21,6 +21,8 @@
 #include <task/msg.h>
 #include <kctx.h>
 
+#include <misc/errno.h>
+
 SYSPROTO (syscall_krn_exit)
 {
   DECLARE_CRITICAL_SECTION (exit);
@@ -66,11 +68,32 @@ SYSPROTO (syscall_krn_debug_string)
   }
 }
 
+SYSPROTO (syscall_krn_debug_buf)
+{
+  char *p;
+  busword_t addr = args[0];
+  unsigned int size = args[1];
+  
+  struct task *task = get_current_task ();
+  int i = 0;
+
+  while (i < size && (p = (char *) virt2phys (REFCAST (struct vm_space, task->ts_vm_space), addr)) != NULL)
+  {
+    do
+      putchar (*p++);
+    while (((busword_t) p & PAGE_MASK) && i++ < size);
+
+    addr = PAGE_START (addr) + PAGE_SIZE;
+  }
+}
+
 SYSPROTO (syscall_krn_brk)
 {
   struct task *task = get_current_task ();
   struct vm_region *dataseg;
   busword_t ret;
+  busword_t pages;
+  busword_t prog_brk;
   
   DECLARE_CRITICAL_SECTION (grow);
 
@@ -79,10 +102,24 @@ SYSPROTO (syscall_krn_brk)
   if ((dataseg = vm_space_find_region_by_role (REFCAST (struct vm_space, task->ts_vm_space), VREGION_ROLE_DATASEG)) == NULL)
   {
     error ("No data segment found\n");
-    ret = -1;
+    return -ENOMEM;
   }
+
+  prog_brk = dataseg->vr_virt_end + 1;
+  
+  if (args[0] == 0) /* Query program break */
+    ret = prog_brk;
+  else if (args[0] < prog_brk) /* Shrink is not allowed */
+    ret = -EINVAL;
   else
-    ret = dataseg->vr_virt_end;
+  {
+    pages = __UNITS (args[0] - dataseg->vr_virt_start, PAGE_SIZE);
+    
+    if (vm_region_resize (dataseg, dataseg->vr_virt_start, pages) != -1)
+      vm_update_region (REFCAST (struct vm_space, task->ts_vm_space), dataseg); /* Update changes */
+    
+    ret = dataseg->vr_virt_end + 1;
+  }
   
   CRITICAL_LEAVE (grow);
 

@@ -49,12 +49,73 @@ kmap_pagefault (struct task *task, struct vm_region *region, busword_t failed_ad
   return -1;
 }
 
+static int
+anonmap_resize (struct task *task, struct vm_region *region, busword_t start, busword_t pages)
+{
+  busword_t curr_size;
+  struct mm_region *mm_curr_region;
+  extern struct mm_region *mm_regions;
+
+  DECLARE_CRITICAL_SECTION (alloc_anon);
+  
+  curr_size = __UNITS (region->vr_virt_end - region->vr_virt_start + 1, PAGE_SIZE);
+  
+  if (region->vr_virt_start != start)
+  {
+    error ("cannot modify start address of anonmap (current: %p, requested: %p)\n",
+           region->vr_virt_start,
+           start);
+
+    return -1;
+  }
+
+  if (pages == curr_size)
+  {
+    warning ("gratuituous resize operation\n");
+    
+    return 0;
+  }
+  else if (pages < curr_size)
+  {
+    error ("unsupported shrink operation on anonmap (%d -> %d)\n", curr_size, pages);
+
+    return -1;
+  }
+
+  pages -= curr_size;
+
+  /* TODO: use mutexes, this can wait */
+  CRITICAL_ENTER (alloc_anon);
+  
+  mm_curr_region = mm_regions;
+
+  while (mm_curr_region != NULL)
+  {
+    if (__alloc_colored (mm_curr_region, region, region->vr_virt_end + 1, pages, region->vr_access) == KERNEL_SUCCESS_VALUE)
+      break;
+      
+    mm_curr_region = mm_curr_region->mr_next;
+  }
+
+  CRITICAL_LEAVE (alloc_anon);
+
+  if (PTR_UNLIKELY_TO_FAIL (mm_curr_region))
+  {
+    error ("no memory left to grow region in %d pages\n", pages);
+    
+    return -1;
+  }
+
+  return 0;
+}
+
 struct vm_region_ops anonmap_region_ops =
 {
   .name        = "anon",
   .read_fault  = anonmap_pagefault,
   .write_fault = anonmap_pagefault,
-  .exec_fault  = anonmap_pagefault
+  .exec_fault  = anonmap_pagefault,
+  .resize      = anonmap_resize
 };
 
 struct vm_region_ops kmap_region_ops =

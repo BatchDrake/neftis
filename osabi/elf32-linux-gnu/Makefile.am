@@ -27,5 +27,6 @@ sys/brk.c \
 sys/open.c \
 sys/uname.c \
 sys/uname.h \
+sys/writev.c \
 main.c \
 atomik.h

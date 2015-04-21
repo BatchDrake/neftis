@@ -1,5 +1,5 @@
 /*
- *    Linux brk() system call implementation
+ *    Linux writev() system call implementation
  *    Copyright (C) 2015  Gonzalo J. Carracedo
  *
  *    This program is free software: you can redistribute it and/or modify
@@ -23,13 +23,44 @@
 #include <stdlib.h>
 #include <cpu.h>
 
-void
-sys_brk (struct x86_common_regs *regs)
+struct iovec
 {
-  void *prog_brk;
+  void *iov_base;   /* Dirección de comienzo */
+  size_t iov_len;   /* Número de bytes */
+};
 
-  prog_brk = brk ((void *) regs->ebx);
+void
+sys_writev (struct x86_common_regs *regs)
+{
+  unsigned int i;
+  struct iovec *vec = (struct iovec *) regs->ecx;
   
-  regs->eax = (DWORD) prog_brk;
+  if (regs->ebx == 1 || regs->ebx == 2)
+  {
+    puts ("\033[1;37m");
+    
+    for (i = 0; i < regs->edx; ++i)
+      put (vec[i].iov_base, vec[i].iov_len);
+
+    puts ("\033[0m");
+  }
+  else
+  {
+    puts ("(o) unimplemented call to writev (");
+
+    puti (regs->ebx);
+
+    puts (", ");
+
+    putp (regs->ecx);
+
+    puts (", ");
+
+    puti (regs->edx);
+
+    puts (");\n");
+
+    regs->eax = -ENOSYS;
+  }
 }
 

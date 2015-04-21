@@ -53,6 +53,8 @@ int   exit (int code);
 int   puti (int i);
 int   putp (void *p);
 int   puts (const char *s);
+int   put (const void *, int);
+
 int   setintgate (unsigned long gate, const void *isr);
 void *brk (void *);
 

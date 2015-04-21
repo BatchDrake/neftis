@@ -887,7 +887,7 @@ x86_isr_handler (struct x86_stack_frame *frame)
       if (task->ts_type == TASK_TYPE_KERNEL_THREAD)
         x86_regdump (frame);
 /*
-  Uncomment the following when you need to debug the user's stack
+  Uncomment the following when you need to debug the user's stack 
       uint32_t dword;
       int i;
 
@@ -899,7 +899,7 @@ x86_isr_handler (struct x86_stack_frame *frame)
 */
       if (vm_handle_page_fault (task, cr2, VREGION_ACCESS_READ) == -1)
 	task_trigger_exception (task, EX_SEGMENT_VIOLATION, (busword_t) frame->priv.eip, cr2, 0);
-      
+        
       break;
 
     default:

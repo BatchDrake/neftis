@@ -42,6 +42,13 @@ puts (const char *s)
   return kernel (2, (int) s, 0, 0, 0, 0);
 }
 
+
+int
+put (const void *buf, int size)
+{
+  return kernel (4, (int) buf, size, 0, 0, 0);
+}
+
 int
 setintgate (unsigned long gate, const void *isr)
 {
@@ -51,5 +58,5 @@ setintgate (unsigned long gate, const void *isr)
 void *
 brk (void *new_break)
 {
-  return kernel (4, (unsigned long) new_break, 0, 0, 0, 0);
+  return (void *) kernel (5, (unsigned long) new_break, 0, 0, 0, 0);
 }

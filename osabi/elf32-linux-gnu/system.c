@@ -47,3 +47,9 @@ setintgate (unsigned long gate, const void *isr)
 {
   return kernel (0x80000000, gate, (unsigned long) isr, 0, 0, 0);
 }
+
+void *
+brk (void *new_break)
+{
+  return kernel (4, (unsigned long) new_break, 0, 0, 0, 0);
+}

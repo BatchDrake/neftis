@@ -49,11 +49,12 @@ ipc (int syscall, int b, int c, int d, int e, int f)
 }
 
 /* Generic system calls */
-int exit (int code);
-int puti (int i);
-int putp (void *p);
-int puts (const char *s);
-int setintgate (unsigned long gate, const void *isr);
+int   exit (int code);
+int   puti (int i);
+int   putp (void *p);
+int   puts (const char *s);
+int   setintgate (unsigned long gate, const void *isr);
+void *brk (void *);
 
 /* IPC system calls */
 int msgreq (int size);

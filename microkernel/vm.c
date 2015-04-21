@@ -793,7 +793,8 @@ vm_space_load_from_exec (const void *exec_start, busword_t exec_size, busword_t 
     return KERNEL_INVALID_POINTER;
   }
 
-  space->vs_image_top = loader_get_top_addr (handle);
+  space->vs_image_base = loader_get_base_addr (handle);
+  space->vs_image_top  = loader_get_top_addr (handle);
 
   /* Once all segments are properly loaded, we can perform a relocation */
 

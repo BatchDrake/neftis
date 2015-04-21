@@ -124,6 +124,30 @@ loader_get_top_addr (loader_handle *handle)
   return top;
 }
 
+
+static int
+__find_base_cb (struct vm_space *space, int type, int flags, busword_t virt, busword_t size, const void *data, busword_t datasize, void *private)
+{
+  busword_t *min = (busword_t *) private;
+ 
+  size = __ALIGN (size, PAGE_SIZE);
+
+  if (*min > virt)
+    *min = PAGE_START (virt);
+    
+  return 0;
+}
+
+busword_t
+loader_get_base_addr (loader_handle *handle)
+{
+  busword_t base = 0xffffffff;
+
+  (void) loader_walk_exec (handle, __find_base_cb, &base);
+
+  return base;
+}
+
 int
 loader_rebase (loader_handle *handle, busword_t addr)
 {

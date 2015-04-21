@@ -11,4 +11,21 @@ elf32_linux_gnu_CFLAGS=-fstrength-reduce -fPIC \
     
 elf32_linux_gnu_CCASFLAGS=-I. @AM_CCASFLAGS@
 
-elf32_linux_gnu_SOURCES=atomik.h ipc.c linux.c linux.h 	main.c system.c
+elf32_linux_gnu_SOURCES=\
+ctype.h \
+linux.c \
+syscall_list.h \
+stdlib.c \
+linux.h \
+system.c \
+errno.h \
+ipc.c \
+unistd_32.h \
+syscall_list.c \
+stdlib.h \
+sys/brk.c \
+sys/open.c \
+sys/uname.c \
+sys/uname.h \
+main.c \
+atomik.h

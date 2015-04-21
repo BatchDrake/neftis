@@ -35,4 +35,8 @@ struct x86_common_regs
 
 void linux_syscall (struct x86_common_regs);
 
+void sys_uname (struct x86_common_regs *);
+void sys_open  (struct x86_common_regs *);
+void sys_brk  (struct x86_common_regs *);
+
 #endif /* _LINUX_H */

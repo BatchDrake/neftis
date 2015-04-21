@@ -146,7 +146,9 @@ struct vm_region
 struct vm_space
 {
   rbtree_t *vs_region_tree;
-  busword_t vs_image_top; /* When created from executable, the top address of the executable */
+
+  busword_t vs_image_base; /* When created from executable, the base address of the executable */
+  busword_t vs_image_top;  /* When created from executable, the top address of the executable */
   
   /* This is hardware dependant */
   void *vs_pagetable;

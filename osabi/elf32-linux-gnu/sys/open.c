@@ -1,6 +1,6 @@
 /*
- *    ELF32 Linux ABI VDSO for Atomik
- *    Copyright (C) 2014  Gonzalo J. Carracedo
+ *    Linux open() system call implementation
+ *    Copyright (C) 2015  Gonzalo J. Carracedo
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -20,45 +20,22 @@
 #include <linux.h>
 #include <unistd_32.h>
 #include <errno.h>
-
-#include <syscall_list.h>
+#include <stdlib.h>
+#include <cpu.h>
 
 void
-syscall_run (struct x86_common_regs regs)
+sys_open (struct x86_common_regs *regs)
 {
-  const struct syscall_desc *desc;
+  puts ("*** osabi: unimplemented call to open(\"");
 
-  if ((desc = syscall_get (regs.eax)) == NULL)
-  {
-    puts ("*** osabi: unknown syscall #");
+  puts ((char *) regs->ebx);
 
-    puti (regs.eax);
+  puts ("\", ");
 
-    puts ("\n");
+  puti (regs->ecx);
 
-    regs.eax = -ENOSYS;
-  }
-  else if (desc->sd_impl == NULL)
-  {
-    puts ("*** osabi: unimplemented syscall ");
+  puts (")\n");
 
-    puts (desc->sd_name);
-
-    puts ("\n");
-
-    regs.eax = -ENOSYS;
-  }
-  else
-    (desc->sd_impl) (&regs);
+  regs->eax = -ENOSYS;
 }
-
-asm
-(
-  ".globl linux_syscall\n"
-  "linux_syscall:\n"
-  "  pusha\n"
-  "  call syscall_run\n"
-  "  popa\n"
-  "  ret\n"
-);
 

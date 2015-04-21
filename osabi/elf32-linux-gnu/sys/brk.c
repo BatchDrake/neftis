@@ -1,6 +1,6 @@
 /*
- *    ELF32 Linux ABI VDSO for Atomik
- *    Copyright (C) 2014  Gonzalo J. Carracedo
+ *    Linux brk() system call implementation
+ *    Copyright (C) 2015  Gonzalo J. Carracedo
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -20,45 +20,31 @@
 #include <linux.h>
 #include <unistd_32.h>
 #include <errno.h>
-
-#include <syscall_list.h>
+#include <stdlib.h>
+#include <cpu.h>
 
 void
-syscall_run (struct x86_common_regs regs)
+sys_brk (struct x86_common_regs *regs)
 {
-  const struct syscall_desc *desc;
+  void *prog_brk;
 
-  if ((desc = syscall_get (regs.eax)) == NULL)
-  {
-    puts ("*** osabi: unknown syscall #");
+  prog_brk = brk ((void *) regs->ebx) + 1;
 
-    puti (regs.eax);
-
-    puts ("\n");
-
-    regs.eax = -ENOSYS;
-  }
-  else if (desc->sd_impl == NULL)
-  {
-    puts ("*** osabi: unimplemented syscall ");
-
-    puts (desc->sd_name);
-
-    puts ("\n");
-
-    regs.eax = -ENOSYS;
-  }
+  if (regs->ebx == 0)
+    puts ("*** osabi: brk(0) call: ");
   else
-    (desc->sd_impl) (&regs);
-}
+  {
+    puts ("*** osabi: unimplemented brk(");
 
-asm
-(
-  ".globl linux_syscall\n"
-  "linux_syscall:\n"
-  "  pusha\n"
-  "  call syscall_run\n"
-  "  popa\n"
-  "  ret\n"
-);
+    putp ((void *) regs->ebx);
+    
+    puts (") call: ");
+  }
+  
+  putp (prog_brk);
+
+  puts ("\n");
+  
+  regs->eax = (DWORD) prog_brk;
+}
 

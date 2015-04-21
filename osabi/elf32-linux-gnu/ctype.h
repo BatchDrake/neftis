@@ -1,6 +1,6 @@
 /*
- *    System call table
- *    Copyright (C) 2014  Gonzalo J. Carracedo
+ *    <one line to give the program's name and a brief idea of what it does.>
+ *    Copyright (C) <year>  <name of author>
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -15,31 +15,11 @@
  *    You should have received a copy of the GNU General Public License
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
+    
+#ifndef _CTYPE_H
+#define _CTYPE_H
 
-#ifndef _TASK_SYSCALL_H
-#define _TASK_SYSCALL_H
+#define isspace(c) ((c) == ' ' || (c) == '\t')
 
-#include <types.h>
+#endif /* _CTYPE_H */
 
-typedef int (*syscall_entry_t) (busword_t, const busword_t *);
-
-#define SYS_KRN_exit     0
-
-#define SYS_KRN_COUNT    5
-
-#define SYS_IPC_COUNT    9
-
-#define SYS_VMO_COUNT    1
-
-#define SYS_KRN_PRIVATE  0x80000000
-
-#define SYSPROTO(name) \
-  int name (busword_t syscall, const busword_t *args)
-
-#include <task/syskrn.h>
-
-#include <task/sysipc.h>
-
-SYSPROTO (arch_private_syscall);
-
-#endif /* _TASK_SYSCALL_H */

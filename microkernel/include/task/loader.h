@@ -62,6 +62,7 @@ loader_handle *loader_open_exec (struct vm_space *, const void *, uint32_t);
 busword_t loader_get_exec_entry (loader_handle *);
 size_t loader_get_abi (loader_handle *, char *, size_t);
 busword_t loader_get_top_addr (loader_handle *);
+busword_t loader_get_base_addr (loader_handle *);
 int loader_rebase (loader_handle *, busword_t);
 int loader_relocate (loader_handle *);
 int loader_walk_exec (loader_handle *, int (*) (struct vm_space *, int, int, busword_t, busword_t, const void *, busword_t, void *), void *);

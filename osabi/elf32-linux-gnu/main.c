@@ -40,7 +40,7 @@ asm
 static uint32_t some_fancy_random_chars[4] = {0xdeadcefe, 0xcafebabe, 0x001c0c0a, 0x12345678};
 
 void
-linux_abi_init (int (*entry) ())
+linux_abi_init (int (*entry) (), Elf32_Ehdr *imagebase)
 {
   char *initial_stack[] =
     {
@@ -57,6 +57,12 @@ linux_abi_init (int (*entry) ())
       
       (char *) AT_RANDOM,
       (char *) some_fancy_random_chars,
+
+      (char *) AT_PHNUM,
+      (char *) (unsigned long) imagebase->e_phnum,
+
+      (char *) AT_PHDR,
+      (char *) imagebase + imagebase->e_phoff,
       
       /* End of auxiliary vectors */
       (char *) AT_NULL,
@@ -87,7 +93,8 @@ asm
 (
   ".globl _start\n"
   "_start:\n"
-  "pushl %eax\n"
+  "pushl %ebx\n" /* Image base */
+  "pushl %eax\n" /* Program entry */
   "call linux_abi_init\n"
 );
 

@@ -16,49 +16,19 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
 
-#include <atomik.h>
+#ifndef _SYSCALL_LIST_H
+#define _SYSCALL_LIST_H
+
+#define SYSCALL_LIST_MAX 349
+
 #include <linux.h>
-#include <unistd_32.h>
-#include <errno.h>
 
-#include <syscall_list.h>
-
-void
-syscall_run (struct x86_common_regs regs)
+struct syscall_desc
 {
-  const struct syscall_desc *desc;
+  const char *sd_name;
+  void (*sd_impl) (struct x86_common_regs *);
+};
 
-  if ((desc = syscall_get (regs.eax)) == NULL)
-  {
-    puts ("*** osabi: unknown syscall #");
+const struct syscall_desc *syscall_get (unsigned int nr);
 
-    puti (regs.eax);
-
-    puts ("\n");
-
-    regs.eax = -ENOSYS;
-  }
-  else if (desc->sd_impl == NULL)
-  {
-    puts ("*** osabi: unimplemented syscall ");
-
-    puts (desc->sd_name);
-
-    puts ("\n");
-
-    regs.eax = -ENOSYS;
-  }
-  else
-    (desc->sd_impl) (&regs);
-}
-
-asm
-(
-  ".globl linux_syscall\n"
-  "linux_syscall:\n"
-  "  pusha\n"
-  "  call syscall_run\n"
-  "  popa\n"
-  "  ret\n"
-);
-
+#endif /* _SYSCALL_LIST_H */

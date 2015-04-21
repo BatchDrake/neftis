@@ -212,6 +212,7 @@ __task_config_start (struct task *task, void (*start) (), void (*abi_entry) ())
   else
   {
     frameptr->regs.eax = (busword_t) start;
+    frameptr->regs.ebx = REFCAST (struct vm_space, task->ts_vm_space)->vs_image_base;
     frameptr->priv.eip = (void *)    abi_entry;
   }
   

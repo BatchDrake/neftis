@@ -36,16 +36,22 @@ SYSPROTO (syscall_krn_exit)
   schedule ();
 
   TASK_ATOMIC_ABORT ();
+
+  return 0;
 }
 
 SYSPROTO (syscall_krn_debug_int)
 {
   printk ("%d", args[0]);
+
+  return 0;
 }
 
 SYSPROTO (syscall_krn_debug_pointer)
 {
   printk ("%p", args[0]);
+
+  return 0;
 }
 
 SYSPROTO (syscall_krn_debug_string)
@@ -66,6 +72,8 @@ SYSPROTO (syscall_krn_debug_string)
     
     addr = PAGE_START (addr) + PAGE_SIZE;
   }
+
+  return 0;
 }
 
 SYSPROTO (syscall_krn_debug_buf)
@@ -85,17 +93,24 @@ SYSPROTO (syscall_krn_debug_buf)
 
     addr = PAGE_START (addr) + PAGE_SIZE;
   }
+
+  return 0;
 }
 
 SYSPROTO (syscall_krn_set_tls)
 {
+  int ret;
+  
   DECLARE_CRITICAL_SECTION (set_tls);
 
   CRITICAL_ENTER (set_tls);
 
-  __task_set_tls (get_current_task (), args[0]);
+  if ((ret = __task_set_tls (get_current_task (), args[0])) == 0)
+    __task_tls_update (get_current_task ());
 
   CRITICAL_LEAVE (set_tls);
+
+  return ret ? -EFAULT : 0;
 }
 
 SYSPROTO (syscall_krn_brk)

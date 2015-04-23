@@ -1,6 +1,6 @@
 /*
- *    ELF32 Linux ABI VDSO for Atomik
- *    Copyright (C) 2014  Gonzalo J. Carracedo
+ *    Linux write() system call implementation
+ *    Copyright (C) 2015  Gonzalo J. Carracedo
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -16,30 +16,41 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
 
-#ifndef _LINUX_H
-#define _LINUX_H
+#include <atomik.h>
+#include <linux.h>
+#include <unistd_32.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <cpu.h>
 
-#include <types.h>
-
-struct x86_common_regs
+void
+sys_write (struct x86_common_regs *regs)
 {
-  DWORD edi;
-  DWORD esi;
-  DWORD ebp;
-  DWORD esp;
-  DWORD ebx;
-  DWORD edx;
-  DWORD ecx;
-  DWORD eax;
-};
+  if (regs->ebx == 1 || regs->ebx == 2)
+  {
+    puts ("\033[1;37m");
 
-void linux_syscall (struct x86_common_regs);
+    put ((const char *) regs->ecx, regs->edx);
 
-void sys_uname           (struct x86_common_regs *);
-void sys_open            (struct x86_common_regs *);
-void sys_brk             (struct x86_common_regs *);
-void sys_writev          (struct x86_common_regs *);
-void sys_write           (struct x86_common_regs *);
-void sys_set_thread_area (struct x86_common_regs *);
+    puts ("\033[0m");
+  }
+  else
+  {
+    puts ("(o) unimplemented call to write (");
 
-#endif /* _LINUX_H */
+    puti (regs->ebx);
+
+    puts (", ");
+
+    putp (regs->ecx);
+
+    puts (", ");
+
+    puti (regs->edx);
+
+    puts (");\n");
+
+    regs->eax = -ENOSYS;
+  }
+}
+

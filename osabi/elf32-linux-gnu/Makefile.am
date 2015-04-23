@@ -28,6 +28,7 @@ sys/open.c \
 sys/set_thread_area.c \
 sys/uname.c \
 sys/uname.h \
+sys/write.c \
 sys/writev.c \
 main.c \
 atomik.h

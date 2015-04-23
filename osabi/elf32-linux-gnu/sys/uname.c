@@ -41,10 +41,10 @@ sys_uname (struct x86_common_regs *regs)
 
   memset (buf, 0, sizeof (struct utsname));
   
-  strncpy (buf->sysname,  "Linux",    _UTSNAME_SYSNAME_LENGTH);
+  strncpy (buf->sysname,  "Linux-on-Atomik",    _UTSNAME_SYSNAME_LENGTH);
   strncpy (buf->nodename, "localhost", _UTSNAME_NODENAME_LENGTH);
   strncpy (buf->release,  "3.0",       _UTSNAME_RELEASE_LENGTH);
-  strncpy (buf->version,  "Atomik " __TIMESTAMP__, _UTSNAME_VERSION_LENGTH);
+  strncpy (buf->version,  "PREEMPT " __TIMESTAMP__, _UTSNAME_VERSION_LENGTH);
   strncpy (buf->machine,  ARCH_STRING, _UTSNAME_MACHINE_LENGTH);
 
   errno = 0;

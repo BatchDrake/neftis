@@ -68,7 +68,6 @@ sys_set_thread_area (struct x86_common_regs *regs)
     return;
   }
 
-  set_tls ((void *) desc->base_addr);
-  
-  regs->eax = 0;
+  if ((regs->eax = set_tls ((void *) desc->base_addr)) == 0)
+    *((uint32_t *) desc->base_addr) = desc->base_addr;
 }

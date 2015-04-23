@@ -243,22 +243,25 @@ INLINE void
 __console_inline_putchar_raw (struct console *con, char c)
 {
   schar char_pair;
-  
-  char_pair = (schar) {c, con->params[CONSOLE_PARAM_CLEAR_COLOR]};
-  con->buffer[con->pos_y * con->width + con->pos_x] = char_pair;
-      
-  if (++con->pos_x >= con->width)
+
+  if (c != '\0')
   {
-    con->pos_x = 0;
-    if (++con->pos_y >= con->height)
+    char_pair = (schar) {c, con->params[CONSOLE_PARAM_CLEAR_COLOR]};
+    con->buffer[con->pos_y * con->width + con->pos_x] = char_pair;
+      
+    if (++con->pos_x >= con->width)
     {
-      con->pos_y--;
-      console_scroll (con);
+      con->pos_x = 0;
+      if (++con->pos_y >= con->height)
+      {
+        con->pos_y--;
+        console_scroll (con);
+      }
     }
-  }
   
-  if (con->params[CONSOLE_PARAM_CHANGE_CUR])
-    video_cursor_set_pos_xy (con->pos_x, con->pos_y);
+    if (con->params[CONSOLE_PARAM_CHANGE_CUR])
+      video_cursor_set_pos_xy (con->pos_x, con->pos_y);
+  }
 }
 
 INLINE void

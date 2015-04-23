@@ -63,6 +63,9 @@ linux_abi_init (int (*entry) (), Elf32_Ehdr *imagebase)
 
       (char *) AT_PHDR,
       (char *) imagebase + imagebase->e_phoff,
+
+      (char *) AT_SECURE,
+      (char *) 0,
       
       /* End of auxiliary vectors */
       (char *) AT_NULL,

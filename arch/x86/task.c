@@ -100,7 +100,7 @@ __task_get_kernel_stack_size (const struct task *task)
   return KERNEL_MODE_STACK_PAGES;
 }
 
-void
+int
 __task_set_tls (struct task *task, busword_t base)
 {
   struct task_ctx_data *data;
@@ -109,6 +109,18 @@ __task_set_tls (struct task *task, busword_t base)
 
   data->tls_start = base;
   data->tls_limit = 0xffff;
+
+  return 0;
+}
+
+void
+__task_tls_update (const struct task *task)
+{
+  struct task_ctx_data *data;
+    
+  data = get_task_ctx_data (task);
+
+  x86_setup_tls (data->tls_start, data->tls_limit);
 }
 
 struct task *
@@ -279,6 +291,8 @@ __task_switch_from_interrupt (struct task *current, struct task *next)
   {
     data = get_task_ctx_data (current);
 
+    x86_setup_tls (data->tls_start, data->tls_limit);
+    
     data->stack_info.esp = (busword_t) get_interrupt_frame ();
   }
   

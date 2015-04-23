@@ -66,6 +66,7 @@ void __task_config_start (struct task *, void (*) (), void (*) ());
 void __task_perform_switch (struct task *);
 void __task_switch_from_current (struct task *, struct task *);
 void __task_switch_from_interrupt (struct task *, struct task *);
+void __task_set_tls (struct task *, busword_t);
 busword_t __task_get_user_stack_bottom (const struct task *);
 busword_t __task_get_kernel_stack_top (const struct task *);
 busword_t __task_get_kernel_stack_size (const struct task *);

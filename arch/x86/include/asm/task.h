@@ -47,6 +47,9 @@ struct task_ctx_data
 {
   struct task_ctx_stack_info stack_info;
 
+  uint32_t tls_start;
+  uint32_t tls_limit;
+  
   uint32_t uisr_eip[256]; /* User-defined ISRs */
 };
 

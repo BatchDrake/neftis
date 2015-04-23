@@ -7,5 +7,6 @@ SYSPROTO (syscall_krn_debug_string);
 SYSPROTO (syscall_krn_debug_pointer);
 SYSPROTO (syscall_krn_debug_buf);
 SYSPROTO (syscall_krn_brk);
+SYSPROTO (syscall_krn_set_tls);
 
 #endif /* _TASK_SYSKRN_H */

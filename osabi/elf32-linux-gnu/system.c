@@ -60,3 +60,9 @@ brk (void *new_break)
 {
   return (void *) kernel (5, (unsigned long) new_break, 0, 0, 0, 0);
 }
+
+void
+set_tls (void *new_tls)
+{
+  (void) kernel (6, (void *) new_tls, 0, 0, 0, 0);
+}

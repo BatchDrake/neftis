@@ -106,6 +106,7 @@ void x86_flush_gdt (struct gdt_ptr *);
 void x86_refresh_segments (void);
 void x86_flush_tss (void);
 void x86_flush_ldt (void);
+void x86_setup_tls (uint32_t, uint32_t);
 void x86_set_kernel_stack (uint32_t);
 void x86_enter_user (void);
 

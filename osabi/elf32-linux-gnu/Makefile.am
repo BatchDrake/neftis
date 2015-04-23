@@ -25,6 +25,7 @@ syscall_list.c \
 stdlib.h \
 sys/brk.c \
 sys/open.c \
+sys/set_thread_area.c \
 sys/uname.c \
 sys/uname.h \
 sys/writev.c \

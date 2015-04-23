@@ -25,7 +25,7 @@ typedef int (*syscall_entry_t) (busword_t, const busword_t *);
 
 #define SYS_KRN_exit     0
 
-#define SYS_KRN_COUNT    6
+#define SYS_KRN_COUNT    7
 
 #define SYS_IPC_COUNT    9
 

@@ -111,6 +111,16 @@ debug_gdt (struct gdt_ptr *ptr)
   }
 }
 
+/* This is a Linux-fashioned way to implement it */
+void
+x86_setup_tls (uint32_t base, uint32_t limit)
+{
+  /* Please note that USER_TLS_BASE is in the middle of a page */
+  gdt_entry_setup (GDT_ENTRY (GDT_SEGMENT_USER_TLS), base, limit, 
+    GDT_ACCESS_READWRITE | GDT_ACCESS_SEGMENT | GDT_ACCESS_PRESENT |
+    GDT_ACCESS_RING (3));
+}
+
 void
 gdt_init (void)
 {
@@ -142,10 +152,6 @@ gdt_init (void)
   
   gdt_entry_setup_tss (GDT_ENTRY (GDT_SEGMENT_TSS));
 
-  /* Please note that USER_TLS_BASE is in the middle of a page */
-  gdt_entry_setup (GDT_ENTRY (GDT_SEGMENT_USER_TLS), USER_TLS_BASE, USER_TLS_PAGES, 
-    GDT_ACCESS_READWRITE | GDT_ACCESS_SEGMENT | GDT_ACCESS_PRESENT |
-    GDT_ACCESS_RING (3));
 
   x86_flush_gdt (&ptr);
   

@@ -27,7 +27,8 @@ syscall_entry_t krn_syscall_list[SYS_KRN_COUNT] =
   syscall_krn_debug_string,
   syscall_krn_debug_pointer,
   syscall_krn_debug_buf,
-  syscall_krn_brk
+  syscall_krn_brk,
+  syscall_krn_set_tls
 };
 
 syscall_entry_t ipc_syscall_list[SYS_IPC_COUNT] =

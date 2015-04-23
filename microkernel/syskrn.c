@@ -87,6 +87,17 @@ SYSPROTO (syscall_krn_debug_buf)
   }
 }
 
+SYSPROTO (syscall_krn_set_tls)
+{
+  DECLARE_CRITICAL_SECTION (set_tls);
+
+  CRITICAL_ENTER (set_tls);
+
+  __task_set_tls (get_current_task (), args[0]);
+
+  CRITICAL_LEAVE (set_tls);
+}
+
 SYSPROTO (syscall_krn_brk)
 {
   struct task *task = get_current_task ();

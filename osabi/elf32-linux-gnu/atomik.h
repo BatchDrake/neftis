@@ -57,6 +57,7 @@ int   put (const void *, int);
 
 int   setintgate (unsigned long gate, const void *isr);
 void *brk (void *);
+void  set_tls (void *);
 
 /* IPC system calls */
 int msgreq (int size);

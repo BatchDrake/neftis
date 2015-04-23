@@ -100,6 +100,17 @@ __task_get_kernel_stack_size (const struct task *task)
   return KERNEL_MODE_STACK_PAGES;
 }
 
+void
+__task_set_tls (struct task *task, busword_t base)
+{
+  struct task_ctx_data *data;
+
+  data = get_task_ctx_data (task);
+
+  data->tls_start = base;
+  data->tls_limit = 0xffff;
+}
+
 struct task *
 __alloc_task (void)
 {
@@ -133,8 +144,10 @@ __alloc_task (void)
 
   data = get_task_ctx_data (new_task);
 
+  __task_set_tls (new_task, USER_TLS_BASE);
+  
   data->stack_info.stack_vaddr = stack_vaddr;
-    
+  
   data->stack_info.stack_bottom = 
     (DWORD) new_task + 
     (KERNEL_MODE_STACK_PAGES << (__PAGE_BITS)) - sizeof (DWORD);
@@ -225,8 +238,10 @@ __task_perform_switch (struct task *task)
   struct task_ctx_data *data;
 
   data = get_task_ctx_data (task);
-
+  
   /* Just telling the CPU where to come back from user mode */
+
+  x86_setup_tls (data->tls_start, data->tls_limit);
   
   x86_set_kernel_stack (data->stack_info.stack_bottom_virtual);
 
@@ -247,6 +262,8 @@ __task_switch_from_current (struct task *current, struct task *next)
 
   data = get_task_ctx_data (next);
 
+  x86_setup_tls (data->tls_start, data->tls_limit);
+  
   x86_set_kernel_stack (data->stack_info.stack_bottom_virtual);
   
   __task_switch_from_current_asm (current, next);

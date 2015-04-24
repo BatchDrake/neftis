@@ -61,7 +61,7 @@ SYSPROTO (syscall_krn_debug_string)
   struct task *task = get_current_task ();
   int i;
 
-  while ((p = (char *) virt2phys (REFCAST (struct vm_space, task->ts_vm_space), addr)) != NULL && *p != '\0')
+  while ((p = (char *) virt2phys_irq (REFCAST (struct vm_space, task->ts_vm_space), addr)) != NULL && *p != '\0')
   {
     do
       putchar (*p++);
@@ -85,7 +85,7 @@ SYSPROTO (syscall_krn_debug_buf)
   struct task *task = get_current_task ();
   int i = 0;
 
-  while (i < size && (p = (char *) virt2phys (REFCAST (struct vm_space, task->ts_vm_space), addr)) != NULL)
+  while (i < size && (p = (char *) virt2phys_irq (REFCAST (struct vm_space, task->ts_vm_space), addr)) != NULL)
   {
     do
       putchar (*p++);

@@ -26,6 +26,8 @@
 #include <mm/alloc.h>
 
 #include <misc/msgsink.h>
+#include <lock/lock.h>
+
 #include <util.h>
 
 struct console *syscon;
@@ -133,6 +135,10 @@ console_set_param (struct console *con, int param, DWORD value)
 void
 console_gotoxy (struct console *con, WORD x, WORD y)
 {
+  DECLARE_CRITICAL_SECTION (console_gotoxy);
+
+  CRITICAL_ENTER (console_gotoxy);
+
   if (x >= con->width)
     x = con->width - 1;
   
@@ -144,6 +150,8 @@ console_gotoxy (struct console *con, WORD x, WORD y)
   
   if (con->params[CONSOLE_PARAM_CHANGE_CUR])
     video_cursor_set_pos_xy (x, y);
+
+  CRITICAL_LEAVE (console_gotoxy);
 }
 
 static void
@@ -151,6 +159,10 @@ console_scroll (struct console *con)
 {
   int i;
   schar clear_pair;
+
+  DECLARE_CRITICAL_SECTION (console_scroll);
+
+  CRITICAL_ENTER (console_scroll);
   
   clear_pair = (schar) {con->params[CONSOLE_PARAM_CLEAR_CHAR], 
     con->params[CONSOLE_PARAM_CLEAR_COLOR]};
@@ -161,6 +173,7 @@ console_scroll (struct console *con)
   
   for (i = 0; i < con->width; i++)
     con->buffer[i + con->width * (con->height - 1)] = clear_pair;
+  CRITICAL_LEAVE (console_scroll);
 }
 
 INLINE BYTE
@@ -342,59 +355,98 @@ __console_inline_putchar (struct console *con, char c)
 void
 console_putchar (struct console *con, char c)
 {
+  DECLARE_CRITICAL_SECTION (console_putchar);
+
+  CRITICAL_ENTER (console_putchar);
+  
   __console_inline_putchar (con, c);
   
   if (con == syscon)
     video_refresh ();
+
+  CRITICAL_LEAVE (console_putchar);
 }
 
 void
 console_write (struct console *con, const char *buffer, int size)
 {
   int i;
+
+  DECLARE_CRITICAL_SECTION (console_write);
+
+  CRITICAL_ENTER (console_write);
+  
   for (i = 0; i < size; i++)
     __console_inline_putchar (con, buffer[i]);
   
   if (con == syscon)
     video_refresh ();
+
+  CRITICAL_LEAVE (console_write);
 }
 
-void console_puts (struct console *con, const char *s)
+void
+console_puts (struct console *con, const char *s)
 {
+  DECLARE_CRITICAL_SECTION (console_puts);
+
+  CRITICAL_ENTER (console_puts);
+  
   console_write (con, s, strlen (s));
   
   if (con == syscon)
     video_refresh ();
+
+  CRITICAL_LEAVE (console_puts);
 }
 
 
 void
 console_putchar_raw (struct console *con, char c)
 {
+  DECLARE_CRITICAL_SECTION (console_putchar_raw);
+
+  CRITICAL_ENTER (console_putchar_raw);
+  
   __console_inline_putchar_raw (con, c);
   
   if (con == syscon)
     video_refresh ();
+
+  CRITICAL_LEAVE (console_putchar_raw);
 }
 
 void
 console_write_raw (struct console *con, const char *buffer, int size)
 {
   int i;
+
+  DECLARE_CRITICAL_SECTION (console_write_raw);
+
+  CRITICAL_ENTER (console_write_raw);
   
   for (i = 0; i < size; i++)
     __console_inline_putchar_raw (con, buffer[i]);
   
   if (con == syscon)
     video_refresh ();
+
+  CRITICAL_LEAVE (console_write_raw);
 }
 
-void console_puts_raw (struct console *con, const char *s)
-{
+void
+console_puts_raw (struct console *con, const char *s)
+{  
+  DECLARE_CRITICAL_SECTION (console_clear);
+
+  CRITICAL_ENTER (console_clear);
+  
   console_write_raw (con, s, strlen (s));
   
   if (con == syscon)
     video_refresh ();
+
+  CRITICAL_LEAVE (console_clear);
 }
 
 void
@@ -402,6 +454,10 @@ console_clear (struct console *con)
 {
   int matrix_size, i;
   schar clear_pair;
+
+  DECLARE_CRITICAL_SECTION (console_clear);
+
+  CRITICAL_ENTER (console_clear);
   
   clear_pair = (schar) {con->params[CONSOLE_PARAM_CLEAR_CHAR], 
     con->params[CONSOLE_PARAM_CLEAR_COLOR]};
@@ -415,6 +471,8 @@ console_clear (struct console *con)
   
   if (con == syscon)
     video_refresh ();
+
+  CRITICAL_LEAVE (console_clear);
 }
 
 int
@@ -434,15 +492,28 @@ console_switch (int con)
 {
   schar *buffer;
   schar *videobuf;
+  int ret = KERNEL_SUCCESS_VALUE;
+  
+  DECLARE_CRITICAL_SECTION (console_switch);
 
+  CRITICAL_ENTER (console_switch);
   
   if (OVERFLOW (con, SYSCON_NUM))
-    return KERNEL_ERROR_VALUE;
-
+  {
+    ret = KERNEL_ERROR_VALUE;
+    
+    goto done;
+  }
+  
   if (&syscon_list[con] == syscon)
-    return KERNEL_SUCCESS_VALUE;
+    goto done;
 
-  RETURN_ON_PTR_FAILURE (buffer = (schar *) page_alloc (video_get_pages ()));
+  if (FAILED_PTR (buffer = (schar *) page_alloc (video_get_pages ())))
+  {
+    ret = KERNEL_ERROR_VALUE;
+
+    goto done;
+  }
   
   memcpy (buffer, syscon->buffer, 
     syscon->width * syscon->height * sizeof (schar));
@@ -466,8 +537,11 @@ console_switch (int con)
   console_gotoxy (syscon, syscon->pos_x, syscon->pos_y);
   
   video_refresh ();
+
+done:
+  CRITICAL_LEAVE (console_switch);
   
-  return KERNEL_SUCCESS_VALUE;
+  return ret;
 }
 
 void

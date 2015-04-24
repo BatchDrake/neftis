@@ -26,7 +26,7 @@
 static struct syscall_desc syscall_list[SYSCALL_LIST_MAX] =
 {
   [0] =  {"restart_syscall", NULL},
-  [1] =  {"exit", NULL},
+  [1] =  {"exit", sys_exit},
   [2] =  {"fork", NULL},
   [3] =  {"read", NULL},
   [4] =  {"write", sys_write},
@@ -275,7 +275,7 @@ static struct syscall_desc syscall_list[SYSCALL_LIST_MAX] =
   [248] = {"io_submit", NULL},
   [249] = {"io_cancel", NULL},
   [250] = {"fadvise64", NULL},
-  [252] = {"exit_group", NULL},
+  [252] = {"exit_group", sys_exit},
   [253] = {"lookup_dcookie", NULL},
   [254] = {"epoll_create", NULL},
   [255] = {"epoll_ctl", NULL},

@@ -24,6 +24,7 @@ unistd_32.h \
 syscall_list.c \
 stdlib.h \
 sys/brk.c \
+sys/exit.c \
 sys/open.c \
 sys/set_thread_area.c \
 sys/uname.c \

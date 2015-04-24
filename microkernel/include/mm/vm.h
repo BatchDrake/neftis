@@ -197,6 +197,13 @@ busword_t virt2phys (const struct vm_space *space, busword_t virt);
 int copy2virt (const struct vm_space *, busword_t, const void *, busword_t);
 int bzero2virt (const struct vm_space *, busword_t, busword_t);
 int copy2phys (const struct vm_space *, void *, busword_t, busword_t);
+
+/* IRQ-safe operations */
+busword_t virt2phys_irq (const struct vm_space *space, busword_t virt);
+int copy2virt_irq (const struct vm_space *, busword_t, const void *, busword_t);
+int bzero2virt_irq (const struct vm_space *, busword_t, busword_t);
+int copy2phys_irq (const struct vm_space *, void *, busword_t, busword_t);
+
 int vm_handle_page_fault (struct task *, busword_t, int);
 void vm_init (void);
 

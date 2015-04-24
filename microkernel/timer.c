@@ -25,46 +25,7 @@
 #include <arch.h>
 #include <kctx.h>
 
-struct task *task1, *task2;
-
-#define GET_REGISTER(reg, where)                \
-  __asm__ __volatile__ ("mov %" reg ", %%eax\n" \
-                        "mov %%eax, %0" : "=g" (where) :: "eax");
-INLINE DWORD
-get_eflags (void)
-{
-  DWORD ret;
-  
-  __asm__ __volatile__ ("pushf");
-  __asm__ __volatile__ ("pop %0" : "=g" (ret)); /* We use this instead of
-   popping directly to %eax to avoid warnings. TODO: do it in assembly */
-   
-   return ret;
-}
-                      
-void
-infinite_loop (void)
-{
-  for (;;)
-  {
-    pause ();
-    puts ("\033[0;34m");
-    resume ();
-    puts ("\xdb\xdb\xdb\xdb\xdb LULZ \xdb\xdb\xdb\xdb\xdb");
-  }
-}
-
-void
-another_task (void)
-{
-  for (;;)
-  {
-    pause ();
-    puts ("\033[1;33m");
-    resume ();
-    puts ("\xdb\xdb\xdb SPECTRUM \xdb\xdb\xdb");
-  }
-}
+/* This file once contained some obscure logic. Now it's gone. */
 
 void
 early_timers_init (void)
@@ -72,20 +33,7 @@ early_timers_init (void)
   hw_set_timer_interrupt_freq (HZ);
   
   hw_timer_enable ();
-  
-  /*
-  task1 = __alloc_task ();
-  task2 = __alloc_task ();
-  
-  __task_config_start (task1, infinite_loop);
-  __task_config_start (task2, another_task);
-  
-  wake_up (task1, TASK_STATE_RUNNING, WAKEUP_EXPLICIT);
-  wake_up (task2, TASK_STATE_RUNNING, WAKEUP_EXPLICIT);
-  */
 }
 
-DEBUG_FUNC (infinite_loop);
-DEBUG_FUNC (another_task);
 DEBUG_FUNC (early_timers_init);
 

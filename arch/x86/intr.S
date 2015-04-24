@@ -208,7 +208,7 @@ ISR_NOERRCODE 255
         
 .extern x86_isr_handler
 .extern get_task_ctx_data
-.extern switch_section
+.extern __critical_switch_section
         
 .globl __intr_common
 .globl __restore_context
@@ -268,7 +268,7 @@ __task_switch_from_current_asm:
         with iret
         */
         
-        movl $switch_section, %eax
+        movl $__critical_switch_section, %eax
         movl 4(%eax), %eax
         
         pushl %eax

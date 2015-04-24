@@ -24,12 +24,13 @@
 #define SPINLOCK_UNLOCKED 1
 #define SPINLOCK_LOCKED   0
 
+#define CS_NAME(name) JOIN (__critical_, name)
 
-#define DECLARE_CRITICAL_SECTION(name) critsect_t name = {SPINLOCK_UNLOCKED, 0}
+#define DECLARE_CRITICAL_SECTION(name) critsect_t CS_NAME (name) = {SPINLOCK_UNLOCKED, 0}
 
-#define CRITICAL_ENTER(name) critical_enter (&name.lock, &name.flags)
-#define CRITICAL_LEAVE(name) critical_leave (&name.lock, name.flags)
-#define CRITICAL_IS_INSIDE(name) critical_is_inside (name.flags)
+#define CRITICAL_ENTER(name) critical_enter (&CS_NAME (name).lock, &CS_NAME (name).flags)
+#define CRITICAL_LEAVE(name) critical_leave (&CS_NAME (name).lock, CS_NAME (name).flags)
+#define CRITICAL_IS_INSIDE(name) critical_is_inside (CS_NAME (name).flags)
 
 #define CRITICAL_ABORT() critical_abort ()
 /*
@@ -57,21 +58,21 @@
  * bypasses the scheduler and can't never be called but from the
  * scheduler.
  */
-#define TASK_ATOMIC_ENTER(name)      \
-  do                                 \
-  {                                  \
-    sched_save (&name.sched_state);  \
-    pause ();                        \
-    CRITICAL_ENTER (name);           \
-  }                                  \
+#define TASK_ATOMIC_ENTER(name)                 \
+  do                                            \
+  {                                             \
+    sched_save (&CS_NAME (name).sched_state);   \
+    pause ();                                   \
+    CRITICAL_ENTER (name);                      \
+  }                                             \
   while (0)
 
-#define TASK_ATOMIC_LEAVE(name)         \
-  do                                    \
-  {                                     \
-    CRITICAL_LEAVE (name);              \
-    sched_restore (name.sched_state);   \
-  }                                     \
+#define TASK_ATOMIC_LEAVE(name)                 \
+  do                                            \
+  {                                             \
+    CRITICAL_LEAVE (name);                      \
+    sched_restore (CS_NAME (name).sched_state); \
+  }                                             \
   while (0)
 
 #define TASK_ATOMIC_ABORT()             \

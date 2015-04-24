@@ -35,6 +35,29 @@
 #include <arch.h>
 #include <kctx.h>
 
+/* NOTE:
+
+   You may notice that none of these functions use protection
+   mechanisms as mutexes or critical sections. That all of
+   them (except those ones suffixed by _irq) are unsafe.
+
+   This is by design. Many of these functions implement the
+   basics of virtual memory operations, and are intended to
+   be executed in system call and interrupt context, usually
+   in groups of several operations. It would be redundant to
+   set them as atomic as they tend to be already protected
+   by the caller.
+
+   An example is this: the Atomik's brk() is implemented as
+   follows:
+     - Find data segment.
+     - Resize region.
+     - Update region (i.e. update page tables)
+   You will need to make these steps atomic if you want to
+   ensure that there is no timer interrupt in the middle
+   of these operations, leaving the address space in an
+   inconsistent state. */
+     
 struct vm_region *
 vm_region_new (busword_t start, busword_t end, struct vm_region_ops *ops, void *data)
 {
@@ -396,6 +419,22 @@ virt2phys (const struct vm_space *space, busword_t virt)
   return 0;
 }
 
+busword_t
+virt2phys_irq (const struct vm_space *space, busword_t virt)
+{
+  busword_t ret;
+  
+  DECLARE_CRITICAL_SECTION (virt2phys);
+
+  CRITICAL_ENTER (virt2phys);
+
+  ret = virt2phys (space, virt);
+  
+  CRITICAL_LEAVE (virt2phys);
+
+  return ret;
+}
+
 /* Returns the number of transfered bytes */
 int
 copy2virt (const struct vm_space *space, busword_t virt, const void *orig, busword_t size)
@@ -430,6 +469,22 @@ copy2virt (const struct vm_space *space, busword_t virt, const void *orig, buswo
   }
 
   return size_copy - size;
+}
+
+int
+copy2virt_irq (const struct vm_space *space, busword_t virt, const void *orig, busword_t size)
+{
+  int result;
+  
+  DECLARE_CRITICAL_SECTION (copy2virt);
+
+  CRITICAL_ENTER (copy2virt);
+
+  result = copy2virt (space, virt, orig, size);
+  
+  CRITICAL_LEAVE (copy2virt);
+
+  return result;
 }
 
 /* Clear memory on virtual address */
@@ -468,6 +523,22 @@ bzero2virt (const struct vm_space *space, busword_t virt, busword_t size)
 }
 
 int
+bzero2virt_irq (const struct vm_space *space, busword_t virt, busword_t size)
+{
+  int result;
+  
+  DECLARE_CRITICAL_SECTION (bzero2virt);
+
+  CRITICAL_ENTER (bzero2virt);
+
+  result = bzero2virt (space, virt, size);
+  
+  CRITICAL_LEAVE (bzero2virt);
+
+  return result;
+}
+
+int
 copy2phys (const struct vm_space *space, void *dest, busword_t virt, busword_t size)
 {
   busword_t offset = virt &  PAGE_MASK; 
@@ -498,6 +569,22 @@ copy2phys (const struct vm_space *space, void *dest, busword_t virt, busword_t s
   }
 
   return size_copy - size;
+}
+
+int
+copy2phys_irq (const struct vm_space *space, void *dest, busword_t virt, busword_t size)
+{
+  int ret;
+  
+  DECLARE_CRITICAL_SECTION (copy2phys);
+
+  CRITICAL_ENTER (copy2phys);
+
+  ret = copy2phys (space, dest, virt, size);
+  
+  CRITICAL_LEAVE (copy2phys);
+
+  return ret;
 }
 
 struct vm_space_region

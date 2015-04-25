@@ -62,6 +62,7 @@ fi
 # Checks for library functions.
 
 AC_CONFIG_FILES([Makefile
+                 user/Makefile
                  common/Makefile
                  arch/x86/Makefile
                  microkernel/loaders/elf/Makefile

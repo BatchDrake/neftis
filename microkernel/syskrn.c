@@ -54,6 +54,127 @@ SYSPROTO (syscall_krn_debug_pointer)
   return 0;
 }
 
+/* TODO: API for userland interaction (u_strlen, etc) */
+int
+__u_strlen (struct task *task, busword_t addr)
+{
+  char *p;
+  int len = 0;
+  struct vm_space *space = REFCAST (struct vm_space, task->ts_vm_space);
+  
+  while ((p = (char *) virt2phys_irq (space, addr)) != NULL && *p != '\0')
+  {
+    do
+    {
+      ++p;
+      ++len;
+    }
+    while ((busword_t) p & PAGE_MASK && *p != '\0');
+
+    if (*p == '\0')
+      break;
+  }
+
+  if (p == NULL)
+    return -1; /* Invalid pointer */
+  
+  return len;
+}
+
+SYSPROTO (syscall_krn_declare_service)
+{
+  busword_t nameaddr = args[0];
+  struct task *task = get_current_task ();
+  char *name = NULL;
+  int namelen;
+  int ret = 0;
+  
+  DECLARE_CRITICAL_SECTION (serv);
+
+  CRITICAL_ENTER (serv);
+
+  /* You're not supposed to change the service identity twice */
+  if (task->ts_service != NULL)
+  {
+    ret = -EINVAL;
+
+    goto done;
+  }
+  
+  if ((namelen = __u_strlen (task, nameaddr)) == -1)
+  {
+    ret = -EFAULT;
+
+    goto done;
+  }
+
+  if ((name = salloc_irq (namelen + 1)) == NULL)
+  {
+    ret = -ENOMEM;
+
+    goto done;
+  }
+
+  /* If __u_strlen worked here, this shouldn't fail */
+  (void) copy2phys (REFCAST (struct vm_space, task->ts_vm_space), name, nameaddr, namelen + 1);
+
+  ret = __service_register (task, name, &task->ts_service);
+  
+done:  
+  CRITICAL_LEAVE (serv);
+
+  /* This can wait */
+  if (name != NULL)
+    sfree_irq (name);
+
+  return ret;
+}
+
+SYSPROTO (syscall_krn_query_service)
+{
+  struct service *serv;
+  struct task *task = get_current_task ();
+  char *name = NULL;
+  busword_t nameaddr = args[0];
+  int namelen;
+  int ret;
+  
+  DECLARE_CRITICAL_SECTION (serv);
+
+  CRITICAL_ENTER (serv);
+
+  if ((namelen = __u_strlen (task, nameaddr)) == -1)
+  {
+    ret = -EFAULT;
+
+    goto done;
+  }
+
+  if ((name = salloc_irq (namelen + 1)) == NULL)
+  {
+    ret = -ENOMEM;
+
+    goto done;
+  }
+
+  /* If __u_strlen worked here, this shouldn't fail */
+  (void) copy2phys (REFCAST (struct vm_space, task->ts_vm_space), name, nameaddr, namelen + 1);
+
+  if ((serv = __service_lookup_by_name (name)) == NULL)
+    ret = -ESRCH;
+  else
+    ret = serv->se_task->ts_tid;
+
+done:
+  CRITICAL_LEAVE (serv);
+
+  /* No hurries */
+  if (name != NULL)
+    sfree_irq (name);
+
+  return ret;
+}
+
 SYSPROTO (syscall_krn_debug_string)
 {
   char *p;

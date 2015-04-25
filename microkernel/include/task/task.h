@@ -70,6 +70,14 @@ typedef busword_t               tid_t;
    is opaque to the high-level kernel API (the files inside microkernel/
    directory). */
 
+struct service
+{
+  LINKED_LIST;
+
+  char        *se_name;
+  struct task *se_task;
+};
+
 struct sched_buffer
 {
   CIRCULAR_LIST;
@@ -83,6 +91,7 @@ struct task
 {
   struct sched_buffer ts_sched_info;
   struct msgq        *ts_msgq;
+  struct service     *ts_service; /* Service info */
   objref_t           *ts_vm_space;
   tid_t               ts_tid;
   int                 ts_state;
@@ -114,6 +123,10 @@ struct task *get_task (tid_t);
 int   __register_task_with_tid (struct task *, tid_t);
 tid_t __find_free_tid (void);
 int   __ensure_tid (tid_t);
+
+struct service *__service_lookup_by_name (const char *);
+int __service_register (struct task *, const char *, struct service **);
+void __service_unregister (struct service *);
 
 void init_kernel_threads (void);
 int set_task (tid_t, struct task *);

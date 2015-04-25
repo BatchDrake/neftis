@@ -23,20 +23,26 @@
 #include <task/loader.h>
 #include <task/msg.h>
 
+#include <string.h>
+#include <misc/errno.h>
+
 #include <mm/anon.h>
 #include <mm/vremap.h>
+#include <mm/salloc.h>
 
 #include <util.h>
 #include <arch.h>
 #include <kctx.h>
 
-/* TODO: protect this! */
-static struct task ***task_list_table;
-uint32_t              task_last_tid;
-
 #define TASK_TABLE_INDEX_BITS (__PAGE_BITS - BUSWORD_SIZE_LOG)
 #define TASK_TABLE_MASK ((1 << __PAGE_BITS) - 1)
 #define MAX_TASKS (1 << (TASK_TABLE_INDEX_BITS << 1))
+
+/* TODO: protect this! */
+static struct task  ***task_list_table;
+uint32_t               task_last_tid;
+
+static struct service *service_list;
 
 tid_t
 __find_free_tid (void)
@@ -93,6 +99,7 @@ __ensure_tid (tid_t tid)
   return KERNEL_SUCCESS_VALUE;
 }
 
+/* FIXME: this should be renamed to __get_task */
 struct task *
 get_task (tid_t tid)
 {
@@ -113,6 +120,7 @@ get_task (tid_t tid)
   return task_list[table_entry];
 }
 
+/* FIXME: this should be renamed to __set_task */
 int
 set_task (tid_t tid, struct task *task)
 {
@@ -198,6 +206,79 @@ get_userspace_task (tid_t pid)
     return NULL;
   
   return get_task (pid - MAX_KERNEL_THREADS);
+}
+
+struct service *
+service_new (const char *name, struct task *task)
+{
+  struct service *new;
+
+  CONSTRUCT_STRUCT (service, new);
+
+  if ((new->se_name = strdup (name)) == NULL)
+  {
+    sfree_irq (new);
+
+    return KERNEL_INVALID_POINTER;
+  }
+
+  new->se_task = task;
+
+  return new;
+}
+
+void
+service_destroy (struct service *serv)
+{
+  sfree_irq (serv->se_name);
+  sfree_irq (serv);
+}
+
+struct service *
+__service_lookup_by_name (const char *name)
+{
+  struct service *this;
+
+  this = (struct service *) LIST_HEAD (service_list);
+
+  while (this != NULL)
+  {
+    if (strcmp (this->se_name, name) == 0)
+      return this;
+    
+    this = LIST_NEXT (this);
+  }
+
+  return KERNEL_INVALID_POINTER;
+}
+
+int
+__service_register (struct task *task, const char *name, struct service **serv)
+{
+  struct service *new;
+
+  if ((new = __service_lookup_by_name (name)) != NULL)
+    return -EEXIST;
+
+  if ((new = service_new (name, task)) == NULL)
+    return -ENOMEM;
+
+  list_insert_head ((void **) &service_list, new);
+
+  if (serv != NULL)
+    *serv = new;
+  
+  return KERNEL_SUCCESS_VALUE;
+}
+
+/* Note: this automatically deallocates it. To be called
+ from task_destroy */
+void
+__service_unregister (struct service *serv)
+{
+  list_remove_element ((void **) &service_list, serv);
+
+  service_destroy (serv);
 }
 
 /* There can only be one switch at a time */
@@ -295,6 +376,7 @@ idle_task (void)
 }
 
 /* Tasks must be in TASK_STATE_EXITED before being deleted */
+/* FIXME: rename to __task_destroy */
 void
 task_destroy (struct task *task)
 {
@@ -305,9 +387,13 @@ task_destroy (struct task *task)
     msgq_destroy (task->ts_msgq);
 
   set_task (task->ts_tid, NULL);
+
+  if (task->ts_service != NULL)
+    __service_unregister (task->ts_service);
   
   __free_task (task);
 }
+
 
 extern class_t vm_space_class;
 
@@ -350,6 +436,7 @@ kernel_task_new (void (*entry) (void))
 
   return task;
 }
+
 
 struct task *
 user_task_new_from_exec (const void *data, busword_t size)
@@ -432,7 +519,8 @@ user_task_new_from_exec (const void *data, busword_t size)
     return KERNEL_INVALID_POINTER;
   }
 
-  MANDATORY ((tls = virt2phys (space, USER_TLS_START)) != NULL);
+  /* FIXME: virt2phys should return void * */
+  MANDATORY ((tls = (void *) virt2phys (space, USER_TLS_START)) != NULL);
 
   /* Clear page contents to ensure all tasks start with a clean TLS */
   memset (tls, 0, USER_TLS_PAGES * PAGE_SIZE);
@@ -449,10 +537,6 @@ user_task_new_from_exec (const void *data, busword_t size)
 
     return NULL;
   }
-
-/*  printk ("Adding breakpoint...\n");
-  
-    (void) copy2virt (space, 0x8048e0d, "\xcc", 1);*/
   
   return task;
 }

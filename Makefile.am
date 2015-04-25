@@ -11,7 +11,7 @@ initrd.img : osabi/elf32-linux-gnu/elf32-linux-gnu
 	mkdir -p initrd/abi
 	mkdir -p initrd/serv
 	cp osabi/elf32-linux-gnu/elf32-linux-gnu initrd/abi
-	cp serv/* initrd/serv
+	cp serv/initrd/* initrd/serv
 	cd initrd; tar cvf ../initrd.img *; cd ..
 	@echo
 	@echo '*****************************************'

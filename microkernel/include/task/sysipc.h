@@ -10,5 +10,8 @@ SYSPROTO (syscall_ipc_msg_read_micro);
 SYSPROTO (syscall_ipc_msg_write_micro);
 SYSPROTO (syscall_ipc_msg_get_info);
 SYSPROTO (syscall_ipc_msg_release);
+SYSPROTO (syscall_ipc_msg_read_by_type);
+SYSPROTO (syscall_ipc_msg_read);
+SYSPROTO (syscall_ipc_msg_write);
 
 #endif /* _TASK_SYSIPC_H */

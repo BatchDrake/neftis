@@ -41,7 +41,10 @@ syscall_entry_t ipc_syscall_list[SYS_IPC_COUNT] =
   syscall_ipc_msg_read_micro,
   syscall_ipc_msg_write_micro,
   syscall_ipc_msg_get_info,
-  syscall_ipc_msg_release
+  syscall_ipc_msg_release,
+  syscall_ipc_msg_read_by_type,
+  syscall_ipc_msg_read,
+  syscall_ipc_msg_write  
 };
 
 syscall_entry_t vmo_syscall_list[SYS_VMO_COUNT];

@@ -28,6 +28,9 @@
 #include <lock/lock.h>
 #include <lock/event.h>
 
+#define MSG_TYPE(m) REFCAST (struct msg_body, (m)->m_msg)->mb_header.mh_type
+#define MSG_LINK(m) REFCAST (struct msg_body, (m)->m_msg)->mb_header.mh_link
+
 #define MSG_PENDING_COUNT 64
 
 #define MSG_MICRO_SIZE 32
@@ -35,13 +38,28 @@
 #define MSG_RECV_BLOCK    0
 #define MSG_RECV_NONBLOCK 1
 
+#define MSG_TYPE_ANY -1
+#define MSG_LINK_ANY -1
+
 struct msg_body
 {
   KERNEL_OBJECT;
   
   busword_t mb_size;
   busword_t mb_micro_size;
-  uint8_t   mb_bytes[MSG_MICRO_SIZE];
+
+  union
+  {
+    struct
+    {
+      busword_t mh_type; /* Message type */
+      busword_t mh_link; /* Referrer */
+    }
+    mb_header;
+    
+    uint8_t   mb_bytes[MSG_MICRO_SIZE];
+  };
+  
   void     *mb_pages;
 };
 
@@ -104,11 +122,16 @@ int __msg_write_micro (struct task *, struct msgq *, int, busword_t, unsigned in
 
 /* These ones are the actual system calls and they can be called safely */
 
+int sys_msg_read_by_type (busword_t, busword_t, void *, unsigned int, int);
+int sys_msg_read (void *, unsigned int, int);
+int sys_msg_write (int, const void *, unsigned int);
+
 int sys_msg_request (busword_t size);
 busword_t sys_msg_map (int id);
 int sys_msg_unmap (int);
 int sys_msg_send (int, int);
 int sys_msg_recv (int);
+int sys_msg_recv_by_type (int, busword_t, busword_t);
 int sys_msg_read_micro (int, void *, unsigned int);
 int sys_msg_write_micro (int, const void *, unsigned int);
 int sys_msg_get_info (int, struct msg_info *);

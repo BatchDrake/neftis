@@ -63,8 +63,6 @@ msg_body_new (busword_t size)
 void
 msg_body_destroy (struct msg_body *body)
 {
-  printk ("Removing body...\n");
-  
   if (body->mb_size > 0)
     page_free (body->mb_pages, __UNITS (body->mb_size, PAGE_SIZE));
 
@@ -285,16 +283,21 @@ __msg_release (struct task *task, struct msgq *msgq, int id)
 }
 
 int
-__msg_recv (struct task *task, struct msgq *msgq)
+__msg_recv_by_type (struct task *task, struct msgq *msgq, busword_t type, busword_t link)
 {
   struct msg *msg;
   int id;
   
-  if (circular_list_is_empty ((void *) &msgq->mq_incoming))
-    return -EAGAIN;
-
   msg = circular_list_get_head ((void *) &msgq->mq_incoming);
 
+  while (msg != NULL &&
+         (type != MSG_TYPE_ANY && MSG_TYPE (msg) != type) &&
+         (link != MSG_LINK_ANY && MSG_LINK (msg) != link))
+    msg = LIST_NEXT (msg);
+
+  if (msg == NULL)
+    return -EAGAIN;
+  
   if ((id = __msgq_alloc_id (msgq)) == -1)
     return -EMFILE;
 
@@ -302,7 +305,13 @@ __msg_recv (struct task *task, struct msgq *msgq)
 
   circular_list_remove_element ((void *) &msgq->mq_incoming, msg);
 
-  return id;
+  return id;  
+}
+
+int
+__msg_recv (struct task *task, struct msgq *msgq)
+{
+  return __msg_recv_by_type (task, msgq, MSG_TYPE_ANY, MSG_LINK_ANY);
 }
 
 int
@@ -375,8 +384,6 @@ __msg_write_micro (struct task *task, struct msgq *msgq, int id, busword_t virt,
 static void
 msg_body_dtor (void *ptr)
 {
-  printk ("Calling dtor on %p\n", ptr);
-  
   msg_body_destroy ((struct msg_body *) ptr);
 }
 
@@ -625,7 +632,7 @@ sys_msg_release (int id)
 }
 
 int
-sys_msg_recv (int nonblock)
+sys_msg_recv_by_type (int nonblock, busword_t type, busword_t link)
 {
   int ret;
   struct task *task;
@@ -640,7 +647,7 @@ sys_msg_recv (int nonblock)
   {
     do
     {
-      ret = __msg_recv (task, task->ts_msgq);
+      ret = __msg_recv_by_type (task, task->ts_msgq, type, link);
 
       if (ret == -EAGAIN && !nonblock)
       {
@@ -659,6 +666,12 @@ sys_msg_recv (int nonblock)
   TASK_ATOMIC_LEAVE (msg); /* Wait here */
 
   return ret;
+}
+
+int
+sys_msg_recv (int nonblock)
+{
+  return sys_msg_recv_by_type (nonblock, MSG_TYPE_ANY, MSG_LINK_ANY);
 }
 
 int
@@ -684,6 +697,58 @@ sys_msg_read_micro (int id, void *virt, unsigned int size)
 }
 
 int
+sys_msg_read_by_type (busword_t type, busword_t link, void *virt, unsigned int size, int nonblock)
+{
+  int ret = 0;
+  int msgid;
+  
+  struct task *task;
+  
+  DECLARE_CRITICAL_SECTION (msg);
+
+  TASK_ATOMIC_ENTER (msg);
+
+  task = get_current_task ();
+
+  if (task->ts_msgq != NULL)
+  {
+    do
+    {
+      msgid = __msg_recv_by_type (task, task->ts_msgq, type, link);
+
+      if (msgid == -EAGAIN && !nonblock)
+      {
+	TASK_ATOMIC_LEAVE (msg);
+	
+	event_wait (task->ts_msgq->mq_incoming_ready);
+
+	TASK_ATOMIC_ENTER (msg);
+      }
+    }
+    while (msgid == -EAGAIN && !nonblock);
+  }
+  else
+    msgid = -ENOSYS;
+
+  if (msgid >= 0)
+  {
+    ret = __msg_read_micro (task, task->ts_msgq, msgid, (busword_t) virt, size);
+
+    (void) __msg_release (task, task->ts_msgq, msgid);
+  }
+  
+  TASK_ATOMIC_LEAVE (msg);
+
+  return ret;
+}
+
+int
+sys_msg_read (void *virt, unsigned int size, int nonblock)
+{
+  return sys_msg_read_by_type (MSG_TYPE_ANY, MSG_LINK_ANY, virt, size, nonblock);
+}
+
+int
 sys_msg_write_micro (int id, const void *virt, unsigned int size)
 {
   int ret;
@@ -699,6 +764,56 @@ sys_msg_write_micro (int id, const void *virt, unsigned int size)
     ret = __msg_write_micro (task, task->ts_msgq, id, (busword_t) virt, size);
   else
     ret = -ENOSYS;
+  
+  TASK_ATOMIC_LEAVE (msg);
+
+  return ret;
+}
+
+int
+sys_msg_write (int tid, const void *virt, unsigned int size)
+{
+  int ret;
+  int id;
+  struct task *task;
+  struct task *recipient;
+  
+  DECLARE_CRITICAL_SECTION (msg);
+
+  TASK_ATOMIC_ENTER (msg);
+
+  task = get_current_task ();
+
+  if ((id = __msg_request (task, task->ts_msgq, 0)) < 0)
+  {
+    ret = id;
+
+    goto done;
+  }
+  
+  if (task->ts_msgq != NULL)
+  {
+    if ((recipient = get_task (tid)) == NULL || recipient->ts_msgq == NULL)
+    {
+      ret = -ESRCH;
+
+      goto done;
+    }
+
+    if ((ret = __msg_write_micro (task, task->ts_msgq, id, (busword_t) virt, size)) < 0)
+      goto done;
+    
+    if ((ret = __msg_send (task->ts_msgq, recipient, recipient->ts_msgq, id)) < 0)
+      goto done;
+
+    ret = id;
+  }
+  else
+    ret = -ENOSYS;
+
+done:
+  if (id >= 0)
+    (void) __msg_release (task, task->ts_msgq, id);
   
   TASK_ATOMIC_LEAVE (msg);
 
@@ -745,6 +860,7 @@ DEBUG_FUNC (__msg_unmap);
 DEBUG_FUNC (__msg_map);
 DEBUG_FUNC (__msg_send);
 DEBUG_FUNC (__msg_release);
+DEBUG_FUNC (__msg_recv_by_type);
 DEBUG_FUNC (__msg_recv);
 DEBUG_FUNC (__msg_read_micro);
 DEBUG_FUNC (__msg_get_info);
@@ -761,8 +877,12 @@ DEBUG_FUNC (sys_msg_unmap);
 DEBUG_FUNC (sys_msg_map);
 DEBUG_FUNC (sys_msg_send);
 DEBUG_FUNC (sys_msg_release);
+DEBUG_FUNC (sys_msg_recv_by_type);
 DEBUG_FUNC (sys_msg_recv);
 DEBUG_FUNC (sys_msg_read_micro);
+DEBUG_FUNC (sys_msg_read_by_type);
+DEBUG_FUNC (sys_msg_read);
 DEBUG_FUNC (sys_msg_write_micro);
+DEBUG_FUNC (sys_msg_write);
 DEBUG_FUNC (sys_msg_get_info);
 DEBUG_FUNC (init_msg_queues);

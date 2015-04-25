@@ -21,6 +21,21 @@
 #include <task/msg.h>
 #include <kctx.h>
 
+SYSPROTO (syscall_ipc_msg_read_by_type)
+{
+  return sys_msg_read_by_type (args[0], args[1], (void *) args[2], args[3], args[4]);
+}
+
+SYSPROTO (syscall_ipc_msg_read)
+{
+  return sys_msg_read ((void *) args[0], args[1], args[2]);
+}
+
+SYSPROTO (syscall_ipc_msg_write)
+{
+  return sys_msg_write (args[0], (const void *) args[1], args[2]);
+}
+
 SYSPROTO (syscall_ipc_msg_request)
 {
   return sys_msg_request ((int) args[0]);

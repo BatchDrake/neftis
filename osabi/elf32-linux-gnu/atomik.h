@@ -58,6 +58,8 @@ int   put (const void *, int);
 int   setintgate (unsigned long gate, const void *isr);
 void *brk (void *);
 int   set_tls (void *);
+int   declare_service (const char *);
+int   query_service (const char *);
 
 /* IPC system calls */
 int msgreq (int size);

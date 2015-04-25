@@ -66,3 +66,15 @@ set_tls (void *new_tls)
 {
   return kernel (6, (int) new_tls, 0, 0, 0, 0);
 }
+
+int
+declare_service (const char *name)
+{
+  return kernel (7, (int) name, 0, 0, 0, 0);
+}
+
+int
+query_service (const char *name)
+{
+  return kernel (8, (int) name, 0, 0, 0, 0);
+}

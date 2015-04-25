@@ -21,34 +21,35 @@
 int
 exit (int code)
 {
-  return kernel (0, 0, 0, 0, 0, 0);
+  return kernel (SYS_KRN_exit, 0, 0, 0, 0, 0);
 }
 
 int
 puti (int i)
 {
-  return kernel (1, i, 0, 0, 0, 0);
+  return kernel (SYS_KRN_debug_int, i, 0, 0, 0, 0);
 }
 
 int
 putp (void *p)
 {
-  return kernel (3, (int) p, 0, 0, 0, 0);
+  return kernel (SYS_KRN_debug_pointer, (int) p, 0, 0, 0, 0);
 }
 
 int
 puts (const char *s)
 {
-  return kernel (2, (int) s, 0, 0, 0, 0);
+  return kernel (SYS_KRN_debug_string, (int) s, 0, 0, 0, 0);
 }
 
 
 int
 put (const void *buf, int size)
 {
-  return kernel (4, (int) buf, size, 0, 0, 0);
+  return kernel (SYS_KRN_debug_buf, (int) buf, size, 0, 0, 0);
 }
 
+/* Only makes sense in x86 */
 int
 setintgate (unsigned long gate, const void *isr)
 {
@@ -58,23 +59,23 @@ setintgate (unsigned long gate, const void *isr)
 void *
 brk (void *new_break)
 {
-  return (void *) kernel (5, (unsigned long) new_break, 0, 0, 0, 0);
+  return (void *) kernel (SYS_KRN_brk, (unsigned long) new_break, 0, 0, 0, 0);
 }
 
 int
 set_tls (void *new_tls)
 {
-  return kernel (6, (int) new_tls, 0, 0, 0, 0);
+  return kernel (SYS_KRN_set_tls, (int) new_tls, 0, 0, 0, 0);
 }
 
 int
 declare_service (const char *name)
 {
-  return kernel (7, (int) name, 0, 0, 0, 0);
+  return kernel (SYS_KRN_declare_service, (int) name, 0, 0, 0, 0);
 }
 
 int
 query_service (const char *name)
 {
-  return kernel (8, (int) name, 0, 0, 0, 0);
+  return kernel (SYS_KRN_query_service, (int) name, 0, 0, 0, 0);
 }

@@ -19,6 +19,31 @@
 #ifndef _ATOMIK_H
 #define _ATOMIK_H
 
+/* Microkernel system calls */
+#define SYS_KRN_exit             0
+#define SYS_KRN_debug_int        1
+#define SYS_KRN_debug_string     2
+#define SYS_KRN_debug_pointer    3
+#define SYS_KRN_debug_buf        4
+#define SYS_KRN_brk              5
+#define SYS_KRN_set_tls          6
+#define SYS_KRN_declare_service  7
+#define SYS_KRN_query_service    8
+
+/* IPC system calls */
+#define SYS_IPC_msg_request      0
+#define SYS_IPC_msg_map          1
+#define SYS_IPC_msg_unmap        2
+#define SYS_IPC_msg_send         3
+#define SYS_IPC_msg_recv         4
+#define SYS_IPC_msg_read_micro   5
+#define SYS_IPC_msg_write_micro  6
+#define SYS_IPC_msg_get_info     7
+#define SYS_IPC_msg_release      8
+#define SYS_IPC_msg_read_by_type 9
+#define SYS_IPC_msg_read         10
+#define SYS_IPC_msg_write        11
+
 #include <types.h>
 #include <layout.h>
 

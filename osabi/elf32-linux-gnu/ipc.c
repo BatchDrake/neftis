@@ -49,15 +49,39 @@ msgrecv (int id)
 }
 
 int
-msgread (int id, void *data, unsigned int datasize)
+msgmicro_read (int id, void *data, unsigned int datasize)
 {
   return ipc (5, id, (int) data, (int) datasize, 0, 0);
 }
 
 int
-msgwrite (int id, const void *data, unsigned int datasize)
+msgmicro_write (int id, const void *data, unsigned int datasize)
 {
   return ipc (6, id, (int) data, (int) datasize, 0, 0);
+}
+
+int
+msgread_by_type (unsigned int type,
+                 unsigned int link,
+                 void *data,
+                 unsigned int size,
+                 int nonblock)
+{
+  return ipc (9, type, link, (int) data, size, nonblock);
+}
+
+int
+msgread (void *data,
+         unsigned int size,
+         int nonblock)
+{
+  return ipc (10, (int) data, size, nonblock, 0, 0);
+}
+
+int
+msgwrite (int tid, const void *data, unsigned int size)
+{
+  return ipc (11, tid, (int) data, size, 0, 0);
 }
 
 int

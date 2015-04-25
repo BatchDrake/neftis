@@ -64,5 +64,5 @@ brk (void *new_break)
 int
 set_tls (void *new_tls)
 {
-  return kernel (6, (void *) new_tls, 0, 0, 0, 0);
+  return kernel (6, (int) new_tls, 0, 0, 0, 0);
 }

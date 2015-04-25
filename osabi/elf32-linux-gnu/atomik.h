@@ -65,8 +65,9 @@ int msgmap (int id);
 int msgunmap (int id);
 int msgsend (int id);
 int msgrecv (int id);
-int msgread (int id, void *data, unsigned int datasize);
-int msgwrite (int id, const void *data, unsigned int datasize);
+int msgread_by_read (unsigned int type, unsigned int link, void *data, unsigned int datasize, int nonblock);
+int msgread (void *data, unsigned int datasize, int nonblock);
+int msgwrite (int tid, const void *data, unsigned int datasize);
 int msggetinfo (int id, void *data);
 int msgrelease (int id);
 

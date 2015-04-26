@@ -21,6 +21,8 @@
 #include <errno.h>
 #include <elf.h>
 
+#include <serv/fs.h>
+
 int fs_tid;
 
 void _start (void);
@@ -49,13 +51,6 @@ wait_for_service (const char *service)
   while ((fs_tid = query_service (service)) == -ESRCH);
 }
 
-struct fs_msg
-{
-  uint32_t type;
-  uint32_t link;
-  uint32_t sender;
-};
-
 void
 fs_init (void)
 {
@@ -65,9 +60,9 @@ fs_init (void)
   
   for (i = 0; i < 3; ++i)
   {
-    msg.type = i;
-    msg.link = -i - 1;
-    msg.sender = 2 * i + 1;
+    msg.fm_header.mh_type = i;
+    msg.fm_header.mh_link = -i - 1;
+    msg.fm_header.mh_sender = 2 * i + 1; /* Just to test whether this is overwritten */
 
     result = msgwrite (fs_tid, &msg, sizeof (struct fs_msg));
   }

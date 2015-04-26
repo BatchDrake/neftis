@@ -1,5 +1,5 @@
 /*
- *    Entry point for the Atomik's filesystem daemon
+ *    Types and declarations for the Atomik's filesystem daemon
  *    Copyright (C) 2015  Gonzalo J. Carracedo
  *
  *    This program is free software: you can redistribute it and/or modify
@@ -16,38 +16,29 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
 
-#include <atomik.h>
-#include <stdlib.h>
-#include <errno.h>
+#ifndef _SERV_FS_H
+#define _SERV_FS_H
 
-#include <serv/fs.h>
+#include <ipc/msg.h>
 
-void
-_start (void)
+#define FS_REQ_TYPE_OPEN  0
+#define FS_REQ_TYPE_CLOSE 1
+#define FS_REQ_TYPE_READ  2
+#define FS_REQ_TYPE_WRITE 3
+#define FS_REQ_TYPE_STAT  4
+
+#define FS_REP_TYPE_ERROR 5
+#define FS_REP_TYPE_DATA  6
+
+struct fs_msg
 {
-  struct fs_msg msg;
-  int result;
-  
-  declare_service ("fs");
+  struct msg_header fm_header;
 
-  puts ("fs: atomik filesystem service started - version 0.1\n");
-  
-  while ((result = msgread (&msg, sizeof (struct fs_msg), 0)) != -ENOSYS)
+  union
   {
-    puts ("fs: received message");
-    puts ("\n  result =    ");
-    puti (result);
-    puts ("\n  fs.type =   ");
-    puti (msg.fm_header.mh_type);
-    puts ("\n  fs.link =   ");
-    puti (msg.fm_header.mh_link);
-    puts ("\n  fs.sender = ");
-    puti (msg.fm_header.mh_sender);
-    puts ("\n\n");
-  }
+    char     fm_filename[0]; /* Name of the file to open */
+    uint32_t fm_handle;      /* Numerical handle */
+  };
+};
 
-  puts ("fs exited, result: ");
-  puti (result);
-  puts ("\n");
-  exit (0);
-}
+#endif /* _SERV_FS_H */

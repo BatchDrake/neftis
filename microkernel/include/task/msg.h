@@ -44,6 +44,13 @@
 #define MSG_TYPE_ANY -1
 #define MSG_LINK_ANY -1
 
+struct msg_header
+{
+  busword_t mh_type; /* Message type */
+  busword_t mh_link; /* Referrer */
+  busword_t mh_sender;  /* Original TID */
+};
+
 struct msg_body
 {
   KERNEL_OBJECT;
@@ -53,13 +60,7 @@ struct msg_body
 
   union
   {
-    struct
-    {
-      busword_t mh_type; /* Message type */
-      busword_t mh_link; /* Referrer */
-      busword_t mh_sender;  /* Original TID */
-    }
-    mb_header;
+    struct msg_header mb_header;
     
     uint8_t   mb_bytes[MSG_MICRO_SIZE];
   };

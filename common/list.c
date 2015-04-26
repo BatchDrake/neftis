@@ -424,11 +424,11 @@ circular_list_insert_tail (void **list, void *element)
   {
     old_tail = CIRCULAR_LIST_HEAD (CIRCULAR_LIST_HEAD (*list)->head.prev);
     
-    CIRCULAR_LIST_HEAD (element)->head.next = LIST_HEAD (old_tail);
-    CIRCULAR_LIST_HEAD (element)->head.prev = old_tail->head.prev;
+    CIRCULAR_LIST_HEAD (element)->head.next = LIST_HEAD (*list);
+    CIRCULAR_LIST_HEAD (element)->head.prev = LIST_HEAD (old_tail);
     
-    old_tail->head.prev->next = element;
-    old_tail->head.prev       = element;
+    old_tail->head.next->prev = element;
+    old_tail->head.next       = element;
   }
 }
 

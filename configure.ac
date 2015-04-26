@@ -63,6 +63,8 @@ fi
 
 AC_CONFIG_FILES([Makefile
                  user/Makefile
+                 serv/Makefile
+                 serv/fs/Makefile
                  common/Makefile
                  arch/x86/Makefile
                  microkernel/loaders/elf/Makefile

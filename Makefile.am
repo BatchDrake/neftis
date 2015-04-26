@@ -1,8 +1,8 @@
 AUTOMAKE_OPTIONS = subdir-objects
 ACLOCAL_AMFLAGS = -I m4
-SUBDIRS = common user arch/x86 microkernel osabi/elf32-linux-gnu
+SUBDIRS = common user serv arch/x86 microkernel osabi/elf32-linux-gnu
 
-initrd.img : osabi/elf32-linux-gnu/elf32-linux-gnu
+initrd.img : osabi/elf32-linux-gnu/elf32-linux-gnu serv/initrd/fs.asx serv/initrd/uname
 	@echo '*****************************************'
 	@echo '********* Building initrd image *********'
 	@echo '*****************************************'

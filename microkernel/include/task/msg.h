@@ -33,7 +33,7 @@
 
 #define MSG_PENDING_COUNT 64
 
-#define MSG_MICRO_SIZE 32
+#define MSG_MICRO_SIZE 256
 
 #define MSG_RECV_BLOCK    0
 #define MSG_RECV_NONBLOCK 1
@@ -54,6 +54,7 @@ struct msg_body
     {
       busword_t mh_type; /* Message type */
       busword_t mh_link; /* Referrer */
+      busword_t mh_sender;  /* Original TID */
     }
     mb_header;
     
@@ -105,6 +106,8 @@ struct msgq
   int mq_last_free_msg; /* Last free outcoming message */
 
   struct vm_region *mq_region; /* This is a vremap */
+
+  struct task *mq_owner; /* Backpointer to owner task */
 };
 
 struct msg_body *msg_body_new (busword_t);

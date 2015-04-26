@@ -255,6 +255,8 @@ __msg_send (struct msgq *msgq, struct task *recipient_task, struct msgq *recipie
 
   new_msg->m_ro = 1;
 
+  REFCAST (struct msg_body, msg->m_msg)->mb_header.mh_sender = recipient_task->ts_tid;
+  
   circular_list_insert_tail ((void **) &recipient_msgq->mq_incoming, new_msg);
 
   event_signal (recipient_msgq->mq_incoming_ready);
@@ -465,6 +467,7 @@ msgq_new (struct task *task, struct vm_region *region)
   memset (new, 0, sizeof (struct msgq));
 
   new->mq_region = region;
+  new->mq_owner  = task;
   
   if ((new->mq_incoming_ready = event_new ()) == NULL)
     goto fail;

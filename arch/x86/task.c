@@ -291,8 +291,6 @@ __task_switch_from_interrupt (struct task *current, struct task *next)
   {
     data = get_task_ctx_data (current);
 
-    x86_setup_tls (data->tls_start, data->tls_limit);
-    
     data->stack_info.esp = (busword_t) get_interrupt_frame ();
   }
   

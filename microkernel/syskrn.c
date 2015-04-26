@@ -182,12 +182,20 @@ SYSPROTO (syscall_krn_debug_string)
   struct task *task = get_current_task ();
   int i;
 
+  DECLARE_CRITICAL_SECTION (putchar);
+  
   while ((p = (char *) virt2phys_irq (REFCAST (struct vm_space, task->ts_vm_space), addr)) != NULL && *p != '\0')
   {
+    /* This is really slow, but it prevents escape
+       sequences to be cutted off by preemption */
+    CRITICAL_ENTER (putchar);
+    
     do
       putchar (*p++);
     while ((busword_t) p & PAGE_MASK && *p != '\0');
 
+    CRITICAL_LEAVE (putchar);
+    
     if (*p == '\0')
       break;
     

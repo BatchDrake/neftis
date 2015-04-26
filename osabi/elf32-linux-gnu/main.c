@@ -113,7 +113,7 @@ linux_abi_init (int (*entry) (), Elf32_Ehdr *imagebase)
   puts ("\n");
 
   fs_init ();
-  
+
   setintgate (0x80, linux_syscall);
 
   /* Setup TLS. In Linux, %gs:0x0 points

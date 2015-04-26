@@ -805,15 +805,14 @@ x86_isr_handler (struct x86_stack_frame *frame)
   old_frame = get_interrupt_frame ();
   task      = get_current_task ();
   
-  set_current_context (KERNEL_CONTEXT_INTERRUPT);
   set_interrupt_frame (frame);
 
-  __asm__ __volatile__ ("movl %%cr2, %0" : "=g" (cr2));
+  __asm__ __volatile__ ("movl %%cr2, %%eax\n": "=a" (cr2));
 
   if (frame->int_no >= 32 && frame->int_no < 56)
   {
     /* No problem: under IRQ, interrupts are disabled */
-    
+    set_current_context (KERNEL_CONTEXT_INTERRUPT);
     outportb (0x20, 0x20); /* PIC_EOI, end of interrupt, interrupts will arrive later */
     
     /* We don't care about interrupts beyond this point. Still in
@@ -823,6 +822,8 @@ x86_isr_handler (struct x86_stack_frame *frame)
   }
   else
   {
+    set_current_context (KERNEL_CONTEXT_TASK);
+    
     if (old_ctx == KERNEL_CONTEXT_BOOT_TIME)
     {
       panic ("microkernel interrupt %d while booting!\n", frame->int_no);
@@ -839,7 +840,7 @@ x86_isr_handler (struct x86_stack_frame *frame)
       
       kernel_halt ();
     }
-
+    
     switch (frame->int_no)
     {
     case KERNEL_SYSCALL_MICROKERNEL:

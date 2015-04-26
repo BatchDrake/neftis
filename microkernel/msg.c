@@ -255,8 +255,8 @@ __msg_send (struct msgq *msgq, struct task *recipient_task, struct msgq *recipie
 
   new_msg->m_ro = 1;
 
-  MSG_SENDER (new_msg) = recipient_task->ts_tid;
-  
+  MSG_SENDER (new_msg) = msgq->mq_owner != NULL ? msgq->mq_owner->ts_tid : -1;
+
   circular_list_insert_tail ((void **) &recipient_msgq->mq_incoming, new_msg);
 
   event_signal (recipient_msgq->mq_incoming_ready);
@@ -291,7 +291,7 @@ __msg_recv_by_type (struct task *task, struct msgq *msgq, busword_t type, buswor
   int id;
   
   msg = circular_list_get_head ((void *) &msgq->mq_incoming);
-
+  
   while (msg != NULL &&
          (type != MSG_TYPE_ANY && MSG_TYPE (msg) != type) &&
          (link != MSG_LINK_ANY && MSG_LINK (msg) != link))
@@ -306,7 +306,7 @@ __msg_recv_by_type (struct task *task, struct msgq *msgq, busword_t type, buswor
   msgq->mq_pending[id] = msg;
 
   circular_list_remove_element ((void *) &msgq->mq_incoming, msg);
-
+  
   return id;  
 }
 
@@ -720,7 +720,7 @@ sys_msg_read_by_type (busword_t type, busword_t link, void *virt, unsigned int s
     do
     {
       msgid = __msg_recv_by_type (task, task->ts_msgq, type, link);
-
+      
       if (msgid == -EAGAIN && !nonblock)
       {
 	TASK_ATOMIC_LEAVE (msg);
@@ -741,7 +741,7 @@ sys_msg_read_by_type (busword_t type, busword_t link, void *virt, unsigned int s
 
     (void) __msg_release (task, task->ts_msgq, msgid);
   }
-  
+
   TASK_ATOMIC_LEAVE (msg);
 
   return ret;

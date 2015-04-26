@@ -255,7 +255,7 @@ __msg_send (struct msgq *msgq, struct task *recipient_task, struct msgq *recipie
 
   new_msg->m_ro = 1;
 
-  REFCAST (struct msg_body, msg->m_msg)->mb_header.mh_sender = recipient_task->ts_tid;
+  MSG_SENDER (new_msg) = recipient_task->ts_tid;
   
   circular_list_insert_tail ((void **) &recipient_msgq->mq_incoming, new_msg);
 
@@ -472,6 +472,8 @@ msgq_new (struct task *task, struct vm_region *region)
   if ((new->mq_incoming_ready = event_new ()) == NULL)
     goto fail;
 
+  event_set_auto_reset (new->mq_incoming_ready, 1);
+  
   for (i = 0; i < MSG_PENDING_COUNT - 1; ++i)
     new->mq_pending[i] = MSG_PTR_IDX (i + 1);
 

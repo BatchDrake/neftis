@@ -28,8 +28,11 @@
 #include <lock/lock.h>
 #include <lock/event.h>
 
+/* TODO: add some kind of message announcing death of the sender */
+
 #define MSG_TYPE(m) REFCAST (struct msg_body, (m)->m_msg)->mb_header.mh_type
 #define MSG_LINK(m) REFCAST (struct msg_body, (m)->m_msg)->mb_header.mh_link
+#define MSG_SENDER(m) REFCAST (struct msg_body, (m)->m_msg)->mb_header.mh_sender
 
 #define MSG_PENDING_COUNT 64
 

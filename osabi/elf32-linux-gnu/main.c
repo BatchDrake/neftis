@@ -18,7 +18,10 @@
 
 #include <atomik.h>
 #include <linux.h>
+#include <errno.h>
 #include <elf.h>
+
+int fs_tid;
 
 void _start (void);
 void __syscall_asm (void);
@@ -38,6 +41,37 @@ asm
 
 /* Trust me, I'm an engineer */
 static uint32_t some_fancy_random_chars[4] = {0xdeadcefe, 0xcafebabe, 0x001c0c0a, 0x12345678};
+
+void
+wait_for_service (const char *service)
+{
+  /* Horrible busy loop */
+  while ((fs_tid = query_service (service)) == -ESRCH);
+}
+
+struct fs_msg
+{
+  uint32_t type;
+  uint32_t link;
+  uint32_t sender;
+};
+
+void
+fs_init (void)
+{
+  int i;
+  struct fs_msg msg;
+  int result;
+  
+  for (i = 0; i < 3; ++i)
+  {
+    msg.type = i;
+    msg.link = -i - 1;
+    msg.sender = 2 * i + 1;
+
+    result = msgwrite (fs_tid, &msg, sizeof (struct fs_msg));
+  }
+}
 
 void
 linux_abi_init (int (*entry) (), Elf32_Ehdr *imagebase)
@@ -71,6 +105,14 @@ linux_abi_init (int (*entry) (), Elf32_Ehdr *imagebase)
       (char *) AT_NULL,
       NULL
     };
+
+  puts ("Waiting for filesystem daemon... ");
+  wait_for_service ("fs");
+  puts ("tid=");
+  puti (fs_tid);
+  puts ("\n");
+
+  fs_init ();
   
   setintgate (0x80, linux_syscall);
 

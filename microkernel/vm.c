@@ -862,8 +862,12 @@ vm_space_load_from_exec (const void *exec_start, busword_t exec_size, busword_t 
 
   loader_get_abi (handle, abi, sizeof (abi) - 1);
 
-  if (strcmp (abi, "agnostic"))
-    if (vm_space_load_abi_vdso (space, abi, abi_entry) == -1)
+  if (strcmp (abi, "agnostic") == 0)
+  {
+    if (abi_entry != NULL)
+      *abi_entry = 0;
+  }
+  else if (vm_space_load_abi_vdso (space, abi, abi_entry) == -1)
     {
       vm_space_destroy (space);
     
@@ -894,10 +898,10 @@ vm_space_load_from_exec (const void *exec_start, busword_t exec_size, busword_t 
     
     return KERNEL_INVALID_POINTER;
   }
-  
+
   if (entry != NULL)
     *entry = loader_get_exec_entry (handle);
-  
+
   loader_close_exec (handle);
 
   return space;

@@ -807,7 +807,7 @@ x86_isr_handler (struct x86_stack_frame *frame)
   
   set_interrupt_frame (frame);
 
-  __asm__ __volatile__ ("movl %%cr2, %%eax\n": "=a" (cr2));
+  __asm__ __volatile__ ("movl %%cr2, %0\n": "=a" (cr2));
 
   if (frame->int_no >= 32 && frame->int_no < 56)
   {
@@ -885,7 +885,7 @@ x86_isr_handler (struct x86_stack_frame *frame)
     case X86_INT_GENERAL_PROTECTION_FAULT:
     case X86_INT_DOUBLE_FAULT:
     case X86_INT_PAGE_FAULT:
-      if (task->ts_type == TASK_TYPE_KERNEL_THREAD)
+      if (task->ts_type == TASK_TYPE_KERNEL_THREAD||1)
         x86_regdump (frame);
 /*
   Uncomment the following when you need to debug the user's stack 

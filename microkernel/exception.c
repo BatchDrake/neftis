@@ -42,13 +42,15 @@ static char *exception_description[] =
   "DEBUGGER_TRAP"
 };
 
-/* Intended to be called from interrupt context only */
+/* Intended to be called from task context only - exceptions come from either userland or
+   kernel threads. An exception can't be raised in interrupt context (it doesn't make
+   sense) */
 void
 task_trigger_exception (struct task *task, int exception, busword_t textaddr, busword_t data, int code)
 {
   DECLARE_CRITICAL_SECTION (except);
 
-  ASSERT (get_current_context () == KERNEL_CONTEXT_INTERRUPT);
+  ASSERT (get_current_context () == KERNEL_CONTEXT_TASK);
   ASSERT (get_current_task () == task);
   
   if (exception < 0 || exception >= EX_MAX)

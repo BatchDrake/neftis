@@ -52,7 +52,7 @@ sys_writev (struct x86_common_regs *regs)
 
     puts (", ");
 
-    putp (regs->ecx);
+    putp ((void *) regs->ecx);
 
     puts (", ");
 

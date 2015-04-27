@@ -1,5 +1,5 @@
 /*
- *    <one line to give the program's name and a brief idea of what it does.>
+ *    Common library functions
  *    Copyright (C) <year>  <name of author>
  *
  *    This program is free software: you can redistribute it and/or modify
@@ -16,6 +16,7 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
 
+#include <atomik.h>
 #include <types.h>
 #include <ctype.h>
 #include <stdlib.h>
@@ -241,12 +242,6 @@ sbrk (ptrdiff_t increment)
   void *result;
   
   curr_brk = brk (0);
-
-  puts ("Current break: ");
-  putp (curr_brk);
-  puts (", want to extend it to ");
-  putp (curr_brk + increment);
-  puts ("\n");
   
   if (increment == 0)
     result = curr_brk;
@@ -266,5 +261,21 @@ sbrk (ptrdiff_t increment)
   else
     result = curr_brk; /* Return the previous value of the program break */
   
+  return result;
+}
+
+char *
+strdup (const char *str)
+{
+  size_t len;
+  char *result;
+  
+  len = strlen (str);
+
+  if ((result = malloc (len + 1)) == NULL)
+    return NULL;
+
+  memcpy (result, str, len + 1);
+
   return result;
 }

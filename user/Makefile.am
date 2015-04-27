@@ -5,9 +5,12 @@ libuser_a_CFLAGS=-fstrength-reduce -finline-functions -nostdinc -nostdlib -fno-b
     
 libuser_a_SOURCES=\
 ipc.c \
+malloc.c \
 stdlib.c \
 system.c \
 include/atomik.h \
 include/ctype.h \
 include/errno.h \
-include/stdlib.h
+include/malloc.h \
+include/stdlib.h \
+include/stddef.h

@@ -1,5 +1,5 @@
 /*
- *    ELF32 Linux ABI VDSO for Atomik
+ *    Atomik microkernel system interface
  *    Copyright (C) 2014  Gonzalo J. Carracedo
  *
  *    This program is free software: you can redistribute it and/or modify

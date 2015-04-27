@@ -19,6 +19,9 @@
 #include <types.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <errno.h>
+
+int errno;
 
 size_t 
 strlen (const char *s)
@@ -222,4 +225,46 @@ ultostr (unsigned long num, char *buf, size_t max)
     buf[i] = (num % 10) + '0';
     num /= 10;
   }  
+}
+
+void
+abort (void)
+{
+  puts ("Abnormal program termination\n");
+  exit (127);
+}
+
+void *
+sbrk (ptrdiff_t increment)
+{
+  void *curr_brk;
+  void *result;
+  
+  curr_brk = brk (0);
+
+  puts ("Current break: ");
+  putp (curr_brk);
+  puts (", want to extend it to ");
+  putp (curr_brk + increment);
+  puts ("\n");
+  
+  if (increment == 0)
+    result = curr_brk;
+  else
+    result = brk (curr_brk + increment);
+  
+  if ((long) result == -EINVAL)
+  {
+    errno = EINVAL;
+    result = NULL;
+  }
+  else if (result != curr_brk + increment)
+  {
+    errno = ENOMEM;
+    result = NULL;
+  }
+  else
+    result = curr_brk; /* Return the previous value of the program break */
+  
+  return result;
 }

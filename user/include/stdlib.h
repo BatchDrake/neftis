@@ -19,6 +19,9 @@
 #ifndef _STDLIB_H
 #define _STDLIB_H
 
+#include <stddef.h>
+#include <malloc.h>
+
 size_t strlen (const char *);
 unsigned int umax (unsigned int, unsigned int);
 int max (int, int);
@@ -33,5 +36,6 @@ void *memset (void *, int, size_t);
 int  strtoi (const char *, int *);
 unsigned long strtoul (const char *, int *);
 void ultostr (unsigned long, char *, size_t);
-
+void abort (void);
+void *sbrk (ptrdiff_t);
 #endif /* _STDLIB_H */

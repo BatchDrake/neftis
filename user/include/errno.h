@@ -1,6 +1,8 @@
 #ifndef _MISC_ERRNO_H
 #define _MISC_ERRNO_H
 
+extern int errno;
+
 /* Shamelessly copied from Linux's asm-generic/errno-base.h */
 
 #define EPERM            1      /* Operation not permitted */

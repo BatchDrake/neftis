@@ -21,23 +21,32 @@
 
 #include <ipc/msg.h>
 
-#define FS_REQ_TYPE_OPEN  0
-#define FS_REQ_TYPE_CLOSE 1
-#define FS_REQ_TYPE_READ  2
-#define FS_REQ_TYPE_WRITE 3
-#define FS_REQ_TYPE_STAT  4
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
 
-#define FS_REP_TYPE_ERROR 5
-#define FS_REP_TYPE_DATA  6
+#define FS_REQ_TYPE_OPEN     0
+#define FS_REQ_TYPE_CLOSE    1
+#define FS_REQ_TYPE_READ     2
+#define FS_REQ_TYPE_WRITE    3
+#define FS_REQ_TYPE_STAT     4
+#define FS_REQ_TYPE_LSEEK    5
+#define FS_REQ_TYPE_GETDENTS 6
+
+#define FS_REP_TYPE_ERROR    0
+#define FS_REP_TYPE_DATA     1
+
 
 struct fs_msg
 {
   struct msg_header fm_header;
-
+  
   union
   {
     char     fm_filename[0]; /* Name of the file to open */
+    uint8_t  fm_data[0];     /* File data */
     uint32_t fm_handle;      /* Numerical handle */
+    uint32_t fm_errno;       /* Error code */
   };
 };
 

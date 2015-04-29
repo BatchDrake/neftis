@@ -36,6 +36,7 @@ typedef struct mf_handle
 {
   int id;
   busword_t owner;
+  busword_t ptr;
   struct memfs_file *file;
 }
 mf_handle_t;

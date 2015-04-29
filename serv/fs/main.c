@@ -40,6 +40,7 @@ mf_handle_new (busword_t owner, struct memfs_file *file)
   new->owner = owner;
   new->file  = file;
   new->id    = -1;
+  new->ptr   = 0;
   
   return new;
 }
@@ -293,6 +294,146 @@ init_fs_tree (void)
 fail:
   return -ENOMEM;
 }
+
+int
+fs_file_open (busword_t owner, const char *path)
+{
+  struct memfs_file *file;
+  mf_handle_t *handle;
+  
+  int error;
+  int hid;
+  
+  if ((file = memfs_namei (root, path, &error)) == NULL)
+    return -error;
+
+  if ((handle = mf_handle_new (owner, file)) == NULL)
+    return -ENOENT;
+
+  if ((hid = PTR_LIST_APPEND_CHECK (openfile, handle)) == -1)
+  {
+    mf_handle_destroy (handle);
+
+    return -ENOMEM;
+  }
+
+  handle->id = hid;
+
+  return hid;
+}
+
+mf_handle_t *
+mf_handle_from_hid (busword_t owner, busword_t hid)
+{
+  if (hid >= openfile_count ||
+      openfile_list[hid] == NULL ||
+      openfile_list[hid]->owner != owner)
+    return NULL;
+
+  return openfile_list[hid];
+}
+
+int
+fs_close (busword_t owner, busword_t hid)
+{
+  mf_handle_t *handle;
+
+  if ((handle = mf_handle_from_hid (owner, hid)) == NULL)
+    return -EBADF;
+
+  openfile_list[handle->id] = NULL;
+
+  mf_handle_destroy (handle);
+
+  return 0;
+}
+
+int
+fs_write (busword_t owner, busword_t hid, const void *data, size_t size)
+{
+  mf_handle_t *handle;
+  
+  if ((handle = mf_handle_from_hid (owner, hid)) == NULL)
+    return -EBADF;
+
+  if (handle->file->type == MEMFILE_TYPE_DIR)
+    return -EISDIR;
+
+  if (size > 0)
+    return -EROFS;
+}
+
+int
+fs_read (busword_t owner, busword_t hid, void *data, size_t size)
+{
+  mf_handle_t *handle;
+  
+  if ((handle = mf_handle_from_hid (owner, hid)) == NULL)
+    return -EBADF;
+
+  if (handle->file->type == MEMFILE_TYPE_DIR)
+    return -EISDIR;
+
+  if (size > 0)
+    return -EROFS;
+
+  if (handle->ptr + size > handle->file->as_reg.size)
+  {
+    size = handle->file->as_reg.size - handle->ptr;
+    
+    if (size < 0)
+      size = 0;
+  }
+
+  if (size > 0)
+    memcpy (data, handle->file->as_reg.data, size);
+
+  return size;
+}
+
+int
+fs_lseek (busword_t owner, busword_t hid, int off, int whence)
+{
+  mf_handle_t *handle;
+  int final_off;
+  int max_size;
+  
+  if ((handle = mf_handle_from_hid (owner, hid)) == NULL)
+    return -EBADF;
+
+  if (handle->file->type == MEMFILE_TYPE_DIR)
+    max_size = handle->file->as_dir.file_count;
+  else
+    max_size = handle->file->as_reg.size;
+
+  switch (whence)
+  {
+  case SEEK_SET:
+    final_off = off;
+    break;
+
+  case SEEK_CUR:
+    final_off = handle->ptr + off;
+    break;
+
+  case SEEK_END:
+    final_off = max_size + off;
+    break;
+
+  default:
+    return -EINVAL;
+  }
+
+  if (final_off < 0)
+    final_off = 0;
+  else if (final_off > max_size)
+    final_off = max_size;
+
+  handle->ptr = final_off;
+  
+  return final_off;
+}
+
 
 void
 _start (void)

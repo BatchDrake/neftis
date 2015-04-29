@@ -24,6 +24,8 @@
 #include <serv/fs.h>
 #include <memfs.h>
 
+#include <sys/stat.h>
+
 /* This phony filesystem is implemented without . or .. */
 
 struct memfs_file *root;

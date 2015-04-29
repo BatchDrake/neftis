@@ -20,6 +20,7 @@
 #define _SERV_FS_H
 
 #include <ipc/msg.h>
+#include <sys/stat.h>
 
 #define SEEK_SET 0
 #define SEEK_CUR 1
@@ -36,17 +37,25 @@
 #define FS_REP_TYPE_ERROR    0
 #define FS_REP_TYPE_DATA     1
 
+struct fs_dent
+{
+  uint32_t fd_ino;
+  uint16_t fd_fnsiz;
+  char     fd_fname[0];
+};
 
 struct fs_msg
 {
-  struct msg_header fm_header;
-  
+  struct frag_msg_header fm_header;
+
   union
   {
     char     fm_filename[0]; /* Name of the file to open */
     uint8_t  fm_data[0];     /* File data */
     uint32_t fm_handle;      /* Numerical handle */
     uint32_t fm_errno;       /* Error code */
+    struct fs_dent fm_dents[0];
+    struct stat fm_sbuf;     /* File status */
   };
 };
 

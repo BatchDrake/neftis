@@ -19,6 +19,9 @@
 #ifndef _ATOMIK_H
 #define _ATOMIK_H
 
+/* Size of a micromessage */
+#define MSG_MICRO_SIZE 256
+
 /* Microkernel system calls */
 #define SYS_KRN_exit             0
 #define SYS_KRN_debug_int        1

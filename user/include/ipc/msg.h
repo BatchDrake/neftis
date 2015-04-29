@@ -22,6 +22,7 @@
 #include <types.h>
 
 #define MSG_MICRO_SIZE 256
+#define MSG_FRAG_PAYLOAD_SIZE (MSG_MICRO_SIZE - sizeof (struct frag_msg_header))
 
 struct msg_header
 {
@@ -31,5 +32,22 @@ struct msg_header
 
   char mh_data[0]; /* Message data */
 };
+
+struct frag_msg_header
+{
+  busword_t mh_type;    /* Message type */
+  busword_t mh_link;    /* Referrer */
+  busword_t mh_sender;  /* Original TID */
+
+  /* Fragmented messages also contain fragmentation info */
+  unsigned int mh_msg_size; /* Payload size */
+  
+  /* This is a queue. No "frag-count" field is required*/
+
+  char mh_data[0];
+};
+
+int fragmsg_read (void **, unsigned int *, int);
+int fragmsg_write (int, const void *, unsigned int);
 
 #endif /* _IPC_MSG_H */

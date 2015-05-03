@@ -436,13 +436,40 @@ fs_lseek (busword_t owner, busword_t hid, int off, int whence)
   return final_off;
 }
 
+int
+fs_reply_handle (int tid, uint32_t link, int type, uint32_t handle)
+{
+  struct fs_msg msg;
+
+  msg.fm_header.mh_type = type;
+  msg.fm_header.mh_link = link;
+  msg.fm_handle = handle;
+
+
+  return fragmsg_write (tid, &msg, FS_MSG_SIZE_FROM_PAYLOAD (sizeof (uint32_t)));
+}
+
+int
+fs_reply_errno (int tid, uint32_t link, int type, uint32_t errno)
+{
+  struct fs_msg msg;
+
+  msg.fm_header.mh_type = type;
+  msg.fm_header.mh_link = link;
+  msg.fm_errno          = errno;
+
+
+  return fragmsg_write (tid, &msg, FS_MSG_SIZE_FROM_PAYLOAD (sizeof (uint32_t)));
+}
 
 void
 _start (void)
 {
-  struct fs_msg msg;
-  int result;
-
+  struct fs_msg *msg;
+  unsigned int msg_len;
+  uint32_t msgid;
+  int retval;
+  
   if (init_fs_tree () == -1)
   {
     puts ("fs: no memory left\n");
@@ -453,18 +480,39 @@ _start (void)
 
   puts ("fs: atomik filesystem service started - version 0.1\n");
   
-  while ((result = msgread (&msg, sizeof (struct fs_msg), 0)) != -ENOSYS)
+  while ((msgid = fragmsg_read ((void **) &msg, &msg_len, 0)) != -ENOSYS)
   {
-    puts ("fs: received message (type: ");
-    puti (msg.fm_header.mh_type);
-    puts (")\n");
+    if (msgid < 0)
+    {
+      puts ("fs: error ");
+      puti (-msgid);
+      puts ("\n");
+      continue;
+    }
+    
+    /* TODO: check message integrity */
+    switch (msg->fm_header.mh_type)
+    {
+    case FS_REQ_TYPE_OPEN:
+      if ((retval = fs_file_open (msg->fm_header.mh_sender, msg->fm_filename)) < 0)
+        (void) fs_reply_errno  (msg->fm_header.mh_sender, msgid, FS_REP_TYPE_ERROR, -retval);
+      else
+        (void) fs_reply_handle (msg->fm_header.mh_sender, msgid, FS_REP_TYPE_HANDLE, retval);
 
-    if (msg.fm_header.mh_type == 2)
-      debug_fs_tree (root);
+      break;
+
+    default:
+      puts ("fs: unimplemented msg ");
+      puti (msg->fm_header.mh_type);
+      puts ("\n");
+      break;
+    }
+    
+    free (msg);
   }
 
   puts ("fs exited, result: ");
-  puti (result);
+  puti (msgid);
   puts ("\n");
   exit (0);
 }

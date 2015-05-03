@@ -23,7 +23,7 @@
 
 #include <serv/fs.h>
 
-int fs_tid;
+static int fs_tid;
 
 void _start (void);
 void __syscall_asm (void);
@@ -52,20 +52,27 @@ wait_for_service (const char *service)
 }
 
 void
+test_open (const char *file)
+{
+  puts ("osabi-test-open: ");
+  puts (file);
+  puts (": ");
+  puti (fs_open (file, 0));
+  puts ("\n");
+}
+
+void
 fs_init (void)
 {
-  int i;
-  struct fs_msg msg;
-  int result;
-  
-  for (i = 0; i < 3; ++i)
-  {
-    msg.fm_header.mh_type = i;
-    msg.fm_header.mh_link = -i - 1;
-    msg.fm_header.mh_sender = 2 * i + 1; /* Just to test whether this is overwritten */
+  int fd;
 
-    result = msgwrite (fs_tid, &msg, sizeof (struct fs_msg));
-  }
+  test_open ("/");
+  test_open ("/etc");
+  test_open ("/fsdfasd");
+  test_open ("/bin/uname");
+  test_open ("/etc/atomik/settings.conf");
+  test_open ("/etc/atomik/settings.conf/nothing");
+  
 }
 
 void
@@ -101,12 +108,7 @@ linux_abi_init (int (*entry) (), Elf32_Ehdr *imagebase)
       NULL
     };
 
-  puts ("Waiting for filesystem daemon... ");
   wait_for_service ("fs");
-  puts ("tid=");
-  puti (fs_tid);
-  puts ("\n");
-
   fs_init ();
 
   setintgate (0x80, linux_syscall);

@@ -36,6 +36,9 @@
 
 #define FS_REP_TYPE_ERROR    0
 #define FS_REP_TYPE_DATA     1
+#define FS_REP_TYPE_HANDLE   2
+
+#define FS_MSG_SIZE_FROM_PAYLOAD(size) (sizeof (struct frag_msg_header) + (size))
 
 struct fs_dent
 {
@@ -58,5 +61,7 @@ struct fs_msg
     struct stat fm_sbuf;     /* File status */
   };
 };
+
+int fs_open (const char *, int);
 
 #endif /* _SERV_FS_H */

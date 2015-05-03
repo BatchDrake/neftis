@@ -104,7 +104,7 @@ fragmsg_read (void **data, unsigned int *size, int nonblock)
 {
   struct frag_msg_header *msg = NULL, *new = NULL;
   int ret;
-  unsigned int p;
+  unsigned int p, msgid;
   
   if ((msg = malloc (MSG_MICRO_SIZE)) == NULL)
     return -ENOMEM;
@@ -112,19 +112,16 @@ fragmsg_read (void **data, unsigned int *size, int nonblock)
   if ((ret = msgread (msg, MSG_MICRO_SIZE, nonblock)) < 0)
     goto fail;
 
+  msgid = ret;
+  
   /* Message is not fragmented */
   if (msg->mh_msg_size <= MSG_FRAG_PAYLOAD_SIZE)
   {
-    if (msg->mh_msg_size + sizeof (struct frag_msg_header) != ret)
-    {
-      ret = -ENOMSG;
-      goto fail;
-    }
-    
+    /* FIXME: message API is broken, need to get message size separately */
     *data = msg;
     *size = ret;
 
-    return 0;
+    return msgid;
   }
 
   if ((new = realloc (msg, sizeof (struct frag_msg_header) + msg->mh_msg_size)) == NULL)
@@ -160,7 +157,7 @@ fragmsg_read (void **data, unsigned int *size, int nonblock)
   *data = msg;
   *size = msg->mh_msg_size;
   
-  return 0;
+  return msgid;
   
 fail:
   if (msg != NULL)
@@ -181,6 +178,7 @@ fragmsg_write (int tid, const void *data, unsigned int size)
   int p;
   int ret;
   int sendsize;
+  int msgid = -1;
   
   if ((msg = malloc (MSG_MICRO_SIZE)) == NULL)
     return -ENOMEM;
@@ -197,16 +195,19 @@ fragmsg_write (int tid, const void *data, unsigned int size)
 
     if (sendsize > MSG_FRAG_PAYLOAD_SIZE)
       sendsize = MSG_FRAG_PAYLOAD_SIZE;
-    
+
     memcpy (msg->mh_data, bigmsg->mh_data + p, sendsize);
 
-    if ((ret = msgwrite (tid, msg, sendsize)) < 0)
+    if ((ret = msgwrite (tid, msg, sizeof (struct frag_msg_header) + sendsize)) < 0)
       goto done;
 
+    if (msgid == -1)
+      msgid = ret;
+    
     p += sendsize;
   }
 
-  ret = 0;
+  ret = msgid;
   
 done:
   free (msg);
